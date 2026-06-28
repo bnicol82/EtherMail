@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { useEtherMailStore } from './store/useStore'
 import { Sidebar } from './components/Sidebar'
 import { BottomBar } from './components/BottomBar'
+import { AIContextStrip } from './components/AIContextStrip'
 import { Dashboard } from './components/Dashboard'
 import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
@@ -33,24 +34,12 @@ function MainContent() {
 
 export default function App() {
   const theme = useEtherMailStore((s) => s.theme)
-  const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const sidebarOpen = useEtherMailStore((s) => s.sidebarOpen)
   const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        setAiAssistantOpen(true)
-      }
-    }
-    window.addEventListener('keydown', handler)
-    return () => window.removeEventListener('keydown', handler)
-  }, [setAiAssistantOpen])
 
   return (
     <div className="ethermail-bg h-full flex flex-col md:flex-row overflow-hidden">
@@ -72,7 +61,7 @@ export default function App() {
 
       {sidebarOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+          className="md:hidden fixed inset-0 bg-black/30 z-40 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -89,10 +78,11 @@ export default function App() {
         <Sidebar />
       </div>
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-[72px] sm:pb-[56px]">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-[108px] sm:pb-[100px]">
         <MainContent />
       </main>
 
+      <AIContextStrip />
       <BottomBar />
     </div>
   )

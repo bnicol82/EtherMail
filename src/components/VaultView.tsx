@@ -13,6 +13,7 @@ import {
   Link2,
 } from 'lucide-react'
 import { useNexusStore, useGraph } from '../store/useStore'
+import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { MiniGraph } from './MiniGraph'
 import { getBacklinks } from '../lib/utils'
@@ -20,6 +21,7 @@ import { getBacklinks } from '../lib/utils'
 export function VaultView() {
   const folders = useNexusStore((s) => s.folders)
   const notes = useNexusStore((s) => s.notes)
+  const emails = useNexusStore((s) => s.emails)
   const activeNoteId = useNexusStore((s) => s.activeNoteId)
   const activeFolderId = useNexusStore((s) => s.activeFolderId)
   const selectNote = useNexusStore((s) => s.selectNote)
@@ -31,9 +33,8 @@ export function VaultView() {
   const setSearchQuery = useNexusStore((s) => s.setSearchQuery)
   const mobilePanel = useNexusStore((s) => s.mobilePanel)
   const setMobilePanel = useNexusStore((s) => s.setMobilePanel)
-  const setView = useNexusStore((s) => s.setView)
-  const addChatMessage = useNexusStore((s) => s.addChatMessage)
-  const setAiMode = useNexusStore((s) => s.setAiMode)
+  const setAiAssistantOpen = useNexusStore((s) => s.setAiAssistantOpen)
+  const submitAiQuery = useNexusStore((s) => s.submitAiQuery)
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['root', 'projects', 'athena']))
   const activeNote = notes.find((n) => n.id === activeNoteId)
@@ -107,9 +108,9 @@ export function VaultView() {
   const backlinks = activeNote ? getBacklinks(activeNote.title, notes) : []
 
   const aiAction = (action: string) => {
-    setView('ai')
-    setAiMode('vault')
-    addChatMessage({ role: 'user', content: action, mode: 'vault' })
+    const ctx = getAIContext('vault', { activeNote, emails, notes })
+    setAiAssistantOpen(true)
+    submitAiQuery(action, ctx.contextPrefix)
   }
 
   return (

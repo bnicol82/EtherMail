@@ -16,6 +16,7 @@ import type {
   Theme,
   View,
 } from '../types'
+import { generateVaultAIResponse } from '../lib/rag'
 
 interface EtherMailState {
   view: View
@@ -43,6 +44,11 @@ interface EtherMailState {
 
   aiAssistantOpen: boolean
   setAiAssistantOpen: (open: boolean) => void
+
+  aiLoading: boolean
+  aiContextResponse: string | null
+  submitAiQuery: (query: string, contextPrefix?: string) => Promise<void>
+  clearAiContextResponse: () => void
 
   aiSettings: AISettings
   setAISettings: (settings: Partial<AISettings>) => void
@@ -97,6 +103,19 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       aiAssistantOpen: false,
       setAiAssistantOpen: (aiAssistantOpen) => set({ aiAssistantOpen }),
+
+      aiLoading: false,
+      aiContextResponse: null,
+      submitAiQuery: async (query, contextPrefix = '') => {
+        const state = get()
+        set({ aiLoading: true })
+        state.addChatMessage({ role: 'user', content: query, mode: 'vault' })
+        const fullQuery = contextPrefix ? `${contextPrefix}${query}` : query
+        const reply = await generateVaultAIResponse(fullQuery, state.notes, state.emails)
+        state.addChatMessage({ role: 'assistant', content: reply, mode: 'vault' })
+        set({ aiLoading: false, aiContextResponse: reply, aiAssistantOpen: true })
+      },
+      clearAiContextResponse: () => set({ aiContextResponse: null, aiAssistantOpen: false }),
 
       aiSettings: {
         externalApiKey: '',
