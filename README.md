@@ -34,9 +34,14 @@ npm run preview
 
 ## GitHub Pages Setup
 
-1. Go to **Settings → Pages**
-2. Under **Build and deployment**, set Source to **GitHub Actions**
-3. Push to `main` — the deploy workflow runs automatically
+> **Required once per repo.** The deploy workflow fails with `404 Not Found` until Pages is enabled.
+
+1. Open **[EtherMail → Settings → Pages](https://github.com/bnicol82/EtherMail/settings/pages)**
+2. Under **Build and deployment → Source**, choose **GitHub Actions** (not “Deploy from a branch”)
+3. Save, then re-run the workflow:
+   - **Actions** tab → **Deploy to GitHub Pages** → **Run workflow**
+
+The site will be live at **https://bnicol82.github.io/EtherMail/** after a successful deploy.
 
 ## Roadmap
 
