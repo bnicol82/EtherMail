@@ -8,8 +8,9 @@ import {
   Plus,
   Settings,
   X,
+  Inbox,
 } from 'lucide-react'
-import { useNexusStore } from '../store/useStore'
+import { useEtherMailStore } from '../store/useStore'
 import { providerColor, providerLabel } from '../lib/utils'
 import type { View } from '../types'
 
@@ -22,46 +23,52 @@ const NAV: { id: View; label: string; icon: typeof Mail }[] = [
 ]
 
 export function Sidebar() {
-  const view = useNexusStore((s) => s.view)
-  const setView = useNexusStore((s) => s.setView)
-  const accounts = useNexusStore((s) => s.accounts)
-  const createNote = useNexusStore((s) => s.createNote)
-  const setSidebarOpen = useNexusStore((s) => s.setSidebarOpen)
-  const emails = useNexusStore((s) => s.emails)
+  const view = useEtherMailStore((s) => s.view)
+  const setView = useEtherMailStore((s) => s.setView)
+  const accounts = useEtherMailStore((s) => s.accounts)
+  const createNote = useEtherMailStore((s) => s.createNote)
+  const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
+  const emails = useEtherMailStore((s) => s.emails)
+  const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
+  const selectAccount = useEtherMailStore((s) => s.selectAccount)
   const unread = emails.filter((e) => !e.read).length
 
   const navigate = (v: View) => {
+    if (v === 'email') selectAccount(null)
     setView(v)
     setSidebarOpen(false)
   }
 
+  const accountUnread = (accountId: string) =>
+    emails.filter((e) => e.accountId === accountId && !e.read).length
+
   return (
-    <aside className="w-64 h-full glass-strong flex flex-col border-r border-white/10 shrink-0">
-      <div className="p-4 border-b border-white/10">
+    <aside className="w-64 h-full glass-strong flex flex-col border-r border-[var(--glass-border)] shrink-0">
+      <div className="p-4 border-b border-[var(--glass-border)]">
         <div className="hidden md:flex items-center gap-2 mb-4">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-sm font-bold shadow-lg shadow-indigo-500/30">
-            N
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-sm font-bold text-white shadow-lg">
+            E
           </div>
-          <span className="font-semibold text-white text-lg">Nexus Core</span>
+          <span className="font-semibold text-theme text-lg tracking-tight">EtherMail</span>
         </div>
         <div className="flex gap-2">
           <button
             onClick={() => createNote()}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-sm font-medium transition-colors shadow-md"
           >
             <Plus size={16} />
             New Note
           </button>
           <button
             onClick={() => navigate('settings')}
-            className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+            className="p-2 rounded-xl hover-theme text-theme-muted"
             aria-label="Settings"
           >
             <Settings size={18} />
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-2 rounded-lg hover:bg-white/10 text-slate-400"
+            className="md:hidden p-2 rounded-xl hover-theme text-theme-muted"
             aria-label="Close sidebar"
           >
             <X size={18} />
@@ -74,16 +81,16 @@ export function Sidebar() {
           <button
             key={id}
             onClick={() => navigate(id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
-              view === id
-                ? 'bg-indigo-600/30 text-white border border-indigo-500/40'
-                : 'text-slate-400 hover:text-white hover:bg-white/5'
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+              view === id && (id !== 'email' || !activeAccountId)
+                ? 'nav-active'
+                : 'text-theme-muted hover-theme hover:text-theme'
             }`}
           >
             <Icon size={18} />
             <span className="flex-1 text-left">{label}</span>
             {id === 'email' && unread > 0 && (
-              <span className="px-1.5 py-0.5 rounded-full bg-indigo-500 text-white text-xs">
+              <span className="px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-white text-xs">
                 {unread}
               </span>
             )}
@@ -91,42 +98,84 @@ export function Sidebar() {
         ))}
 
         <div className="pt-4 pb-2">
-          <div className="flex items-center gap-2 px-3 text-xs font-medium text-slate-500 uppercase tracking-wider">
+          <div className="flex items-center gap-2 px-3 text-xs font-medium text-theme-muted uppercase tracking-wider">
             <Calendar size={12} />
             Calendar
-            <span className="ml-auto text-indigo-400 text-[10px] normal-case">Phase 2</span>
+            <span className="ml-auto text-accent text-[10px] normal-case">Phase 2</span>
           </div>
         </div>
 
         <div className="pt-2">
-          <p className="px-3 text-xs font-medium text-slate-500 uppercase tracking-wider mb-2">
+          <p className="px-3 text-xs font-medium text-theme-muted uppercase tracking-wider mb-2">
             Email Accounts
           </p>
-          {accounts.map((acc) => (
-            <button
-              key={acc.id}
-              onClick={() => navigate('email')}
-              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
-            >
-              <span
-                className="w-2 h-2 rounded-full shrink-0"
-                style={{ background: providerColor(acc.provider) }}
-              />
-              <span className="truncate text-left flex-1">{acc.email}</span>
-              {!acc.connected && (
-                <span className="text-[10px] text-amber-400">Setup</span>
-              )}
-            </button>
-          ))}
-          <p className="px-3 mt-2 text-[10px] text-slate-600">
+
+          <button
+            onClick={() => {
+              selectAccount(null)
+              setSidebarOpen(false)
+            }}
+            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors mb-1 ${
+              view === 'email' && !activeAccountId
+                ? 'nav-active'
+                : 'text-theme-muted hover-theme hover:text-theme'
+            }`}
+          >
+            <Inbox size={16} className="shrink-0" />
+            <span className="truncate text-left flex-1">All Inboxes</span>
+            {unread > 0 && (
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent-soft)] text-accent">
+                {unread}
+              </span>
+            )}
+          </button>
+
+          {accounts.map((acc) => {
+            const unreadCount = accountUnread(acc.id)
+            const isActive = view === 'email' && activeAccountId === acc.id
+            return (
+              <button
+                key={acc.id}
+                onClick={() => {
+                  if (acc.connected) {
+                    selectAccount(acc.id)
+                    setSidebarOpen(false)
+                  }
+                }}
+                disabled={!acc.connected}
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
+                  isActive
+                    ? 'nav-active'
+                    : acc.connected
+                      ? 'text-theme-muted hover-theme hover:text-theme'
+                      : 'text-theme-muted opacity-50 cursor-not-allowed'
+                }`}
+              >
+                <span
+                  className="w-2 h-2 rounded-full shrink-0"
+                  style={{ background: providerColor(acc.provider) }}
+                />
+                <span className="truncate text-left flex-1">{acc.email}</span>
+                {unreadCount > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent-soft)] text-accent">
+                    {unreadCount}
+                  </span>
+                )}
+                {!acc.connected && (
+                  <span className="text-[10px] text-amber-500">Setup</span>
+                )}
+              </button>
+            )
+          })}
+          <p className="px-3 mt-2 text-[10px] text-theme-muted opacity-70">
             {providerLabel('gmail')}, Outlook, Yahoo — OAuth in Phase 2
           </p>
         </div>
       </nav>
 
-      <div className="p-3 border-t border-white/10">
-        <div className="glass rounded-lg p-3 text-xs text-slate-500">
-          <span className="text-indigo-400 font-medium">Phase 1 MVP</span>
+      <div className="p-3 border-t border-[var(--glass-border)]">
+        <div className="glass rounded-xl p-3 text-xs text-theme-muted">
+          <span className="text-accent font-medium">EtherMail</span>
           <p className="mt-1">Vault · Email · RAG AI · Graph</p>
         </div>
       </div>

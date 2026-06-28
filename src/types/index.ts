@@ -1,5 +1,15 @@
 export type View = 'dashboard' | 'vault' | 'email' | 'graph' | 'ai' | 'settings'
 
+export type Theme = 'glass' | 'dark' | 'blue'
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  start: string
+  end: string
+  attendees?: string[]
+}
+
 export type EmailProvider = 'gmail' | 'outlook' | 'yahoo' | 'enterprise'
 
 export interface EmailAccount {

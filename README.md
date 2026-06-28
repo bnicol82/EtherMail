@@ -1,4 +1,4 @@
-# Nexus Core (EtherMail)
+# EtherMail
 
 **Obsidian-style knowledge vault** with unified email, knowledge graph, and private RAG AI — Phase 1 MVP.
 

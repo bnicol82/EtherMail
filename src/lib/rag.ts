@@ -70,7 +70,7 @@ export async function generateVaultAIResponse(
   const q = query.toLowerCase()
 
   if (q.includes('how') && (q.includes('link') || q.includes('connect'))) {
-    return `To link an email to a note in Nexus Core:
+    return `To link an email to a note in EtherMail:
 
 1. Open the **Email** view and select a message
 2. Click **Link to Note** in the action menu (or use the command bar: \`Link email to note\`)
@@ -133,10 +133,10 @@ Suggested actions:
 
   const ctx = retrieveContext(query, notes, emails, 3)
   if (ctx.length > 0) {
-    return `Based on your vault and inbox, here's what I found:\n\n${ctx.map((c) => `**${c.title}** (${c.type}): ${c.excerpt}`).join('\n\n')}\n\nAsk me to summarize, draft a reply, find similar notes, or explain how Nexus Core features work.`
+    return `Based on your vault and inbox, here's what I found:\n\n${ctx.map((c) => `**${c.title}** (${c.type}): ${c.excerpt}`).join('\n\n')}\n\nAsk me to summarize, draft a reply, find similar notes, or explain how EtherMail features work.`
   }
 
-  return `I'm your **Vault AI** — I have access to your notes, emails, links, and tags. I don't share this data with external AI unless you enable Bridge mode.
+  return `I'm your **EtherMail Vault AI** — I have access to your notes, emails, links, and tags. I don't share this data with external AI unless you enable Bridge mode.
 
 Try:
 - "Summarize Q3 Plan"

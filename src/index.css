@@ -1,12 +1,6 @@
 @import "tailwindcss";
 
 @theme {
-  --color-nexus-bg: #0a0e17;
-  --color-nexus-surface: rgba(255, 255, 255, 0.06);
-  --color-nexus-border: rgba(255, 255, 255, 0.1);
-  --color-nexus-accent: #6366f1;
-  --color-nexus-accent-2: #8b5cf6;
-  --color-nexus-glow: rgba(99, 102, 241, 0.35);
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
@@ -32,33 +26,146 @@ body,
 
 body {
   font-family: var(--font-sans);
-  background: var(--color-nexus-bg);
-  color: #e2e8f0;
+  background: var(--app-bg);
+  color: var(--text-primary);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.4s ease, color 0.3s ease;
 }
 
-/* Ambient background */
-.nexus-bg {
-  background:
-    radial-gradient(ellipse 80% 50% at 20% 20%, rgba(99, 102, 241, 0.15), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(139, 92, 246, 0.12), transparent),
-    radial-gradient(ellipse 50% 30% at 50% 50%, rgba(59, 130, 246, 0.08), transparent),
-    var(--color-nexus-bg);
+/* ── Theme: Clear Glass (default) ── */
+[data-theme="glass"] {
+  --app-bg: #e8eef6;
+  --app-bg-image:
+    radial-gradient(ellipse 90% 60% at 10% 10%, rgba(255, 255, 255, 0.9), transparent),
+    radial-gradient(ellipse 70% 50% at 90% 90%, rgba(186, 210, 255, 0.5), transparent),
+    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 255, 255, 0.6), transparent),
+    linear-gradient(145deg, #dce6f5 0%, #eef2f8 40%, #e4ecf8 100%);
+  --glass-bg: rgba(255, 255, 255, 0.45);
+  --glass-strong-bg: rgba(255, 255, 255, 0.62);
+  --glass-border: rgba(255, 255, 255, 0.75);
+  --glass-shadow: 0 8px 32px rgba(100, 130, 180, 0.12);
+  --text-primary: #1e293b;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --accent-border: rgba(59, 130, 246, 0.35);
+  --input-bg: rgba(255, 255, 255, 0.55);
+  --hover-bg: rgba(255, 255, 255, 0.35);
+  --active-bg: rgba(59, 130, 246, 0.18);
+  --bottom-bar-bg: rgba(255, 255, 255, 0.72);
+}
+
+/* ── Theme: Dark Frosted Glass ── */
+[data-theme="dark"] {
+  --app-bg: #0c0f14;
+  --app-bg-image:
+    radial-gradient(ellipse 80% 50% at 20% 15%, rgba(80, 90, 120, 0.25), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 85%, rgba(50, 55, 80, 0.3), transparent),
+    linear-gradient(160deg, #0a0d12 0%, #12161e 50%, #0e1118 100%);
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-strong-bg: rgba(255, 255, 255, 0.07);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --accent: #818cf8;
+  --accent-soft: rgba(129, 140, 248, 0.15);
+  --accent-border: rgba(129, 140, 248, 0.35);
+  --input-bg: rgba(255, 255, 255, 0.06);
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --active-bg: rgba(129, 140, 248, 0.2);
+  --bottom-bar-bg: rgba(15, 18, 26, 0.85);
+}
+
+/* ── Theme: Blue Frosted Glass ── */
+[data-theme="blue"] {
+  --app-bg: #0a1628;
+  --app-bg-image:
+    radial-gradient(ellipse 80% 55% at 15% 20%, rgba(59, 130, 246, 0.35), transparent),
+    radial-gradient(ellipse 65% 45% at 85% 75%, rgba(37, 99, 235, 0.28), transparent),
+    radial-gradient(ellipse 50% 35% at 50% 50%, rgba(96, 165, 250, 0.15), transparent),
+    linear-gradient(155deg, #071222 0%, #0f2847 45%, #0a1e3a 100%);
+  --glass-bg: rgba(147, 197, 253, 0.08);
+  --glass-strong-bg: rgba(147, 197, 253, 0.14);
+  --glass-border: rgba(147, 197, 253, 0.22);
+  --glass-shadow: 0 8px 32px rgba(30, 64, 175, 0.25);
+  --text-primary: #e0f2fe;
+  --text-secondary: #bae6fd;
+  --text-muted: #7dd3fc;
+  --accent: #38bdf8;
+  --accent-soft: rgba(56, 189, 248, 0.18);
+  --accent-border: rgba(56, 189, 248, 0.4);
+  --input-bg: rgba(30, 58, 138, 0.35);
+  --hover-bg: rgba(59, 130, 246, 0.12);
+  --active-bg: rgba(56, 189, 248, 0.22);
+  --bottom-bar-bg: rgba(10, 30, 60, 0.88);
+}
+
+.ethermail-bg {
+  background: var(--app-bg-image), var(--app-bg);
 }
 
 .glass {
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
 .glass-strong {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--glass-strong-bg);
+  backdrop-filter: blur(32px) saturate(1.8);
+  -webkit-backdrop-filter: blur(32px) saturate(1.8);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.glass-frost {
+  background: var(--glass-strong-bg);
+  backdrop-filter: blur(40px) saturate(2);
+  -webkit-backdrop-filter: blur(40px) saturate(2);
+  border: 1px solid var(--glass-border);
+}
+
+.text-theme { color: var(--text-primary); }
+.text-theme-secondary { color: var(--text-secondary); }
+.text-theme-muted { color: var(--text-muted); }
+.bg-accent-soft { background: var(--accent-soft); }
+.border-accent { border-color: var(--accent-border); }
+.text-accent { color: var(--accent); }
+
+.btn-accent {
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+}
+
+.btn-accent:hover {
+  background: var(--active-bg);
+}
+
+.input-theme {
+  background: var(--input-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-primary);
+}
+
+.input-theme::placeholder {
+  color: var(--text-muted);
+}
+
+.hover-theme:hover {
+  background: var(--hover-bg);
+}
+
+.nav-active {
+  background: var(--active-bg);
+  border: 1px solid var(--accent-border);
+  color: var(--text-primary);
 }
 
 ::-webkit-scrollbar {
@@ -71,46 +178,42 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--glass-border);
   border-radius: 3px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
 }
 
 .markdown-body h1 {
   font-size: 1.75rem;
   font-weight: 700;
   margin: 0 0 1rem;
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 .markdown-body h2 {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 1.5rem 0 0.75rem;
-  color: #e2e8f0;
+  color: var(--text-secondary);
 }
 
 .markdown-body h3 {
   font-size: 1.1rem;
   font-weight: 600;
   margin: 1rem 0 0.5rem;
-  color: #cbd5e1;
+  color: var(--text-secondary);
 }
 
 .markdown-body p {
   margin: 0 0 0.75rem;
   line-height: 1.7;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .markdown-body ul,
 .markdown-body ol {
   margin: 0 0 0.75rem;
   padding-left: 1.5rem;
-  color: #94a3b8;
+  color: var(--text-muted);
 }
 
 .markdown-body li {
@@ -118,19 +221,20 @@ body {
 }
 
 .markdown-body code {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
   padding: 0.15rem 0.4rem;
   border-radius: 4px;
   font-size: 0.875em;
-  color: #a5b4fc;
+  color: var(--accent);
 }
 
 .markdown-body pre {
-  background: rgba(0, 0, 0, 0.4);
+  background: var(--input-bg);
   padding: 1rem;
   border-radius: 8px;
   overflow-x: auto;
   margin: 0 0 1rem;
+  border: 1px solid var(--glass-border);
 }
 
 .markdown-body pre code {
@@ -140,7 +244,7 @@ body {
 
 .markdown-body a,
 .wiki-link {
-  color: #818cf8;
+  color: var(--accent);
   text-decoration: none;
   cursor: pointer;
 }
@@ -159,18 +263,14 @@ body {
 
 .markdown-body th,
 .markdown-body td {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
   padding: 0.5rem 0.75rem;
   text-align: left;
 }
 
 .markdown-body th {
-  background: rgba(255, 255, 255, 0.05);
-  color: #e2e8f0;
-}
-
-.markdown-body input[type="checkbox"] {
-  margin-right: 0.5rem;
+  background: var(--glass-bg);
+  color: var(--text-secondary);
 }
 
 @keyframes fade-in {
@@ -186,6 +286,13 @@ body {
 
 .animate-fade-in {
   animation: fade-in 0.3s ease-out;
+}
+
+.bottom-dock {
+  background: var(--bottom-bar-bg);
+  backdrop-filter: blur(40px) saturate(1.8);
+  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  border-top: 1px solid var(--glass-border);
 }
 
 @media (max-width: 768px) {
