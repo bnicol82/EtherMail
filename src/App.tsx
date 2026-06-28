@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
-import { useNexusStore } from './store/useStore'
+import { useEtherMailStore } from './store/useStore'
 import { Sidebar } from './components/Sidebar'
-import { CommandBar } from './components/CommandBar'
+import { BottomBar } from './components/BottomBar'
 import { Dashboard } from './components/Dashboard'
 import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
@@ -11,7 +11,7 @@ import { SettingsView } from './components/SettingsView'
 import { Menu } from 'lucide-react'
 
 function MainContent() {
-  const view = useNexusStore((s) => s.view)
+  const view = useEtherMailStore((s) => s.view)
 
   switch (view) {
     case 'dashboard':
@@ -32,48 +32,47 @@ function MainContent() {
 }
 
 export default function App() {
-  const setCommandOpen = useNexusStore((s) => s.setCommandOpen)
-  const sidebarOpen = useNexusStore((s) => s.sidebarOpen)
-  const setSidebarOpen = useNexusStore((s) => s.setSidebarOpen)
+  const theme = useEtherMailStore((s) => s.theme)
+  const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
+  const sidebarOpen = useEtherMailStore((s) => s.sidebarOpen)
+  const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
-        setCommandOpen(true)
-      }
-      if (e.key === '/' && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
-        e.preventDefault()
-        setCommandOpen(true)
+        setAiAssistantOpen(true)
       }
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [setCommandOpen])
+  }, [setAiAssistantOpen])
 
   return (
-    <div className="nexus-bg h-full flex flex-col md:flex-row overflow-hidden">
-      {/* Mobile header */}
-      <header className="md:hidden flex items-center gap-3 px-4 py-3 glass border-b border-white/10 shrink-0">
+    <div className="ethermail-bg h-full flex flex-col md:flex-row overflow-hidden">
+      <header className="md:hidden flex items-center gap-3 px-4 py-3 glass border-b border-[var(--glass-border)] shrink-0">
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg hover:bg-white/10"
+          className="p-2 rounded-lg hover-theme"
           aria-label="Toggle menu"
         >
-          <Menu size={20} />
+          <Menu size={20} className="text-theme" />
         </button>
         <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-xs font-bold">
-            N
+          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
+            E
           </div>
-          <span className="font-semibold text-white">Nexus Core</span>
+          <span className="font-semibold text-theme">EtherMail</span>
         </div>
       </header>
 
-      {/* Sidebar overlay on mobile */}
       {sidebarOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
         />
       )}
@@ -90,11 +89,11 @@ export default function App() {
         <Sidebar />
       </div>
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-[72px] sm:pb-[56px]">
         <MainContent />
       </main>
 
-      <CommandBar />
+      <BottomBar />
     </div>
   )
 }

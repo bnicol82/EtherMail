@@ -1,4 +1,4 @@
-import type { Email, EmailAccount, Folder, GraphEdge, GraphNode, Note } from '../types'
+import type { Email, EmailAccount, Folder, GraphEdge, GraphNode, Note, CalendarEvent } from '../types'
 
 export const SEED_FOLDERS: Folder[] = [
   { id: 'root', name: "Sarah J's Personal Vault", parentId: null },
@@ -259,6 +259,36 @@ This event relates to your Budget Q4 planning notes.`,
     read: false,
     starred: false,
     linkedNoteId: 'note-budget',
+  },
+]
+
+export const SEED_CALENDAR: CalendarEvent[] = [
+  {
+    id: 'cal-1',
+    title: 'Project Sync',
+    start: '2026-06-30T10:00:00',
+    end: '2026-06-30T11:00:00',
+    attendees: ['Sarah J.', 'Team leads'],
+  },
+  {
+    id: 'cal-2',
+    title: 'Budget Review',
+    start: '2026-06-30T14:00:00',
+    end: '2026-06-30T15:00:00',
+    attendees: ['Sarah J.', 'Finance team'],
+  },
+  {
+    id: 'cal-3',
+    title: 'Client Meeting',
+    start: '2026-07-01T11:00:00',
+    end: '2026-07-01T12:00:00',
+    attendees: ['Acme Corp'],
+  },
+  {
+    id: 'cal-4',
+    title: 'Team Standup',
+    start: '2026-07-02T09:00:00',
+    end: '2026-07-02T09:30:00',
   },
 ]
 
