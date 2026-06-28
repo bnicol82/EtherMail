@@ -1,0 +1,78 @@
+export type View = 'dashboard' | 'vault' | 'email' | 'graph' | 'ai' | 'settings'
+
+export type EmailProvider = 'gmail' | 'outlook' | 'yahoo' | 'enterprise'
+
+export interface EmailAccount {
+  id: string
+  email: string
+  provider: EmailProvider
+  connected: boolean
+}
+
+export interface Note {
+  id: string
+  title: string
+  content: string
+  folderId: string
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Folder {
+  id: string
+  name: string
+  parentId: string | null
+}
+
+export interface Email {
+  id: string
+  accountId: string
+  from: string
+  fromName: string
+  to: string
+  subject: string
+  body: string
+  preview: string
+  date: string
+  read: boolean
+  starred: boolean
+  linkedNoteId: string | null
+}
+
+export interface GraphNode {
+  id: string
+  label: string
+  type: 'note' | 'email' | 'person' | 'tag'
+  x?: number
+  y?: number
+}
+
+export interface GraphEdge {
+  id: string
+  source: string
+  target: string
+  type: 'links_to' | 'references' | 'tagged' | 'from'
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  mode: 'vault' | 'external'
+  timestamp: string
+}
+
+export interface AISettings {
+  externalApiKey: string
+  externalProvider: 'openai' | 'anthropic' | 'google'
+  bridgeEnabled: boolean
+}
+
+export interface CommandItem {
+  id: string
+  label: string
+  description?: string
+  category: string
+  action: () => void
+}
