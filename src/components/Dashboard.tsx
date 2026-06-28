@@ -8,8 +8,10 @@ export function Dashboard() {
   const emails = useNexusStore((s) => s.emails)
   const selectNote = useNexusStore((s) => s.selectNote)
   const selectEmail = useNexusStore((s) => s.selectEmail)
-  const setView = useNexusStore((s) => s.setView)
   const chatMessages = useNexusStore((s) => s.chatMessages)
+  const setView = useNexusStore((s) => s.setView)
+  const setAiAssistantOpen = useNexusStore((s) => s.setAiAssistantOpen)
+  const submitAiQuery = useNexusStore((s) => s.submitAiQuery)
   const { nodes, edges } = useGraph()
 
   const recentEmails = [...emails].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4)
@@ -116,10 +118,13 @@ export function Dashboard() {
               )}
             </div>
             <button
-              onClick={() => setView('ai')}
-              className="w-full py-2 rounded-lg bg-indigo-600/30 border border-indigo-500/40 text-sm text-indigo-300 hover:bg-indigo-600/40"
+              onClick={() => {
+                setAiAssistantOpen(true)
+                submitAiQuery('Summarize my recent activity')
+              }}
+              className="w-full py-2 rounded-lg btn-accent text-sm"
             >
-              Open AI Assistant
+              Ask EtherMail AI
             </button>
           </div>
 

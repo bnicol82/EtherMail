@@ -4,7 +4,7 @@ import { providerLabel } from '../lib/utils'
 import type { Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
-  { id: 'glass', label: 'Clear Glass', description: 'Light frosted glass with airy transparency' },
+  { id: 'glass', label: 'Clear Glass', description: 'Luminous frosted glass with sky and violet tones' },
   { id: 'dark', label: 'Dark Frost', description: 'Dark mode with deep frosted panels' },
   { id: 'blue', label: 'Blue Frost', description: 'Shades of blue with frosted glass layers' },
 ]

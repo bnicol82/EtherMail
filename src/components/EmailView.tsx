@@ -16,6 +16,7 @@ import { MarkdownContent } from './MarkdownContent'
 import { MiniGraph } from './MiniGraph'
 import { formatDate, providerColor, providerLabel } from '../lib/utils'
 import { summarizeEmail } from '../lib/emailSummary'
+import { getAIContext } from '../lib/aiContext'
 
 export function EmailView() {
   const emails = useEtherMailStore((s) => s.emails)
@@ -28,16 +29,14 @@ export function EmailView() {
   const markEmailRead = useEtherMailStore((s) => s.markEmailRead)
   const mobilePanel = useEtherMailStore((s) => s.mobilePanel)
   const setMobilePanel = useEtherMailStore((s) => s.setMobilePanel)
-  const setView = useEtherMailStore((s) => s.setView)
   const selectNote = useEtherMailStore((s) => s.selectNote)
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
-  const addChatMessage = useEtherMailStore((s) => s.addChatMessage)
-  const setAiMode = useEtherMailStore((s) => s.setAiMode)
+  const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
+  const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const { nodes, edges } = useGraph()
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
-  const [showActions, setShowActions] = useState(false)
 
   const activeAccount = activeAccountId
     ? accounts.find((a) => a.id === activeAccountId)
@@ -52,6 +51,8 @@ export function EmailView() {
     () => (activeEmail ? summarizeEmail(activeEmail, notes) : null),
     [activeEmail, notes],
   )
+
+  const aiCtx = getAIContext('email', { activeEmail, emails, notes })
 
   const filtered = emails.filter((e) => {
     if (activeAccountId && e.accountId !== activeAccountId) return false
@@ -70,32 +71,25 @@ export function EmailView() {
     setMobilePanel('detail')
   }
 
-  const draftReply = () => {
-    setView('ai')
-    setAiMode('vault')
-    addChatMessage({
-      role: 'user',
-      content: `Draft reply to ${activeEmail?.fromName} about ${activeEmail?.subject}`,
-      mode: 'vault',
-    })
+  const runAiAction = (action: string) => {
+    setAiAssistantOpen(true)
+    submitAiQuery(action, aiCtx.contextPrefix)
   }
 
-  const inboxTitle = activeAccount
-    ? activeAccount.email
-    : 'Unified Inbox'
+  const inboxTitle = activeAccount ? activeAccount.email : 'Unified Inbox'
 
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* Email list */}
       <div
         className={`
-          ${mobilePanel === 'detail' ? 'hidden md:flex' : 'flex'}
-          w-full md:w-72 lg:w-80 flex-col glass border-r border-[var(--glass-border)] shrink-0
+          ${mobilePanel === 'detail' ? 'hidden lg:flex' : 'flex'}
+          w-full lg:w-60 xl:w-64 flex-col glass border-r border-[var(--glass-border)] shrink-0
         `}
       >
         <div className="p-3 border-b border-[var(--glass-border)]">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold text-theme truncate">{inboxTitle}</h2>
+            <h2 className="font-semibold text-theme truncate text-sm">{inboxTitle}</h2>
             {activeAccountId && (
               <button
                 onClick={() => selectAccount(null)}
@@ -160,38 +154,41 @@ export function EmailView() {
         </div>
       </div>
 
-      {/* Email detail */}
+      {/* Email detail + AI summary — 2-column layout always when email selected */}
       <div
         className={`
-          ${mobilePanel !== 'detail' ? 'hidden md:flex' : 'flex'}
-          flex-1 min-w-0
+          ${mobilePanel !== 'detail' ? 'hidden lg:flex' : 'flex'}
+          flex-1 min-w-0 flex-col lg:flex-row overflow-hidden
         `}
       >
         {activeEmail ? (
-          <div className="flex-1 flex flex-col md:flex-row min-h-0">
+          <>
             {/* Email body */}
-            <div className="flex-1 flex flex-col min-w-0 border-r border-[var(--glass-border)]">
-              <div className="p-4 border-b border-[var(--glass-border)] glass shrink-0">
+            <div className="flex-1 flex flex-col min-w-0 min-h-0 order-2 lg:order-1">
+              <div className="p-3 lg:p-4 border-b border-[var(--glass-border)] glass shrink-0">
                 <button
-                  className="md:hidden text-theme-muted hover:text-theme text-sm mb-2"
+                  className="lg:hidden text-theme-muted hover:text-theme text-sm mb-2"
                   onClick={() => setMobilePanel('list')}
                 >
                   ← Back to inbox
                 </button>
                 <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h2 className="text-lg font-semibold text-theme">{activeEmail.subject}</h2>
+                  <div className="min-w-0">
+                    <h2 className="text-base lg:text-lg font-semibold text-theme truncate">{activeEmail.subject}</h2>
                     <p className="text-sm text-theme-muted mt-1">
-                      From <span className="text-theme-secondary">{activeEmail.fromName}</span> &lt;{activeEmail.from}&gt;
+                      From <span className="text-theme-secondary">{activeEmail.fromName}</span>
                     </p>
                     <p className="text-xs text-theme-muted mt-0.5">{new Date(activeEmail.date).toLocaleString()}</p>
                   </div>
                   <span className="shrink-0 px-2 py-1 rounded-lg text-[10px] font-semibold btn-accent flex items-center gap-1">
-                    <Bot size={10} /> EtherMail AI
+                    <Bot size={10} /> AI
                   </span>
                 </div>
                 <div className="flex gap-2 mt-3 flex-wrap relative">
-                  <button onClick={draftReply} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs">
+                  <button
+                    onClick={() => runAiAction('Draft a reply to this email')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"
+                  >
                     <Reply size={14} /> Draft Reply
                   </button>
                   <button
@@ -201,12 +198,6 @@ export function EmailView() {
                     <Link2 size={14} />
                     {linkedNote ? 'Change Link' : 'Link to Note'}
                     <ChevronDown size={12} />
-                  </button>
-                  <button
-                    onClick={() => setShowActions(!showActions)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
-                  >
-                    <Sparkles size={14} /> AI Actions
                   </button>
 
                   {showLinkMenu && (
@@ -237,85 +228,61 @@ export function EmailView() {
                       )}
                     </div>
                   )}
-
-                  {showActions && (
-                    <div className="absolute top-full left-32 mt-1 z-10 glass-frost rounded-xl p-2 w-48 shadow-xl">
-                      {['Summarize thread', 'Create Task', 'Find Similar Note'].map((a) => (
-                        <button
-                          key={a}
-                          onClick={() => {
-                            setView('ai')
-                            setAiMode('vault')
-                            addChatMessage({ role: 'user', content: a, mode: 'vault' })
-                            setShowActions(false)
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-sm hover-theme text-theme-secondary"
-                        >
-                          {a}
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
+              <div className="flex-1 overflow-y-auto p-4 min-h-0">
                 <div className="whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed">
                   {activeEmail.body}
                 </div>
               </div>
             </div>
 
-            {/* AI Summary pane */}
-            <div className="hidden md:flex w-72 lg:w-80 xl:w-96 flex-col glass-frost shrink-0 overflow-hidden">
-              <div className="p-3 border-b border-[var(--glass-border)] flex items-center gap-2 shrink-0">
+            {/* AI Summary pane — always visible, first on mobile */}
+            <aside className="order-1 lg:order-2 w-full lg:w-72 xl:w-80 shrink-0 flex flex-col glass-frost border-[var(--glass-border)] lg:border-l min-h-[200px] lg:min-h-0 max-h-[45vh] lg:max-h-none overflow-hidden">
+              <div className="p-3 border-b border-[var(--glass-border)] flex items-center gap-2 shrink-0 bg-accent-soft">
                 <Sparkles size={16} className="text-accent" />
                 <span className="text-sm font-semibold text-theme">AI Summary</span>
+                <span className="ml-auto text-[10px] text-accent px-2 py-0.5 rounded-full glass">Vault AI</span>
               </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                {aiSummary && (
+              <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                {aiSummary ? (
                   <div className="text-sm">
                     <MarkdownContent content={aiSummary} />
                   </div>
+                ) : (
+                  <p className="text-sm text-theme-muted">Select an email to see its AI summary.</p>
                 )}
+              </div>
+
+              <div className="shrink-0 border-t border-[var(--glass-border)] p-2 flex gap-1 flex-wrap">
+                {['Summarize', 'Draft reply', 'Find related notes'].map((a) => (
+                  <button
+                    key={a}
+                    onClick={() => runAiAction(a)}
+                    className="text-[10px] px-2 py-1 rounded-full btn-accent"
+                  >
+                    {a}
+                  </button>
+                ))}
               </div>
 
               {linkedNote && (
                 <div className="border-t border-[var(--glass-border)] shrink-0">
-                  <div className="p-3 flex items-center gap-2">
-                    <Link2 size={14} className="text-accent" />
+                  <div className="p-2 flex items-center gap-2">
+                    <Link2 size={12} className="text-accent" />
                     <span className="text-xs font-medium text-theme truncate">{linkedNote.title}</span>
                   </div>
-                  <div className="px-3 pb-2 max-h-32 overflow-y-auto">
-                    <p className="text-xs text-theme-muted line-clamp-4">
-                      {linkedNote.content.replace(/[#*`[\]]/g, '').slice(0, 200)}...
-                    </p>
-                  </div>
-                  <MiniGraph
-                    nodes={nodes}
-                    edges={edges}
-                    focusId={activeEmail.id}
-                    width={280}
-                    height={90}
-                  />
+                  <MiniGraph nodes={nodes} edges={edges} focusId={activeEmail.id} width={260} height={70} />
                   <button
                     onClick={() => selectNote(linkedNote.id)}
-                    className="m-3 py-2 rounded-lg btn-accent text-sm w-[calc(100%-1.5rem)]"
+                    className="m-2 py-1.5 rounded-lg btn-accent text-xs w-[calc(100%-1rem)]"
                   >
                     Open in Vault
                   </button>
                 </div>
               )}
-            </div>
-
-            {/* Mobile AI summary */}
-            <div className="md:hidden border-t border-[var(--glass-border)] glass-frost p-4 max-h-48 overflow-y-auto shrink-0">
-              <div className="flex items-center gap-2 mb-2">
-                <Sparkles size={14} className="text-accent" />
-                <span className="text-sm font-semibold text-theme">AI Summary</span>
-              </div>
-              {aiSummary && <MarkdownContent content={aiSummary} />}
-            </div>
-          </div>
+            </aside>
+          </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-theme-muted">
             Select an email to read

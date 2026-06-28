@@ -33,28 +33,29 @@ body {
   transition: background 0.4s ease, color 0.3s ease;
 }
 
-/* ── Theme: Clear Glass (default) ── */
+/* ── Theme: Clear Glass (default) — airy, luminous, not gray ── */
 [data-theme="glass"] {
-  --app-bg: #e8eef6;
+  --app-bg: #f5f9ff;
   --app-bg-image:
-    radial-gradient(ellipse 90% 60% at 10% 10%, rgba(255, 255, 255, 0.9), transparent),
-    radial-gradient(ellipse 70% 50% at 90% 90%, rgba(186, 210, 255, 0.5), transparent),
-    radial-gradient(ellipse 50% 40% at 50% 50%, rgba(255, 255, 255, 0.6), transparent),
-    linear-gradient(145deg, #dce6f5 0%, #eef2f8 40%, #e4ecf8 100%);
-  --glass-bg: rgba(255, 255, 255, 0.45);
-  --glass-strong-bg: rgba(255, 255, 255, 0.62);
-  --glass-border: rgba(255, 255, 255, 0.75);
-  --glass-shadow: 0 8px 32px rgba(100, 130, 180, 0.12);
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
+    radial-gradient(ellipse 120% 80% at -10% -20%, rgba(125, 211, 252, 0.55), transparent 50%),
+    radial-gradient(ellipse 90% 70% at 110% 110%, rgba(167, 139, 250, 0.4), transparent 50%),
+    radial-gradient(ellipse 70% 50% at 50% 0%, rgba(255, 255, 255, 0.95), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 80% 20%, rgba(186, 230, 253, 0.6), transparent),
+    linear-gradient(165deg, #dbeafe 0%, #f0f9ff 30%, #faf5ff 60%, #e0f2fe 100%);
+  --glass-bg: rgba(255, 255, 255, 0.22);
+  --glass-strong-bg: rgba(255, 255, 255, 0.32);
+  --glass-border: rgba(255, 255, 255, 0.65);
+  --glass-shadow: 0 8px 32px rgba(59, 130, 246, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
   --text-muted: #64748b;
-  --accent: #3b82f6;
-  --accent-soft: rgba(59, 130, 246, 0.15);
-  --accent-border: rgba(59, 130, 246, 0.35);
-  --input-bg: rgba(255, 255, 255, 0.55);
-  --hover-bg: rgba(255, 255, 255, 0.35);
-  --active-bg: rgba(59, 130, 246, 0.18);
-  --bottom-bar-bg: rgba(255, 255, 255, 0.72);
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent-border: rgba(37, 99, 235, 0.3);
+  --input-bg: rgba(255, 255, 255, 0.35);
+  --hover-bg: rgba(255, 255, 255, 0.5);
+  --active-bg: rgba(37, 99, 235, 0.14);
+  --bottom-bar-bg: rgba(255, 255, 255, 0.38);
 }
 
 /* ── Theme: Dark Frosted Glass ── */
@@ -106,29 +107,58 @@ body {
 
 .ethermail-bg {
   background: var(--app-bg-image), var(--app-bg);
+  position: relative;
+}
+
+[data-theme="glass"] .ethermail-bg::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 15% 85%, rgba(56, 189, 248, 0.2) 0%, transparent 40%),
+    radial-gradient(circle at 85% 15%, rgba(167, 139, 250, 0.18) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.ethermail-bg > * {
+  position: relative;
+  z-index: 1;
 }
 
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(24px) saturate(1.6);
-  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: blur(40px) saturate(1.9);
+  -webkit-backdrop-filter: blur(40px) saturate(1.9);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
 .glass-strong {
   background: var(--glass-strong-bg);
-  backdrop-filter: blur(32px) saturate(1.8);
-  -webkit-backdrop-filter: blur(32px) saturate(1.8);
+  backdrop-filter: blur(48px) saturate(2);
+  -webkit-backdrop-filter: blur(48px) saturate(2);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
 }
 
 .glass-frost {
   background: var(--glass-strong-bg);
-  backdrop-filter: blur(40px) saturate(2);
-  -webkit-backdrop-filter: blur(40px) saturate(2);
+  backdrop-filter: blur(56px) saturate(2.1);
+  -webkit-backdrop-filter: blur(56px) saturate(2.1);
   border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+[data-theme="glass"] .glass,
+[data-theme="glass"] .glass-strong,
+[data-theme="glass"] .glass-frost {
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.45) 0%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.32) 100%
+  );
 }
 
 .text-theme { color: var(--text-primary); }
@@ -290,9 +320,18 @@ body {
 
 .bottom-dock {
   background: var(--bottom-bar-bg);
-  backdrop-filter: blur(40px) saturate(1.8);
-  -webkit-backdrop-filter: blur(40px) saturate(1.8);
+  backdrop-filter: blur(48px) saturate(2);
+  -webkit-backdrop-filter: blur(48px) saturate(2);
   border-top: 1px solid var(--glass-border);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="glass"] .bottom-dock {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(255, 255, 255, 0.42) 100%
+  );
 }
 
 @media (max-width: 768px) {
