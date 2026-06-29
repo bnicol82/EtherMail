@@ -71,14 +71,14 @@ export default function App() {
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
           md:translate-x-0
           fixed md:relative z-50 md:z-auto
-          h-full md:h-auto
+          h-full md:h-auto shrink-0
           transition-transform duration-200
         `}
       >
         <Sidebar />
       </div>
 
-      <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden pb-[108px] sm:pb-[100px]">
+      <main className="flex-1 w-full min-w-0 flex flex-col min-h-0 overflow-hidden pb-[108px] sm:pb-[100px]">
         <MainContent />
       </main>
 

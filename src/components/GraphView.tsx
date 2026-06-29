@@ -197,8 +197,8 @@ export function GraphView() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 pb-24">
       <div className="mb-4">
-        <h1 className="text-2xl font-bold text-white">Knowledge Graph</h1>
-        <p className="text-sm text-slate-500 mt-1">
+        <h1 className="text-2xl font-bold text-theme">Knowledge Graph</h1>
+        <p className="text-sm text-theme-muted mt-1">
           {nodes.length} nodes · {edges.length} connections — click a node to navigate
         </p>
       </div>
@@ -210,7 +210,7 @@ export function GraphView() {
           onClick={handleClick}
           onMouseMove={handleMove}
         />
-        <div className="absolute bottom-4 left-4 flex gap-3 text-xs text-slate-400 glass rounded-lg px-3 py-2">
+        <div className="absolute bottom-4 left-4 flex gap-3 text-xs text-theme-secondary glass rounded-lg px-3 py-2">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Notes</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-400" /> Emails</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-400" /> People</span>

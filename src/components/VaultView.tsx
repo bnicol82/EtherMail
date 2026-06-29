@@ -75,7 +75,7 @@ export function VaultView() {
             setMobilePanel('list')
           }}
           className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded text-sm transition-colors ${
-            activeFolderId === folderId ? 'bg-indigo-600/20 text-white' : 'text-slate-400 hover:text-white hover:bg-white/5'
+            activeFolderId === folderId ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover:text-theme hover-theme'
           }`}
           style={{ paddingLeft: `${depth * 12 + 8}px` }}
         >
@@ -119,31 +119,31 @@ export function VaultView() {
       <div
         className={`
           ${mobilePanel === 'detail' ? 'hidden md:flex' : 'flex'}
-          w-full md:w-56 glass border-r border-white/10 flex-col shrink-0
+          w-full md:w-56 glass border-r border-[var(--glass-border)] flex-col shrink-0
         `}
       >
-        <div className="p-3 border-b border-white/10">
+        <div className="p-3 border-b border-[var(--glass-border)]">
           <div className="relative">
-            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-muted" />
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search vault..."
-              className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-sm text-white placeholder:text-slate-500 outline-none focus:border-indigo-500/50"
+              className="w-full pl-8 pr-3 py-1.5 rounded-lg input-theme text-sm outline-none focus:border-[var(--accent-border)]"
             />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {renderFolder('root')}
         </div>
-        <div className="p-2 border-t border-white/10 max-h-48 overflow-y-auto">
-          <p className="text-xs text-slate-500 px-2 mb-1">Notes</p>
+        <div className="p-2 border-t border-[var(--glass-border)] max-h-48 overflow-y-auto">
+          <p className="text-xs text-theme-muted px-2 mb-1">Notes</p>
           {folderNotes.map((n) => (
             <button
               key={n.id}
               onClick={() => selectNote(n.id)}
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
-                activeNoteId === n.id ? 'bg-indigo-600/30 text-white' : 'text-slate-400 hover:bg-white/5'
+                activeNoteId === n.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
               }`}
             >
               <FileText size={14} />
@@ -162,14 +162,14 @@ export function VaultView() {
       >
         {activeNote ? (
           <>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 glass shrink-0 flex-wrap">
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
               <button
-                className="md:hidden text-slate-400 hover:text-white text-sm"
+                className="md:hidden text-theme-secondary hover:text-theme text-sm"
                 onClick={() => setMobilePanel('list')}
               >
                 ← Back
               </button>
-              <div className="flex items-center gap-1 text-xs text-slate-500 flex-1 min-w-0">
+              <div className="flex items-center gap-1 text-xs text-theme-muted flex-1 min-w-0">
                 {breadcrumbs().map((c, i) => (
                   <span key={i} className="flex items-center gap-1">
                     {i > 0 && <ChevronRight size={12} />}
@@ -177,14 +177,14 @@ export function VaultView() {
                   </span>
                 ))}
                 <ChevronRight size={12} />
-                <span className="text-white truncate">{activeNote.title}</span>
+                <span className="text-theme truncate">{activeNote.title}</span>
               </div>
               <div className="flex gap-1">
                 {(['edit', 'split', 'preview'] as const).map((mode) => (
                   <button
                     key={mode}
                     onClick={() => setEditorMode(mode)}
-                    className={`p-1.5 rounded ${editorMode === mode ? 'bg-indigo-600/30 text-white' : 'text-slate-500 hover:text-white'}`}
+                    className={`p-1.5 rounded ${editorMode === mode ? 'bg-accent-soft text-theme' : 'text-theme-muted hover:text-theme'}`}
                     title={mode}
                   >
                     {mode === 'edit' && <Edit3 size={16} />}
@@ -198,16 +198,16 @@ export function VaultView() {
             <div className="flex-1 flex min-h-0 overflow-hidden">
               <div className="flex-1 flex min-h-0">
                 {(editorMode === 'edit' || editorMode === 'split') && (
-                  <div className={`${editorMode === 'split' ? 'w-1/2 border-r border-white/10' : 'w-full'} flex flex-col min-h-0`}>
+                  <div className={`${editorMode === 'split' ? 'w-1/2 border-r border-[var(--glass-border)]' : 'w-full'} flex flex-col min-h-0`}>
                     <input
                       value={activeNote.title}
                       onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
-                      className="px-4 py-3 bg-transparent text-lg font-semibold text-white outline-none border-b border-white/5"
+                      className="px-4 py-3 bg-transparent text-lg font-semibold text-theme outline-none border-b border-[var(--glass-border)]"
                     />
                     <textarea
                       value={activeNote.content}
                       onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
-                      className="flex-1 p-4 bg-transparent text-sm text-slate-300 outline-none resize-none font-mono leading-relaxed"
+                      className="flex-1 p-4 bg-transparent text-sm text-theme-secondary outline-none resize-none font-mono leading-relaxed"
                       spellCheck={false}
                     />
                   </div>
@@ -220,18 +220,18 @@ export function VaultView() {
               </div>
 
               {/* Right rail */}
-              <div className="hidden lg:flex w-64 flex-col border-l border-white/10 glass shrink-0 overflow-y-auto">
-                <div className="p-3 border-b border-white/10">
+              <div className="hidden lg:flex w-64 flex-col border-l border-[var(--glass-border)] glass shrink-0 overflow-y-auto">
+                <div className="p-3 border-b border-[var(--glass-border)]">
                   <div className="flex items-center gap-2 mb-2">
-                    <Sparkles size={14} className="text-indigo-400" />
-                    <span className="text-sm font-medium text-white">Vault AI Insights</span>
+                    <Sparkles size={14} className="text-accent" />
+                    <span className="text-sm font-medium text-theme">Vault AI Insights</span>
                   </div>
                   <div className="space-y-1">
                     {['Refine Wording', 'Find Similar Note', 'Find Similar Link'].map((a) => (
                       <button
                         key={a}
                         onClick={() => aiAction(a)}
-                        className="w-full text-left text-xs px-2 py-1.5 rounded hover:bg-white/10 text-slate-400 hover:text-white"
+                        className="w-full text-left text-xs px-2 py-1.5 rounded hover-theme text-theme-secondary hover:text-theme"
                       >
                         {a}
                       </button>
@@ -239,8 +239,8 @@ export function VaultView() {
                   </div>
                 </div>
 
-                <div className="p-3 border-b border-white/10">
-                  <p className="text-xs text-slate-500 mb-2">Mini-graph</p>
+                <div className="p-3 border-b border-[var(--glass-border)]">
+                  <p className="text-xs text-theme-muted mb-2">Mini-graph</p>
                   <MiniGraph
                     nodes={nodes}
                     edges={edges}
@@ -256,23 +256,23 @@ export function VaultView() {
 
                 <div className="p-3 space-y-3">
                   <div>
-                    <p className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Tag size={10} /> Tags</p>
+                    <p className="text-xs text-theme-muted mb-1 flex items-center gap-1"><Tag size={10} /> Tags</p>
                     <div className="flex flex-wrap gap-1">
                       {activeNote.tags.map((t) => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300">{t}</span>
+                        <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-accent">{t}</span>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-xs text-slate-500 mb-1 flex items-center gap-1"><Link2 size={10} /> Backlinks</p>
+                    <p className="text-xs text-theme-muted mb-1 flex items-center gap-1"><Link2 size={10} /> Backlinks</p>
                     {backlinks.length === 0 ? (
-                      <p className="text-xs text-slate-600">No backlinks</p>
+                      <p className="text-xs text-theme-muted">No backlinks</p>
                     ) : (
                       backlinks.map((b) => (
                         <button
                           key={b.id}
                           onClick={() => selectNote(b.id)}
-                          className="block text-xs text-indigo-400 hover:underline"
+                          className="block text-xs text-accent hover:underline"
                         >
                           {b.title}
                         </button>
@@ -284,7 +284,7 @@ export function VaultView() {
             </div>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-slate-500">
+          <div className="flex-1 flex items-center justify-center text-theme-muted">
             Select a note to edit
           </div>
         )}
