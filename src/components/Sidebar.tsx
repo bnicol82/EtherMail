@@ -11,8 +11,9 @@ import {
   Inbox,
   FileText,
   SquarePen,
+  Bell,
 } from 'lucide-react'
-import { useEtherMailStore } from '../store/useStore'
+import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 
@@ -37,6 +38,7 @@ export function Sidebar() {
   const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
   const setSearchQuery = useEtherMailStore((s) => s.setSearchQuery)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+  const unreadAlertCount = useUnreadAlertCount()
   const unread = emails.filter((e) => {
     const acc = accounts.find((a) => a.id === e.accountId)
     return acc?.connected && !e.read
@@ -130,6 +132,15 @@ export function Sidebar() {
         >
           <Bot size={18} />
           <span className="flex-1 text-left">AI Assistant</span>
+          {unreadAlertCount > 0 && (
+            <span
+              className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-[10px] font-medium"
+              title={`${unreadAlertCount} AI alert${unreadAlertCount === 1 ? '' : 's'}`}
+            >
+              <Bell size={10} />
+              {unreadAlertCount}
+            </span>
+          )}
         </button>
 
         <div className="pt-2">

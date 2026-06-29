@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { Send, Sparkles, Globe, Shield, Trash2 } from 'lucide-react'
-import { useNexusStore } from '../store/useStore'
+import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { MarkdownContent } from './MarkdownContent'
+import { AIAlertsPanel } from './AIAlertsPanel'
 
 const SUGGESTIONS = [
   'Summarize Q3 Plan',
@@ -13,14 +14,15 @@ const SUGGESTIONS = [
 ]
 
 export function AIView() {
-  const notes = useNexusStore((s) => s.notes)
-  const emails = useNexusStore((s) => s.emails)
-  const aiMode = useNexusStore((s) => s.aiMode)
-  const setAiMode = useNexusStore((s) => s.setAiMode)
-  const chatMessages = useNexusStore((s) => s.chatMessages)
-  const addChatMessage = useNexusStore((s) => s.addChatMessage)
-  const clearChat = useNexusStore((s) => s.clearChat)
-  const aiSettings = useNexusStore((s) => s.aiSettings)
+  const notes = useEtherMailStore((s) => s.notes)
+  const emails = useEtherMailStore((s) => s.emails)
+  const aiMode = useEtherMailStore((s) => s.aiMode)
+  const setAiMode = useEtherMailStore((s) => s.setAiMode)
+  const chatMessages = useEtherMailStore((s) => s.chatMessages)
+  const addChatMessage = useEtherMailStore((s) => s.addChatMessage)
+  const clearChat = useEtherMailStore((s) => s.clearChat)
+  const aiSettings = useEtherMailStore((s) => s.aiSettings)
+  const unreadAlertCount = useUnreadAlertCount()
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -71,7 +73,14 @@ export function AIView() {
       <div className="p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-theme">AI Assistant</h1>
+            <h1 className="text-2xl font-bold text-theme flex items-center gap-2">
+              AI Assistant
+              {unreadAlertCount > 0 && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium">
+                  {unreadAlertCount} alert{unreadAlertCount === 1 ? '' : 's'}
+                </span>
+              )}
+            </h1>
             <p className="text-sm text-theme-muted mt-0.5">
               Private vault AI with optional external models
             </p>
@@ -119,6 +128,8 @@ export function AIView() {
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 space-y-4 min-h-0">
+        <AIAlertsPanel />
+
         {chatMessages.length === 0 && (
           <div className="text-center py-12">
             <Sparkles size={40} className="mx-auto text-accent mb-4 opacity-60" />
