@@ -129,6 +129,27 @@ export interface AISettings {
   bridgeEnabled: boolean
 }
 
+export type AIAlertSeverity = 'info' | 'warning' | 'urgent'
+
+export type AIAlertCategory = 'email' | 'calendar' | 'todo' | 'vault' | 'account'
+
+export interface AIAlert {
+  id: string
+  title: string
+  message: string
+  severity: AIAlertSeverity
+  category: AIAlertCategory
+  actionView?: View
+  sourceId?: string
+  createdAt: string
+  read: boolean
+}
+
+export interface AlertMeta {
+  read?: boolean
+  dismissed?: boolean
+}
+
 export interface CommandItem {
   id: string
   label: string

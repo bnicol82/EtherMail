@@ -13,6 +13,7 @@ import {
 import type {
   AISettings,
   AckStatus,
+  AlertMeta,
   CalendarEvent,
   ChatMessage,
   ComposeDraft,
@@ -26,6 +27,7 @@ import type {
   View,
 } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
+import { computeAIAlerts } from '../lib/aiAlerts'
 import { generateVaultAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
 
@@ -103,6 +105,11 @@ interface EtherMailState {
     emailId: string,
     ack: { status: AckStatus; label: string; message?: string; emoji?: string },
   ) => void
+
+  alertMeta: Record<string, AlertMeta>
+  markAlertRead: (id: string) => void
+  dismissAlert: (id: string) => void
+  markAllAlertsRead: () => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -526,6 +533,32 @@ export const useEtherMailStore = create<EtherMailState>()(
         })
       },
 
+      alertMeta: {},
+      markAlertRead: (id) =>
+        set((s) => ({
+          alertMeta: { ...s.alertMeta, [id]: { ...s.alertMeta[id], read: true } },
+        })),
+      dismissAlert: (id) =>
+        set((s) => ({
+          alertMeta: { ...s.alertMeta, [id]: { ...s.alertMeta[id], dismissed: true, read: true } },
+        })),
+      markAllAlertsRead: () => {
+        const state = get()
+        const computed = computeAIAlerts(
+          state.notes,
+          state.emails,
+          state.calendarEvents,
+          state.accounts,
+        )
+        const next = { ...state.alertMeta }
+        for (const alert of computed) {
+          if (!next[alert.id]?.dismissed) {
+            next[alert.id] = { ...next[alert.id], read: true }
+          }
+        }
+        set({ alertMeta: next })
+      },
+
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
         set((s) => ({
@@ -626,6 +659,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         activeAccountId: s.activeAccountId,
         activeEmailFolder: s.activeEmailFolder,
         hiddenPanels: s.hiddenPanels,
+        alertMeta: s.alertMeta,
         view: s.view,
       }),
     },
@@ -671,4 +705,21 @@ export function useUpcomingMeetings(limit = 2) {
     { id: 'demo-1', title: 'Project Sync', start: addHours(2), end: addHours(3), attendees: ['Sarah J.'] },
     { id: 'demo-2', title: 'Budget Review', start: addHours(5), end: addHours(6), attendees: ['Finance team'] },
   ].slice(0, limit)
+}
+
+export function useAIAlerts() {
+  const notes = useEtherMailStore((s) => s.notes)
+  const emails = useEtherMailStore((s) => s.emails)
+  const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
+  const accounts = useEtherMailStore((s) => s.accounts)
+  const alertMeta = useEtherMailStore((s) => s.alertMeta)
+
+  const computed = computeAIAlerts(notes, emails, calendarEvents, accounts)
+  return computed
+    .filter((a) => !alertMeta[a.id]?.dismissed)
+    .map((a) => ({ ...a, read: alertMeta[a.id]?.read ?? false }))
+}
+
+export function useUnreadAlertCount() {
+  return useAIAlerts().filter((a) => !a.read).length
 }
