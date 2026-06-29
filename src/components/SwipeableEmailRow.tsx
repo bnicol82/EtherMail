@@ -15,9 +15,23 @@ interface Props {
   onDelete: () => void
   category?: EmailJunkCategory
   showCategory?: boolean
+  selectionMode?: boolean
+  selected?: boolean
+  onToggleSelect?: () => void
 }
 
-export function SwipeableEmailRow({ email, account, active, onSelect, onDelete, category, showCategory }: Props) {
+export function SwipeableEmailRow({
+  email,
+  account,
+  active,
+  onSelect,
+  onDelete,
+  category,
+  showCategory,
+  selectionMode,
+  selected,
+  onToggleSelect,
+}: Props) {
   const startX = useRef(0)
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -78,10 +92,20 @@ export function SwipeableEmailRow({ email, account, active, onSelect, onDelete, 
       >
         <button
           type="button"
-          onClick={onSelect}
+          onClick={selectionMode ? onToggleSelect : onSelect}
           className="w-full text-left p-3"
         >
           <div className="flex items-center gap-2 mb-1">
+            {selectionMode && (
+              <input
+                type="checkbox"
+                checked={selected}
+                onChange={onToggleSelect}
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 rounded border-[var(--glass-border)] accent-[var(--accent)]"
+                aria-label={`Select ${email.subject}`}
+              />
+            )}
             <AccountDot account={account} />
             {!email.read && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0" />}
             <span className="text-sm font-medium text-theme truncate flex-1">{email.fromName}</span>

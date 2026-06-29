@@ -1,5 +1,6 @@
 import type { AIAlert, CalendarEvent, Email, EmailAccount, Note } from '../types'
 import { extractTodos } from './todos'
+import { detectFollowUps } from './followUp'
 import { isSameDay } from './utils'
 
 type AlertDraft = Omit<AIAlert, 'read'>
@@ -65,6 +66,22 @@ export function computeAIAlerts(
     })
   }
 
+  const followUps = detectFollowUps(inbox)
+  for (const hint of followUps.slice(0, 3)) {
+    alerts.push({
+      id: `alert-followup-${hint.emailId}`,
+      title: 'Follow-up needed',
+      message: `"${hint.subject}" from ${hint.fromName} — ${hint.label}.`,
+      severity: hint.severity === 'urgent' ? 'urgent' : hint.severity === 'warning' ? 'warning' : 'info',
+      category: 'email',
+      actionView: 'email',
+      sourceId: hint.emailId,
+      secondaryActionLabel: 'Draft follow-up',
+      secondaryActionQuery: `Draft a follow-up email for "${hint.subject}"`,
+      createdAt: new Date(Date.now() - hint.daysSince * 86400000).toISOString(),
+    })
+  }
+
   const upcoming = [...calendarEvents]
     .filter((e) => new Date(e.end) >= now)
     .sort((a, b) => a.start.localeCompare(b.start))
@@ -99,6 +116,8 @@ export function computeAIAlerts(
       category: 'calendar',
       actionView: 'calendar',
       sourceId: first.id,
+      secondaryActionLabel: 'Prep brief',
+      secondaryActionQuery: `Prep brief for ${first.title}`,
       createdAt: first.start,
     })
   }

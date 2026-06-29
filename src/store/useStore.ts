@@ -35,11 +35,13 @@ import type {
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
 import { computeAIAlerts } from '../lib/aiAlerts'
-import { generateVaultAIResponse } from '../lib/rag'
+import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
 import { completeNoteTodo } from '../lib/todos'
 import { snoozeUntilFromPreset } from '../lib/snooze'
 import { DEFAULT_INBOX_TRAINING, getOutboxEmails } from '../lib/aiInbox'
+import { generateMeetingBrief } from '../lib/meetingPrep'
+import { findFreeSlots, formatProposalEmail } from '../lib/smartPropose'
 
 function uniquePush(arr: string[], value: string): string[] {
   const v = value.toLowerCase()
@@ -97,8 +99,10 @@ interface EtherMailState {
 
   aiLoading: boolean
   aiContextResponse: string | null
-  submitAiQuery: (query: string, contextPrefix?: string) => Promise<void>
+  submitAiQuery: (query: string, contextPrefix?: string, opts?: { eventId?: string }) => Promise<void>
   clearAiContextResponse: () => void
+  openMeetingPrepBrief: (eventId: string) => Promise<void>
+  smartProposeMeetingTimes: (eventId?: string) => void
 
   aiSettings: AISettings
   setAISettings: (settings: Partial<AISettings>) => void
@@ -163,6 +167,19 @@ interface EtherMailState {
   trainEmailImportant: (emailId: string) => void
   trainEmailJunk: (emailId: string, category: EmailJunkCategory) => void
   clearInboxTraining: () => void
+
+  selectedEmailIds: string[]
+  emailSelectionMode: boolean
+  followUpFilterEnabled: boolean
+  setEmailSelectionMode: (enabled: boolean) => void
+  setFollowUpFilterEnabled: (enabled: boolean) => void
+  toggleEmailSelection: (emailId: string) => void
+  selectAllVisibleEmails: (emailIds: string[]) => void
+  clearEmailSelection: () => void
+  batchArchiveEmails: (emailIds: string[]) => void
+  batchDeleteEmails: (emailIds: string[]) => void
+  batchStarEmails: (emailIds: string[], starred: boolean) => void
+  batchMarkEmailsRead: (emailIds: string[], read: boolean) => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -261,16 +278,60 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       aiLoading: false,
       aiContextResponse: null,
-      submitAiQuery: async (query, contextPrefix = '') => {
+      submitAiQuery: async (query, contextPrefix = '', opts) => {
         const state = get()
+        const mode = state.aiMode
         set({ aiLoading: true })
-        state.addChatMessage({ role: 'user', content: query, mode: 'vault' })
+        state.addChatMessage({ role: 'user', content: query, mode })
         const fullQuery = contextPrefix ? `${contextPrefix}${query}` : query
-        const reply = await generateVaultAIResponse(fullQuery, state.notes, state.emails)
-        state.addChatMessage({ role: 'assistant', content: reply, mode: 'vault' })
+
+        const reply =
+          mode === 'vault'
+            ? await generateVaultAIResponse(fullQuery, state.notes, state.emails, {
+                calendarEvents: state.calendarEvents,
+                eventId: opts?.eventId,
+              })
+            : await generateExternalAIResponse(
+                fullQuery,
+                state.aiSettings.externalApiKey,
+                state.aiSettings.externalProvider,
+                state.aiSettings.bridgeEnabled,
+                state.aiSettings.bridgeEnabled ? state.notes : [],
+                state.aiSettings.bridgeEnabled ? state.emails : [],
+                state.aiSettings.bridgeEnabled ? state.calendarEvents : [],
+              )
+
+        state.addChatMessage({ role: 'assistant', content: reply, mode })
         set({ aiLoading: false, aiContextResponse: reply, aiAssistantOpen: true })
       },
       clearAiContextResponse: () => set({ aiContextResponse: null, aiAssistantOpen: false }),
+
+      openMeetingPrepBrief: async (eventId) => {
+        const state = get()
+        const event = state.calendarEvents.find((e) => e.id === eventId)
+        if (!event) return
+        const brief = generateMeetingBrief(event, state.notes, state.emails)
+        set({ aiLoading: true, view: 'ai' })
+        state.addChatMessage({ role: 'user', content: `Prep brief for ${event.title}`, mode: 'vault' })
+        state.addChatMessage({ role: 'assistant', content: brief.markdown, mode: 'vault' })
+        set({ aiLoading: false, aiContextResponse: brief.markdown, aiAssistantOpen: true })
+      },
+
+      smartProposeMeetingTimes: (eventId) => {
+        const state = get()
+        const event = eventId ? state.calendarEvents.find((e) => e.id === eventId) : undefined
+        const topic = event?.title ?? 'our meeting'
+        const slots = findFreeSlots(state.calendarEvents, 60, 3)
+        const proposal = formatProposalEmail(slots, topic, event?.attendees)
+        const account =
+          state.accounts.find((a) => a.connected) ?? state.accounts[0]
+        state.openCompose({
+          to: event?.attendees?.join(', ') ?? '',
+          subject: proposal.subject,
+          body: proposal.body,
+          accountId: account?.id ?? '',
+        })
+      },
 
       aiSettings: {
         externalApiKey: '',
@@ -826,6 +887,53 @@ export const useEtherMailStore = create<EtherMailState>()(
       clearInboxTraining: () =>
         set({ inboxTraining: DEFAULT_INBOX_TRAINING, emailInboxOverrides: {} }),
 
+      selectedEmailIds: [],
+      emailSelectionMode: false,
+      followUpFilterEnabled: false,
+      setEmailSelectionMode: (emailSelectionMode) =>
+        set({ emailSelectionMode, selectedEmailIds: emailSelectionMode ? get().selectedEmailIds : [] }),
+      setFollowUpFilterEnabled: (followUpFilterEnabled) => set({ followUpFilterEnabled }),
+      toggleEmailSelection: (emailId) =>
+        set((s) => ({
+          selectedEmailIds: s.selectedEmailIds.includes(emailId)
+            ? s.selectedEmailIds.filter((id) => id !== emailId)
+            : [...s.selectedEmailIds, emailId],
+        })),
+      selectAllVisibleEmails: (emailIds) => set({ selectedEmailIds: emailIds }),
+      clearEmailSelection: () => set({ selectedEmailIds: [], emailSelectionMode: false }),
+      batchArchiveEmails: (emailIds) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'archive' as EmailFolder } : e)),
+          selectedEmailIds: [],
+          emailSelectionMode: false,
+          activeEmailId:
+            s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
+        }))
+      },
+      batchDeleteEmails: (emailIds) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e)),
+          selectedEmailIds: [],
+          emailSelectionMode: false,
+          activeEmailId:
+            s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
+        }))
+      },
+      batchStarEmails: (emailIds, starred) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, starred } : e)),
+        }))
+      },
+      batchMarkEmailsRead: (emailIds, read) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, read } : e)),
+        }))
+      },
+
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
         set((s) => ({
@@ -976,6 +1084,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         announcedProactive: s.announcedProactive,
         aiInboxEnabled: s.aiInboxEnabled,
         aiOutboxEnabled: s.aiOutboxEnabled,
+        followUpFilterEnabled: s.followUpFilterEnabled,
         inboxTraining: s.inboxTraining,
         emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,

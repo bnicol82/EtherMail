@@ -197,6 +197,9 @@ export interface AIAlert {
   category: AIAlertCategory
   actionView?: View
   sourceId?: string
+  /** Optional secondary action (e.g. "Prep brief") */
+  secondaryActionLabel?: string
+  secondaryActionQuery?: string
   createdAt: string
   read: boolean
 }

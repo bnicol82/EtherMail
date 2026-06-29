@@ -16,6 +16,9 @@ import {
   Inbox,
   Send,
   FileEdit,
+  CheckSquare,
+  Square,
+  MailWarning,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
@@ -31,6 +34,7 @@ import { SnoozeMenu } from './SnoozeMenu'
 import { AIInboxBar } from './AIInboxBar'
 import { EmailInboxTraining } from './EmailInboxTraining'
 import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
+import { followUpEmailIds } from '../lib/followUp'
 import type { EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
@@ -74,9 +78,22 @@ export function EmailView() {
   const emailInboxOverrides = useEtherMailStore((s) => s.emailInboxOverrides)
   const trainEmailImportant = useEtherMailStore((s) => s.trainEmailImportant)
   const trainEmailJunk = useEtherMailStore((s) => s.trainEmailJunk)
+  const emailSelectionMode = useEtherMailStore((s) => s.emailSelectionMode)
+  const setEmailSelectionMode = useEtherMailStore((s) => s.setEmailSelectionMode)
+  const selectedEmailIds = useEtherMailStore((s) => s.selectedEmailIds)
+  const toggleEmailSelection = useEtherMailStore((s) => s.toggleEmailSelection)
+  const selectAllVisibleEmails = useEtherMailStore((s) => s.selectAllVisibleEmails)
+  const clearEmailSelection = useEtherMailStore((s) => s.clearEmailSelection)
+  const batchArchiveEmails = useEtherMailStore((s) => s.batchArchiveEmails)
+  const batchDeleteEmails = useEtherMailStore((s) => s.batchDeleteEmails)
+  const batchStarEmails = useEtherMailStore((s) => s.batchStarEmails)
+  const batchMarkEmailsRead = useEtherMailStore((s) => s.batchMarkEmailsRead)
+  const followUpFilterEnabled = useEtherMailStore((s) => s.followUpFilterEnabled)
+  const setFollowUpFilterEnabled = useEtherMailStore((s) => s.setFollowUpFilterEnabled)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
+  const [batchConfirmDelete, setBatchConfirmDelete] = useState(false)
 
   const listHidden = hiddenPanels['email-list'] ?? false
   const detailHidden = hiddenPanels['email-detail'] ?? false
@@ -108,6 +125,11 @@ export function EmailView() {
   const inboxStats = useMemo(
     () => computeInboxStats(emails, inboxTraining, emailInboxOverrides),
     [emails, inboxTraining, emailInboxOverrides],
+  )
+
+  const followUpIds = useMemo(
+    () => followUpEmailIds(emails),
+    [emails],
   )
 
   const getClassification = (emailId: string) => {
@@ -147,6 +169,9 @@ export function EmailView() {
       const c = classifyEmail(e, inboxTraining, emailInboxOverrides[e.id])
       if (aiInboxEnabled && !c.important) return false
       if (aiOutboxEnabled && c.important) return false
+    }
+    if (followUpFilterEnabled && activeEmailFolder === 'inbox' && !followUpIds.has(e.id)) {
+      return false
     }
     if (!filter) return true
     const q = filter.toLowerCase()
@@ -237,6 +262,108 @@ export function EmailView() {
                 onDeleteAllOutbox={deleteAllOutboxEmails}
               />
             )}
+            {activeEmailFolder === 'inbox' && (
+              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setFollowUpFilterEnabled(!followUpFilterEnabled)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                    followUpFilterEnabled
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'glass text-theme-muted hover-theme'
+                  }`}
+                >
+                  <MailWarning size={12} />
+                  Needs follow-up
+                  {followUpIds.size > 0 && (
+                    <span className="px-1 rounded-full bg-black/20">{followUpIds.size}</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (emailSelectionMode) clearEmailSelection()
+                    else setEmailSelectionMode(true)
+                  }}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                    emailSelectionMode
+                      ? 'bg-[var(--accent)] text-white'
+                      : 'glass text-theme-muted hover-theme'
+                  }`}
+                >
+                  {emailSelectionMode ? <CheckSquare size={12} /> : <Square size={12} />}
+                  Select
+                </button>
+              </div>
+            )}
+            {emailSelectionMode && selectedEmailIds.length > 0 && (
+              <div className="mb-2 space-y-1.5">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-[10px] text-theme-muted">
+                    {selectedEmailIds.length} selected
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => selectAllVisibleEmails(filtered.map((e) => e.id))}
+                    className="text-[10px] text-accent hover:underline"
+                  >
+                    Select all ({filtered.length})
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    onClick={() => batchMarkEmailsRead(selectedEmailIds, true)}
+                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                  >
+                    Mark read
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => batchStarEmails(selectedEmailIds, true)}
+                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                  >
+                    Star
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => batchArchiveEmails(selectedEmailIds)}
+                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                  >
+                    Archive
+                  </button>
+                  {!batchConfirmDelete ? (
+                    <button
+                      type="button"
+                      onClick={() => setBatchConfirmDelete(true)}
+                      className="px-2 py-1 rounded-lg glass text-[10px] text-red-400 hover-theme border border-red-500/30"
+                    >
+                      Delete
+                    </button>
+                  ) : (
+                    <div className="flex gap-1 w-full">
+                      <button
+                        type="button"
+                        onClick={() => setBatchConfirmDelete(false)}
+                        className="flex-1 px-2 py-1 rounded-lg glass text-[10px] text-theme-muted"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          batchDeleteEmails(selectedEmailIds)
+                          setBatchConfirmDelete(false)
+                        }}
+                        className="flex-1 px-2 py-1 rounded-lg bg-red-500/90 text-white text-[10px]"
+                      >
+                        Confirm delete
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="relative mb-3">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-muted" />
               <input
@@ -272,7 +399,9 @@ export function EmailView() {
           <div className="flex-1 overflow-y-auto">
             {filtered.length === 0 ? (
               <p className="p-4 text-sm text-theme-muted text-center">
-                {aiOutboxEnabled && activeEmailFolder === 'inbox'
+                {followUpFilterEnabled && activeEmailFolder === 'inbox'
+                  ? 'No emails flagged for follow-up — you are caught up!'
+                  : aiOutboxEnabled && activeEmailFolder === 'inbox'
                   ? 'No filtered mail in AI Outbox — nothing AI flagged as junk or low priority'
                   : aiInboxEnabled && activeEmailFolder === 'inbox' && inboxStats.hidden > 0
                     ? `No important mail — ${inboxStats.hidden} filtered by AI Inbox`
@@ -294,6 +423,9 @@ export function EmailView() {
                     showCategory={
                       activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)
                     }
+                    selectionMode={emailSelectionMode}
+                    selected={selectedEmailIds.includes(e.id)}
+                    onToggleSelect={() => toggleEmailSelection(e.id)}
                   />
                 )
               })

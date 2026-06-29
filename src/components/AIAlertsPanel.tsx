@@ -37,6 +37,9 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
   const setView = useEtherMailStore((s) => s.setView)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
   const selectNote = useEtherMailStore((s) => s.selectNote)
+  const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
+  const openMeetingPrepBrief = useEtherMailStore((s) => s.openMeetingPrepBrief)
+  const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
 
   const unreadCount = alerts.filter((a) => !a.read).length
   const [expanded, setExpanded] = useState(true)
@@ -56,6 +59,19 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
     setView(alert.actionView)
     if (alert.actionView === 'email' && alert.sourceId) selectEmail(alert.sourceId)
     if (alert.actionView === 'notes' && alert.sourceId) selectNote(alert.sourceId, { view: 'notes' })
+  }
+
+  const runSecondaryAction = (alert: AIAlert) => {
+    markAlertRead(alert.id)
+    if (alert.secondaryActionLabel === 'Prep brief' && alert.sourceId) {
+      openMeetingPrepBrief(alert.sourceId)
+      return
+    }
+    if (alert.secondaryActionQuery) {
+      setView('ai')
+      setAiAssistantOpen(true)
+      submitAiQuery(alert.secondaryActionQuery)
+    }
   }
 
   if (variant === 'dock') {
@@ -139,6 +155,15 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
                             View
                           </button>
                         )}
+                        {alert.secondaryActionLabel && (
+                          <button
+                            type="button"
+                            onClick={() => runSecondaryAction(alert)}
+                            className="text-[10px] px-2 py-0.5 rounded-full glass hover-theme text-accent border border-[var(--accent)]/30"
+                          >
+                            {alert.secondaryActionLabel}
+                          </button>
+                        )}
                         {!alert.read && (
                           <button
                             type="button"
@@ -215,6 +240,15 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
                     {alert.actionView && (
                       <button type="button" onClick={() => openAlert(alert)} className="text-[10px] px-2 py-1 rounded-full btn-accent">
                         View
+                      </button>
+                    )}
+                    {alert.secondaryActionLabel && (
+                      <button
+                        type="button"
+                        onClick={() => runSecondaryAction(alert)}
+                        className="text-[10px] px-2 py-1 rounded-full glass hover-theme text-accent border border-[var(--accent)]/30"
+                      >
+                        {alert.secondaryActionLabel}
                       </button>
                     )}
                     {!alert.read && (
