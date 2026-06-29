@@ -67,6 +67,9 @@ export function EmailView() {
   const snoozeEmail = useEtherMailStore((s) => s.snoozeEmail)
   const aiInboxEnabled = useEtherMailStore((s) => s.aiInboxEnabled)
   const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
+  const aiOutboxEnabled = useEtherMailStore((s) => s.aiOutboxEnabled)
+  const setAiOutboxEnabled = useEtherMailStore((s) => s.setAiOutboxEnabled)
+  const deleteAllOutboxEmails = useEtherMailStore((s) => s.deleteAllOutboxEmails)
   const inboxTraining = useEtherMailStore((s) => s.inboxTraining)
   const emailInboxOverrides = useEtherMailStore((s) => s.emailInboxOverrides)
   const trainEmailImportant = useEtherMailStore((s) => s.trainEmailImportant)
@@ -140,9 +143,10 @@ export function EmailView() {
     if (!acc?.connected) return false
     if (activeAccountId && e.accountId !== activeAccountId) return false
     if ((e.folder ?? 'inbox') !== activeEmailFolder) return false
-    if (aiInboxEnabled && activeEmailFolder === 'inbox') {
+    if (activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)) {
       const c = classifyEmail(e, inboxTraining, emailInboxOverrides[e.id])
-      if (!c.important) return false
+      if (aiInboxEnabled && !c.important) return false
+      if (aiOutboxEnabled && c.important) return false
     }
     if (!filter) return true
     const q = filter.toLowerCase()
@@ -225,9 +229,12 @@ export function EmailView() {
             </p>
             {activeEmailFolder === 'inbox' && (
               <AIInboxBar
-                enabled={aiInboxEnabled}
-                onToggle={() => setAiInboxEnabled(!aiInboxEnabled)}
+                inboxEnabled={aiInboxEnabled}
+                outboxEnabled={aiOutboxEnabled}
+                onToggleInbox={() => setAiInboxEnabled(!aiInboxEnabled)}
+                onToggleOutbox={() => setAiOutboxEnabled(!aiOutboxEnabled)}
                 stats={inboxStats}
+                onDeleteAllOutbox={deleteAllOutboxEmails}
               />
             )}
             <div className="relative mb-3">
@@ -265,9 +272,11 @@ export function EmailView() {
           <div className="flex-1 overflow-y-auto">
             {filtered.length === 0 ? (
               <p className="p-4 text-sm text-theme-muted text-center">
-                {aiInboxEnabled && activeEmailFolder === 'inbox' && inboxStats.hidden > 0
-                  ? `No important mail — ${inboxStats.hidden} filtered by AI Inbox`
-                  : `No messages in ${currentFolder?.label ?? 'folder'}`}
+                {aiOutboxEnabled && activeEmailFolder === 'inbox'
+                  ? 'No filtered mail in AI Outbox — nothing AI flagged as junk or low priority'
+                  : aiInboxEnabled && activeEmailFolder === 'inbox' && inboxStats.hidden > 0
+                    ? `No important mail — ${inboxStats.hidden} filtered by AI Inbox`
+                    : `No messages in ${currentFolder?.label ?? 'folder'}`}
               </p>
             ) : (
               filtered.map((e) => {
@@ -282,7 +291,9 @@ export function EmailView() {
                     onSelect={() => handleSelectEmail(e.id)}
                     onDelete={() => deleteEmail(e.id)}
                     category={c?.category}
-                    showCategory={aiInboxEnabled && activeEmailFolder === 'inbox'}
+                    showCategory={
+                      activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)
+                    }
                   />
                 )
               })

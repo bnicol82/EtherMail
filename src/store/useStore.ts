@@ -39,7 +39,7 @@ import { generateVaultAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
 import { completeNoteTodo } from '../lib/todos'
 import { snoozeUntilFromPreset } from '../lib/snooze'
-import { DEFAULT_INBOX_TRAINING } from '../lib/aiInbox'
+import { DEFAULT_INBOX_TRAINING, getOutboxEmails } from '../lib/aiInbox'
 
 function uniquePush(arr: string[], value: string): string[] {
   const v = value.toLowerCase()
@@ -155,6 +155,9 @@ interface EtherMailState {
 
   aiInboxEnabled: boolean
   setAiInboxEnabled: (enabled: boolean) => void
+  aiOutboxEnabled: boolean
+  setAiOutboxEnabled: (enabled: boolean) => void
+  deleteAllOutboxEmails: () => void
   inboxTraining: EmailInboxTraining
   emailInboxOverrides: Record<string, EmailInboxOverride>
   trainEmailImportant: (emailId: string) => void
@@ -743,7 +746,31 @@ export const useEtherMailStore = create<EtherMailState>()(
         })),
 
       aiInboxEnabled: false,
-      setAiInboxEnabled: (aiInboxEnabled) => set({ aiInboxEnabled }),
+      setAiInboxEnabled: (aiInboxEnabled) =>
+        set({ aiInboxEnabled, aiOutboxEnabled: aiInboxEnabled ? false : get().aiOutboxEnabled }),
+
+      aiOutboxEnabled: false,
+      setAiOutboxEnabled: (aiOutboxEnabled) =>
+        set({ aiOutboxEnabled, aiInboxEnabled: aiOutboxEnabled ? false : get().aiInboxEnabled }),
+
+      deleteAllOutboxEmails: () => {
+        const state = get()
+        const outboxIds = new Set(
+          getOutboxEmails(state.emails, state.inboxTraining, state.emailInboxOverrides).map(
+            (e) => e.id,
+          ),
+        )
+        if (outboxIds.size === 0) return
+        set({
+          emails: state.emails.map((e) =>
+            outboxIds.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e,
+          ),
+          activeEmailId:
+            state.activeEmailId && outboxIds.has(state.activeEmailId)
+              ? null
+              : state.activeEmailId,
+        })
+      },
 
       inboxTraining: DEFAULT_INBOX_TRAINING,
       emailInboxOverrides: {},
@@ -948,6 +975,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         completedTodos: s.completedTodos,
         announcedProactive: s.announcedProactive,
         aiInboxEnabled: s.aiInboxEnabled,
+        aiOutboxEnabled: s.aiOutboxEnabled,
         inboxTraining: s.inboxTraining,
         emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,
