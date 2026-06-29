@@ -11,20 +11,30 @@ import {
   Sparkles,
   Tag,
   Link2,
+  Paperclip,
+  Mail,
+  ExternalLink,
 } from 'lucide-react'
 import { useNexusStore, useGraph } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { MiniGraph } from './MiniGraph'
-import { getBacklinks } from '../lib/utils'
+import { AccountDot } from './AccountDot'
+import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
+import { EMAIL_FILES_FOLDER_ID } from '../types'
 
 export function VaultView() {
   const folders = useNexusStore((s) => s.folders)
   const notes = useNexusStore((s) => s.notes)
   const emails = useNexusStore((s) => s.emails)
+  const accounts = useNexusStore((s) => s.accounts)
+  const emailAttachments = useNexusStore((s) => s.emailAttachments)
   const activeNoteId = useNexusStore((s) => s.activeNoteId)
+  const activeAttachmentId = useNexusStore((s) => s.activeAttachmentId)
   const activeFolderId = useNexusStore((s) => s.activeFolderId)
   const selectNote = useNexusStore((s) => s.selectNote)
+  const selectAttachment = useNexusStore((s) => s.selectAttachment)
+  const selectEmail = useNexusStore((s) => s.selectEmail)
   const selectFolder = useNexusStore((s) => s.selectFolder)
   const updateNote = useNexusStore((s) => s.updateNote)
   const editorMode = useNexusStore((s) => s.editorMode)
@@ -36,8 +46,12 @@ export function VaultView() {
   const setAiAssistantOpen = useNexusStore((s) => s.setAiAssistantOpen)
   const submitAiQuery = useNexusStore((s) => s.submitAiQuery)
 
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['root', 'projects', 'athena']))
+  const [expanded, setExpanded] = useState<Set<string>>(
+    new Set(['root', 'projects', 'athena', EMAIL_FILES_FOLDER_ID]),
+  )
   const activeNote = notes.find((n) => n.id === activeNoteId)
+  const activeAttachment = emailAttachments.find((a) => a.id === activeAttachmentId)
+  const isEmailFiles = activeFolderId === EMAIL_FILES_FOLDER_ID
   const { nodes, edges } = useGraph()
 
   const folderNotes = notes.filter((n) => {
@@ -51,6 +65,19 @@ export function VaultView() {
     }
     return n.folderId === activeFolderId
   })
+
+  const folderAttachments = emailAttachments
+    .filter((a) => {
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      const email = emails.find((e) => e.id === a.emailId)
+      return (
+        a.filename.toLowerCase().includes(q) ||
+        email?.subject.toLowerCase().includes(q) ||
+        email?.fromName.toLowerCase().includes(q)
+      )
+    })
+    .sort((a, b) => b.date.localeCompare(a.date))
 
   const toggleFolder = (id: string) => {
     setExpanded((prev) => {
@@ -66,6 +93,7 @@ export function VaultView() {
     if (!folder) return null
     const children = folders.filter((f) => f.parentId === folderId)
     const isExpanded = expanded.has(folderId)
+    const isEmailFilesFolder = folderId === EMAIL_FILES_FOLDER_ID
 
     return (
       <div key={folderId}>
@@ -86,8 +114,17 @@ export function VaultView() {
           ) : (
             <span className="w-3.5" />
           )}
-          <Folder size={14} className="shrink-0 text-amber-400/80" />
-          <span className="truncate">{folder.name}</span>
+          {isEmailFilesFolder ? (
+            <Paperclip size={14} className="shrink-0 text-accent" />
+          ) : (
+            <Folder size={14} className="shrink-0 text-amber-400/80" />
+          )}
+          <span className="truncate flex-1 text-left">{folder.name}</span>
+          {isEmailFilesFolder && emailAttachments.length > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-soft text-accent shrink-0">
+              {emailAttachments.length}
+            </span>
+          )}
         </button>
         {isExpanded && children.map((c) => renderFolder(c.id, depth + 1))}
       </div>
@@ -113,6 +150,10 @@ export function VaultView() {
     submitAiQuery(action, ctx.contextPrefix)
   }
 
+  const openSourceEmail = (emailId: string) => {
+    selectEmail(emailId)
+  }
+
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* File tree */}
@@ -128,7 +169,7 @@ export function VaultView() {
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search vault..."
+              placeholder={isEmailFiles ? 'Search email files...' : 'Search vault...'}
               className="w-full pl-8 pr-3 py-1.5 rounded-lg input-theme text-sm outline-none focus:border-[var(--accent-border)]"
             />
           </div>
@@ -137,30 +178,135 @@ export function VaultView() {
           {renderFolder('root')}
         </div>
         <div className="p-2 border-t border-[var(--glass-border)] max-h-48 overflow-y-auto">
-          <p className="text-xs text-theme-muted px-2 mb-1">Notes</p>
-          {folderNotes.map((n) => (
-            <button
-              key={n.id}
-              onClick={() => selectNote(n.id)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
-                activeNoteId === n.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
-              }`}
-            >
-              <FileText size={14} />
-              <span className="truncate">{n.title}</span>
-            </button>
-          ))}
+          <p className="text-xs text-theme-muted px-2 mb-1">
+            {isEmailFiles ? 'Email attachments' : 'Notes'}
+          </p>
+          {isEmailFiles ? (
+            folderAttachments.length === 0 ? (
+              <p className="text-xs text-theme-muted px-2 py-2">No attachments yet</p>
+            ) : (
+              folderAttachments.map((att) => {
+                const acc = accounts.find((a) => a.id === att.accountId)
+                return (
+                  <button
+                    key={att.id}
+                    onClick={() => selectAttachment(att.id)}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
+                      activeAttachmentId === att.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
+                    }`}
+                  >
+                    <span className="text-sm shrink-0">{fileIcon(att.mimeType)}</span>
+                    <span className="truncate flex-1 text-left">{att.filename}</span>
+                    <AccountDot account={acc} />
+                  </button>
+                )
+              })
+            )
+          ) : (
+            folderNotes.map((n) => (
+              <button
+                key={n.id}
+                onClick={() => selectNote(n.id)}
+                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
+                  activeNoteId === n.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
+                }`}
+              >
+                <FileText size={14} />
+                <span className="truncate">{n.title}</span>
+              </button>
+            ))
+          )}
         </div>
       </div>
 
-      {/* Editor area */}
+      {/* Editor / attachment detail */}
       <div
         className={`
           ${mobilePanel !== 'detail' ? 'hidden md:flex' : 'flex'}
           flex-1 flex-col min-w-0
         `}
       >
-        {activeNote ? (
+        {isEmailFiles && activeAttachment ? (
+          <>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
+              <button
+                className="md:hidden text-theme-secondary hover:text-theme text-sm"
+                onClick={() => setMobilePanel('list')}
+              >
+                ← Back
+              </button>
+              <div className="flex items-center gap-1 text-xs text-theme-muted flex-1 min-w-0">
+                {breadcrumbs().map((c, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    {i > 0 && <ChevronRight size={12} />}
+                    <span className="truncate">{c}</span>
+                  </span>
+                ))}
+                <ChevronRight size={12} />
+                <span className="text-theme truncate">{activeAttachment.filename}</span>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-xl">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="text-4xl">{fileIcon(activeAttachment.mimeType)}</div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-theme break-all">{activeAttachment.filename}</h2>
+                    <p className="text-sm text-theme-muted mt-1">
+                      {formatFileSize(activeAttachment.sizeBytes)} · {activeAttachment.mimeType}
+                    </p>
+                    <p className="text-xs text-theme-muted mt-1">{new Date(activeAttachment.date).toLocaleString()}</p>
+                    <div className="mt-2">
+                      <AccountDot
+                        account={accounts.find((a) => a.id === activeAttachment.accountId)}
+                        showLabel
+                        size="md"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {(() => {
+                  const sourceEmail = emails.find((e) => e.id === activeAttachment.emailId)
+                  if (!sourceEmail) return null
+                  return (
+                    <div className="glass rounded-xl p-4 mb-6">
+                      <p className="text-xs text-theme-muted mb-2 flex items-center gap-1">
+                        <Mail size={12} /> From email
+                      </p>
+                      <p className="text-sm font-medium text-theme">{sourceEmail.subject}</p>
+                      <p className="text-xs text-theme-muted mt-1">
+                        {sourceEmail.fromName} · {formatDate(sourceEmail.date)}
+                      </p>
+                      <button
+                        onClick={() => openSourceEmail(sourceEmail.id)}
+                        className="mt-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"
+                      >
+                        <ExternalLink size={12} /> Open in Inbox
+                      </button>
+                    </div>
+                  )
+                })()}
+
+                <div className="glass rounded-xl p-6 text-center text-theme-muted text-sm">
+                  <Paperclip size={24} className="mx-auto mb-2 opacity-50" />
+                  <p>File preview will be available when email accounts are connected via OAuth.</p>
+                  <p className="text-xs mt-2 opacity-70">Attachments sync automatically from all inboxes.</p>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : isEmailFiles ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-theme-muted p-6 text-center">
+            <Paperclip size={32} className="mb-3 opacity-40" />
+            <p className="text-sm font-medium text-theme-secondary">Email Files</p>
+            <p className="text-xs mt-1 max-w-xs">
+              All attachments from your connected inboxes appear here automatically.
+            </p>
+            <p className="text-xs mt-3 text-accent">{folderAttachments.length} files</p>
+          </div>
+        ) : activeNote ? (
           <>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
               <button

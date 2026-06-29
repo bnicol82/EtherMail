@@ -1,7 +1,9 @@
-import type { Email, EmailAccount, Folder, GraphEdge, GraphNode, Note, CalendarEvent } from '../types'
+import type { Email, EmailAccount, EmailAttachment, Folder, GraphEdge, GraphNode, Note, CalendarEvent } from '../types'
+import { EMAIL_FILES_FOLDER_ID } from '../types'
 
 export const SEED_FOLDERS: Folder[] = [
   { id: 'root', name: "Sarah J's Personal Vault", parentId: null },
+  { id: EMAIL_FILES_FOLDER_ID, name: 'Email Files', parentId: 'root', isSystem: true },
   { id: 'templates', name: 'Templates', parentId: 'root' },
   { id: 'archives', name: 'Archives', parentId: 'root' },
   { id: 'projects', name: 'Projects', parentId: 'root' },
@@ -149,6 +151,72 @@ export const SEED_ACCOUNTS: EmailAccount[] = [
   { id: 'acc-yahoo', email: 'user@yahoo.com', provider: 'yahoo', connected: false },
 ]
 
+export const SEED_ATTACHMENTS: EmailAttachment[] = [
+  {
+    id: 'att-1',
+    emailId: 'email-1',
+    accountId: 'acc-outlook',
+    filename: 'Q3_Strategy_Draft.pdf',
+    sizeBytes: 2_450_000,
+    mimeType: 'application/pdf',
+    date: '2026-06-27T10:30:00Z',
+  },
+  {
+    id: 'att-2',
+    emailId: 'email-1',
+    accountId: 'acc-outlook',
+    filename: 'Athena_Roadmap.xlsx',
+    sizeBytes: 890_000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    date: '2026-06-27T10:30:00Z',
+  },
+  {
+    id: 'att-3',
+    emailId: 'email-2',
+    accountId: 'acc-gmail',
+    filename: 'Expense_Report_Template.xlsx',
+    sizeBytes: 124_000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    date: '2026-06-26T08:00:00Z',
+  },
+  {
+    id: 'att-4',
+    emailId: 'email-2',
+    accountId: 'acc-gmail',
+    filename: 'receipts_q2.zip',
+    sizeBytes: 4_100_000,
+    mimeType: 'application/zip',
+    date: '2026-06-26T08:00:00Z',
+  },
+  {
+    id: 'att-5',
+    emailId: 'email-3',
+    accountId: 'acc-outlook',
+    filename: 'Research_Summary_Excerpt.pdf',
+    sizeBytes: 560_000,
+    mimeType: 'application/pdf',
+    date: '2026-06-25T14:15:00Z',
+  },
+  {
+    id: 'att-6',
+    emailId: 'email-5',
+    accountId: 'acc-outlook',
+    filename: 'Budget_Review_Agenda.docx',
+    sizeBytes: 78_000,
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    date: '2026-06-23T11:00:00Z',
+  },
+  {
+    id: 'att-7',
+    emailId: 'email-5',
+    accountId: 'acc-outlook',
+    filename: 'invite.ics',
+    sizeBytes: 4_200,
+    mimeType: 'text/calendar',
+    date: '2026-06-23T11:00:00Z',
+  },
+]
+
 export const SEED_EMAILS: Email[] = [
   {
     id: 'email-1',
@@ -177,6 +245,7 @@ Sarah J.`,
     read: false,
     starred: true,
     linkedNoteId: 'note-q3-marketing',
+    attachmentIds: ['att-1', 'att-2'],
   },
   {
     id: 'email-2',
@@ -198,6 +267,7 @@ Finance Team`,
     read: true,
     starred: false,
     linkedNoteId: 'note-budget',
+    attachmentIds: ['att-3', 'att-4'],
   },
   {
     id: 'email-3',
@@ -217,6 +287,7 @@ Acme Corp Team`,
     read: true,
     starred: false,
     linkedNoteId: 'note-research',
+    attachmentIds: ['att-5'],
   },
   {
     id: 'email-4',
@@ -259,6 +330,7 @@ This event relates to your Budget Q4 planning notes.`,
     read: false,
     starred: false,
     linkedNoteId: 'note-budget',
+    attachmentIds: ['att-6', 'att-7'],
   },
 ]
 
