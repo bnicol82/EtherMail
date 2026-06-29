@@ -129,6 +129,12 @@ export interface AISettings {
   bridgeEnabled: boolean
 }
 
+export interface WeatherSettings {
+  /** Fallback city when geolocation is off or denied */
+  fallbackCity: string
+  useGeolocation: boolean
+}
+
 export type AIAlertSeverity = 'info' | 'warning' | 'urgent'
 
 export type AIAlertCategory = 'email' | 'calendar' | 'todo' | 'vault' | 'account'

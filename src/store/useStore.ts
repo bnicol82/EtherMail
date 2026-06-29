@@ -25,6 +25,7 @@ import type {
   OAuthSettings,
   Theme,
   View,
+  WeatherSettings,
 } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
 import { computeAIAlerts } from '../lib/aiAlerts'
@@ -68,6 +69,9 @@ interface EtherMailState {
 
   aiSettings: AISettings
   setAISettings: (settings: Partial<AISettings>) => void
+
+  weatherSettings: WeatherSettings
+  setWeatherSettings: (settings: Partial<WeatherSettings>) => void
 
   chatMessages: ChatMessage[]
   addChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void
@@ -181,6 +185,13 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
       setAISettings: (settings) =>
         set((s) => ({ aiSettings: { ...s.aiSettings, ...settings } })),
+
+      weatherSettings: {
+        fallbackCity: 'San Francisco',
+        useGeolocation: true,
+      },
+      setWeatherSettings: (settings) =>
+        set((s) => ({ weatherSettings: { ...s.weatherSettings, ...settings } })),
 
       chatMessages: [],
       addChatMessage: (msg) =>
@@ -660,6 +671,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         activeEmailFolder: s.activeEmailFolder,
         hiddenPanels: s.hiddenPanels,
         alertMeta: s.alertMeta,
+        weatherSettings: s.weatherSettings,
         view: s.view,
       }),
     },

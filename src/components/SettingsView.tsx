@@ -1,7 +1,8 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
 import { canUseRealOAuth } from '../lib/oauth/connect'
+import { clearWeatherCache } from '../lib/weather'
 import type { Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -21,6 +22,8 @@ export function SettingsView() {
   const disconnectAccount = useEtherMailStore((s) => s.disconnectAccount)
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const setOAuthSettings = useEtherMailStore((s) => s.setOAuthSettings)
+  const weatherSettings = useEtherMailStore((s) => s.weatherSettings)
+  const setWeatherSettings = useEtherMailStore((s) => s.setWeatherSettings)
 
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
@@ -54,6 +57,39 @@ export function SettingsView() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Weather */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <CloudSun size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">Weather</h2>
+        </div>
+        <p className="text-sm text-theme-muted mb-4">
+          Shown in the bottom dock. Uses your location when allowed, otherwise your fallback city.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-theme-secondary mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={weatherSettings.useGeolocation}
+            onChange={(e) => {
+              clearWeatherCache()
+              setWeatherSettings({ useGeolocation: e.target.checked })
+            }}
+            className="rounded border-[var(--glass-border)]"
+          />
+          Use device location
+        </label>
+        <label className="block text-sm text-theme-muted mb-2">Fallback city</label>
+        <input
+          value={weatherSettings.fallbackCity}
+          onChange={(e) => {
+            clearWeatherCache()
+            setWeatherSettings({ fallbackCity: e.target.value })
+          }}
+          placeholder="e.g. San Francisco"
+          className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
+        />
       </section>
 
       {/* AI Settings */}

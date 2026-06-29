@@ -7,10 +7,12 @@ import {
   Send,
   Sparkles,
   MessageSquare,
+  CloudSun,
 } from 'lucide-react'
 import { useEtherMailStore, useStats, useUpcomingMeetings } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
+import { WeatherChip } from './WeatherChip'
 
 function formatMeetingTime(iso: string): string {
   const d = new Date(iso)
@@ -167,6 +169,14 @@ export function BottomBar() {
           <LiveClock />
         </div>
 
+        <div className="hidden sm:flex flex-col justify-center px-3 py-2 border-r border-[var(--glass-border)] shrink-0">
+          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-theme-muted font-medium mb-1">
+            <CloudSun size={11} />
+            Weather
+          </div>
+          <WeatherChip />
+        </div>
+
         <div className="hidden lg:flex flex-col justify-center gap-0.5 px-3 py-2 border-r border-[var(--glass-border)] min-w-[130px] shrink-0">
           <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-theme-muted font-medium">
             <BarChart3 size={11} />
@@ -201,10 +211,11 @@ export function BottomBar() {
         </div>
       </div>
 
-      <div className="sm:hidden flex items-center justify-between px-3 py-0.5 border-t border-[var(--glass-border)] text-[10px] text-theme-muted">
-        <span className="truncate pr-2">
+      <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-0.5 border-t border-[var(--glass-border)] text-[10px] text-theme-muted">
+        <span className="truncate flex-1 min-w-0">
           {meetings[0] ? `${meetings[0].title} · ${formatMeetingTime(meetings[0].start)}` : 'No upcoming meetings'}
         </span>
+        <WeatherChip compact showLabel />
         <LiveClock />
       </div>
     </footer>
