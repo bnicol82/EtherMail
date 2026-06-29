@@ -1,5 +1,20 @@
-import { useEffect, useRef, useState } from 'react'
-import { Send, FileEdit, X, FileText, Sparkles, Loader2, Paperclip } from 'lucide-react'
+import { useEffect, useRef, useState, useCallback } from 'react'
+import {
+  Send,
+  X,
+  Sparkles,
+  Loader2,
+  Paperclip,
+  FileText,
+  Bold,
+  Italic,
+  List,
+  Wand2,
+  Minimize2,
+  Clock,
+  ChevronDown,
+  Check,
+} from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { ComposeAttachment, ComposeDraft, Email } from '../types'
 import { providerColor, providerLabel, formatFileSize, fileIcon } from '../lib/utils'
@@ -9,6 +24,10 @@ import {
   MAX_COMPOSE_ATTACHMENT_BYTES,
   MAX_COMPOSE_ATTACHMENTS,
 } from '../lib/composeAttachments'
+import { countWords, insertAtCursor, isDraftWorthy } from '../lib/composeUtils'
+import { assistComposeBody, type ComposeAssistAction } from '../lib/composeAssist'
+
+type ComposePanel = 'none' | 'templates' | 'ai'
 
 export function ComposeEmailModal() {
   const composeDraft = useEtherMailStore((s) => s.composeDraft)
@@ -26,13 +45,17 @@ export function ComposeEmailModal() {
   const [body, setBody] = useState('')
   const [accountId, setAccountId] = useState('')
   const [showCcBcc, setShowCcBcc] = useState(false)
-  const [showTemplates, setShowTemplates] = useState(false)
+  const [panel, setPanel] = useState<ComposePanel>('none')
   const [aiInstruction, setAiInstruction] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [replyToEmail, setReplyToEmail] = useState<Email | undefined>()
   const [attachments, setAttachments] = useState<ComposeAttachment[]>([])
   const [attachError, setAttachError] = useState<string | null>(null)
+  const [savedHint, setSavedHint] = useState<string | null>(null)
+  const [scheduleLater, setScheduleLater] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   const templates = getEmailTemplates(notes)
 
@@ -47,22 +70,47 @@ export function ComposeEmailModal() {
     setShowCcBcc(!!(composeDraft.cc || composeDraft.bcc))
     setAttachments(composeDraft.attachments ?? [])
     setAttachError(null)
+    setSavedHint(null)
+    setPanel('none')
     setReplyToEmail(undefined)
   }, [composeDraft])
+
+  const buildDraft = useCallback((): ComposeDraft => {
+    if (!composeDraft) {
+      return { to: '', subject: '', body: '', accountId: '' }
+    }
+    return {
+      id: composeDraft.id,
+      to,
+      cc: cc || undefined,
+      bcc: bcc || undefined,
+      subject,
+      body,
+      accountId: accountId || composeDraft.accountId,
+      attachments: attachments.length > 0 ? attachments : undefined,
+    }
+  }, [composeDraft, to, cc, bcc, subject, body, accountId, attachments])
+
+  const dismiss = useCallback(
+    (autoSave: boolean) => {
+      const draft = buildDraft()
+      if (autoSave && isDraftWorthy(draft)) {
+        saveComposeDraft(draft)
+      } else {
+        closeCompose()
+      }
+    },
+    [buildDraft, saveComposeDraft, closeCompose],
+  )
 
   if (!composeDraft) return null
 
   const connectedAccounts = accounts.filter((a) => a.connected)
-  const draft: ComposeDraft = {
-    id: composeDraft.id,
-    to,
-    cc: cc || undefined,
-    bcc: bcc || undefined,
-    subject,
-    body,
-    accountId: accountId || composeDraft.accountId,
-    attachments: attachments.length > 0 ? attachments : undefined,
-  }
+  const activeAccount =
+    connectedAccounts.find((a) => a.id === (accountId || composeDraft.accountId)) ??
+    connectedAccounts[0]
+  const draft = buildDraft()
+  const wordCount = countWords(body)
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return
@@ -81,7 +129,7 @@ export function ComposeEmailModal() {
     if (!tpl) return
     setSubject(tpl.subject)
     setBody(tpl.body)
-    setShowTemplates(false)
+    setPanel('none')
   }
 
   const runAiTemplate = async (templateId: string) => {
@@ -98,58 +146,289 @@ export function ComposeEmailModal() {
       })
       setSubject(result.subject)
       setBody(result.body)
-      setShowTemplates(false)
+      setPanel('none')
       setAiInstruction('')
     } finally {
       setAiLoading(false)
     }
   }
 
+  const runAssist = async (action: ComposeAssistAction) => {
+    setAiLoading(true)
+    try {
+      const next = await assistComposeBody(action, body, notes, emails, { to, subject })
+      setBody(next)
+      setPanel('none')
+    } finally {
+      setAiLoading(false)
+    }
+  }
+
+  const wrapSelection = (wrapper: string) => {
+    const el = bodyRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const selected = body.slice(start, end) || 'text'
+    const wrapped = `${wrapper}${selected}${wrapper}`
+    const { next } = insertAtCursor(body, wrapped, start, end)
+    setBody(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + wrapper.length, start + wrapper.length + selected.length)
+    })
+  }
+
+  const insertNoteLink = (noteId: string) => {
+    const note = notes.find((n) => n.id === noteId)
+    if (!note) return
+    const el = bodyRef.current
+    const insertion = `[[${note.title}]]`
+    if (!el) {
+      setBody((b) => `${b}${b.endsWith('\n') || !b ? '' : '\n'}${insertion}`)
+      return
+    }
+    const { next, cursor } = insertAtCursor(body, insertion, el.selectionStart, el.selectionEnd)
+    setBody(next)
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(cursor, cursor)
+    })
+  }
+
+  const handleSend = () => {
+    if (scheduleLater) {
+      saveComposeDraft({
+        ...draft,
+        subject: draft.subject || '(scheduled)',
+        body: `${draft.body}\n\n---\n[Scheduled send — demo] Will send tomorrow morning.`,
+      })
+      setSavedHint('Scheduled draft saved')
+      return
+    }
+    sendComposedEmail(draft)
+  }
+
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-4 pb-24 sm:pb-4 bg-black/40 backdrop-blur-sm"
-      onClick={closeCompose}
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6 pb-24 sm:pb-6 bg-black/50 backdrop-blur-md"
+      onClick={() => dismiss(true)}
       role="dialog"
       aria-modal="true"
       aria-labelledby="compose-title"
     >
       <div
-        className="glass-frost rounded-t-2xl sm:rounded-xl w-full max-w-lg max-h-[min(90vh,40rem)] shadow-2xl border border-[var(--glass-border)] flex flex-col overflow-hidden"
+        className="glass-frost rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[min(92vh,44rem)] shadow-2xl border border-[var(--glass-border)] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-2.5 border-b border-[var(--glass-border)] shrink-0">
-          <h2 id="compose-title" className="text-base font-semibold text-theme">
-            {composeDraft.id ? 'Edit draft' : 'New message'}
-          </h2>
-          <button
-            type="button"
-            onClick={closeCompose}
-            className="p-1.5 rounded-lg hover-theme text-theme-muted"
-            aria-label="Close"
-          >
-            <X size={18} />
-          </button>
+        {/* Header */}
+        <div className="shrink-0 border-b border-[var(--glass-border)] bg-gradient-to-r from-[var(--accent)]/15 via-transparent to-purple-500/10">
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-9 h-9 rounded-xl bg-[var(--accent)]/20 flex items-center justify-center shrink-0">
+              <Send size={18} className="text-accent" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 id="compose-title" className="text-base font-semibold text-theme truncate">
+                {composeDraft.id ? 'Edit draft' : 'New message'}
+              </h2>
+              {activeAccount && (
+                <p className="text-[11px] text-theme-muted flex items-center gap-1.5 truncate">
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: providerColor(activeAccount.provider) }}
+                  />
+                  {activeAccount.email}
+                </p>
+              )}
+            </div>
+            {savedHint && (
+              <span className="text-[10px] text-emerald-400 flex items-center gap-1 shrink-0">
+                <Check size={12} />
+                {savedHint}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => dismiss(true)}
+              className="p-2 rounded-xl hover-theme text-theme-muted shrink-0"
+              aria-label="Close and save draft"
+              title="Close (saves draft)"
+            >
+              <Minimize2 size={18} />
+            </button>
+            <button
+              type="button"
+              onClick={() => dismiss(true)}
+              className="p-2 rounded-xl hover-theme text-theme-muted shrink-0"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {connectedAccounts.length > 1 && (
+            <div className="px-4 pb-3">
+              <select
+                value={accountId}
+                onChange={(e) => setAccountId(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl input-theme text-sm outline-none"
+              >
+                {connectedAccounts.map((acc) => (
+                  <option key={acc.id} value={acc.id}>
+                    Send as {acc.email} ({providerLabel(acc.provider)})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-0">
-          {/* Templates */}
-          {templates.length > 0 && (
-            <div className="rounded-xl glass p-3 space-y-2">
+        {/* Address fields — Gmail-style rows */}
+        <div className="shrink-0 border-b border-[var(--glass-border)] divide-y divide-[var(--glass-border)]">
+          <div className="flex items-center gap-2 px-4 py-2">
+            <span className="text-xs text-theme-muted w-8 shrink-0">To</span>
+            <input
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="Recipients"
+              className="flex-1 bg-transparent text-sm text-theme outline-none placeholder:text-theme-muted/60"
+            />
+            {!showCcBcc && (
               <button
                 type="button"
-                onClick={() => setShowTemplates(!showTemplates)}
-                className="w-full flex items-center justify-between text-sm font-medium text-theme"
+                onClick={() => setShowCcBcc(true)}
+                className="text-[10px] text-accent hover:underline shrink-0"
               >
-                <span className="flex items-center gap-2">
-                  <FileText size={14} className="text-accent" />
-                  Email templates
-                </span>
-                <span className="text-xs text-theme-muted">{showTemplates ? 'Hide' : 'Show'}</span>
+                Cc/Bcc
               </button>
-              {showTemplates && (
-                <div className="space-y-2 pt-1">
+            )}
+          </div>
+          {showCcBcc && (
+            <>
+              <div className="flex items-center gap-2 px-4 py-2">
+                <span className="text-xs text-theme-muted w-8 shrink-0">Cc</span>
+                <input
+                  value={cc}
+                  onChange={(e) => setCc(e.target.value)}
+                  placeholder="Carbon copy"
+                  className="flex-1 bg-transparent text-sm text-theme outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-4 py-2">
+                <span className="text-xs text-theme-muted w-8 shrink-0">Bcc</span>
+                <input
+                  value={bcc}
+                  onChange={(e) => setBcc(e.target.value)}
+                  placeholder="Blind copy"
+                  className="flex-1 bg-transparent text-sm text-theme outline-none"
+                />
+              </div>
+            </>
+          )}
+          <div className="flex items-center gap-2 px-4 py-2.5">
+            <span className="text-xs text-theme-muted w-8 shrink-0">Subj</span>
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="Subject"
+              className="flex-1 bg-transparent text-sm font-medium text-theme outline-none placeholder:font-normal placeholder:text-theme-muted/60"
+            />
+          </div>
+        </div>
+
+        {/* Formatting toolbar */}
+        <div className="shrink-0 flex items-center gap-0.5 px-3 py-1.5 border-b border-[var(--glass-border)] bg-[var(--glass-bg)]/50 overflow-x-auto">
+          <button type="button" onClick={() => wrapSelection('**')} className="compose-tool" title="Bold">
+            <Bold size={14} />
+          </button>
+          <button type="button" onClick={() => wrapSelection('_')} className="compose-tool" title="Italic">
+            <Italic size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const el = bodyRef.current
+              const line = '\n- '
+              if (!el) {
+                setBody((b) => `${b}${line}`)
+                return
+              }
+              const { next, cursor } = insertAtCursor(body, line, el.selectionStart, el.selectionEnd)
+              setBody(next)
+              requestAnimationFrame(() => {
+                el.focus()
+                el.setSelectionRange(cursor, cursor)
+              })
+            }}
+            className="compose-tool"
+            title="Bullet list"
+          >
+            <List size={14} />
+          </button>
+          <span className="w-px h-4 bg-[var(--glass-border)] mx-1" />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={attachments.length >= MAX_COMPOSE_ATTACHMENTS}
+            className="compose-tool"
+            title="Attach file"
+          >
+            <Paperclip size={14} />
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            className="hidden"
+            onChange={(e) => handleFiles(e.target.files)}
+          />
+          <button
+            type="button"
+            onClick={() => setPanel(panel === 'templates' ? 'none' : 'templates')}
+            className={`compose-tool ${panel === 'templates' ? 'compose-tool-active' : ''}`}
+            title="Templates"
+          >
+            <FileText size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setPanel(panel === 'ai' ? 'none' : 'ai')}
+            className={`compose-tool ${panel === 'ai' ? 'compose-tool-active' : ''}`}
+            title="AI assist"
+          >
+            <Sparkles size={14} />
+          </button>
+          {notes.length > 0 && (
+            <select
+              className="ml-1 text-[10px] px-2 py-1 rounded-lg glass text-theme-muted outline-none max-w-[7rem]"
+              defaultValue=""
+              onChange={(e) => {
+                if (e.target.value) insertNoteLink(e.target.value)
+                e.target.value = ''
+              }}
+            >
+              <option value="">Link note…</option>
+              {notes.slice(0, 8).map((n) => (
+                <option key={n.id} value={n.id}>
+                  {n.title.slice(0, 24)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Side panel: templates or AI */}
+        {panel !== 'none' && (
+          <div className="shrink-0 border-b border-[var(--glass-border)] bg-accent-soft/30 max-h-40 overflow-y-auto p-3">
+            {panel === 'templates' && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-theme flex items-center gap-1.5">
+                  <FileText size={12} className="text-accent" />
+                  Email templates
+                </p>
+                <div className="space-y-2">
                   {templates.map((tpl) => (
-                    <div key={tpl.id} className="flex flex-wrap gap-2 items-center">
+                    <div key={tpl.id} className="flex flex-wrap gap-1.5 items-center">
                       <button
                         type="button"
                         onClick={() => applyTemplate(tpl.id)}
@@ -159,216 +438,166 @@ export function ComposeEmailModal() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => runAiTemplate(tpl.id)}
                         disabled={aiLoading}
-                        className="text-xs px-2.5 py-1 rounded-full btn-accent flex items-center gap-1 disabled:opacity-50"
+                        onClick={() => runAiTemplate(tpl.id)}
+                        className="text-xs px-2 py-1 rounded-full btn-accent flex items-center gap-1 disabled:opacity-50"
                       >
-                        {aiLoading ? <Loader2 size={10} className="animate-spin" /> : <Sparkles size={10} />}
-                        AI fill
+                        {aiLoading ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />}
+                        AI
                       </button>
                     </div>
                   ))}
-                  <input
-                    value={aiInstruction}
-                    onChange={(e) => setAiInstruction(e.target.value)}
-                    placeholder="AI instruction (optional) — e.g. mention Project Athena deadline"
-                    className="w-full px-3 py-1.5 rounded-lg input-theme text-xs outline-none"
-                  />
+                </div>
+                <input
+                  value={aiInstruction}
+                  onChange={(e) => setAiInstruction(e.target.value)}
+                  placeholder="AI instruction for template fill…"
+                  className="w-full px-2.5 py-1.5 rounded-lg input-theme text-xs outline-none"
+                />
+              </div>
+            )}
+            {panel === 'ai' && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-theme flex items-center gap-1.5">
+                  <Sparkles size={12} className="text-accent" />
+                  AI writing assist
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {(
+                    [
+                      ['polish', 'Polish'],
+                      ['shorten', 'Shorten'],
+                      ['expand', 'Expand'],
+                      ['friendly', 'Friendlier'],
+                    ] as [ComposeAssistAction, string][]
+                  ).map(([action, label]) => (
+                    <button
+                      key={action}
+                      type="button"
+                      disabled={aiLoading || !body.trim()}
+                      onClick={() => runAssist(action)}
+                      className="text-xs px-2.5 py-1 rounded-full glass hover-theme text-theme-secondary disabled:opacity-40"
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Body */}
+        <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <textarea
+            ref={bodyRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Write your message…"
+            className="flex-1 w-full px-4 py-3 bg-transparent text-sm text-theme-secondary leading-relaxed outline-none resize-none min-h-[10rem]"
+          />
+
+          {/* Attachments strip */}
+          {(attachments.length > 0 || attachError) && (
+            <div className="shrink-0 px-4 pb-2 border-t border-[var(--glass-border)] pt-2">
+              {attachError && <p className="text-[10px] text-red-400 mb-1">{attachError}</p>}
+              {attachments.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {attachments.map((att) => (
+                    <span
+                      key={att.id}
+                      className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary"
+                    >
+                      {fileIcon(att.mimeType)}
+                      <span className="truncate max-w-[8rem]">{att.filename}</span>
+                      <span className="text-theme-muted">{formatFileSize(att.sizeBytes)}</span>
+                      <button
+                        type="button"
+                        onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                        className="text-theme-muted hover:text-theme"
+                      >
+                        <X size={10} />
+                      </button>
+                    </span>
+                  ))}
                 </div>
               )}
+              <p className="text-[9px] text-theme-muted mt-1">
+                Up to {MAX_COMPOSE_ATTACHMENTS} files · {MAX_COMPOSE_ATTACHMENT_BYTES / 1024 / 1024}MB each
+              </p>
             </div>
           )}
-
-          {connectedAccounts.length > 1 && (
-            <div>
-              <label className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-                From
-              </label>
-              <select
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
-              >
-                {connectedAccounts.map((acc) => (
-                  <option key={acc.id} value={acc.id}>
-                    {acc.email} ({providerLabel(acc.provider)})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          {connectedAccounts.length === 1 && (
-            <p className="text-xs text-theme-muted flex items-center gap-1.5">
-              <span
-                className="w-2 h-2 rounded-full"
-                style={{ background: providerColor(connectedAccounts[0].provider) }}
-              />
-              From {connectedAccounts[0].email}
-            </p>
-          )}
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label htmlFor="compose-to" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-                To
-              </label>
-              {!showCcBcc && (
-                <button
-                  type="button"
-                  onClick={() => setShowCcBcc(true)}
-                  className="text-[10px] text-accent hover:underline"
-                >
-                  Cc/Bcc
-                </button>
-              )}
-            </div>
-            <input
-              id="compose-to"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              placeholder="recipient@example.com"
-              className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
-            />
-          </div>
-
-          {showCcBcc && (
-            <>
-              <div>
-                <label htmlFor="compose-cc" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-                  Cc
-                </label>
-                <input
-                  id="compose-cc"
-                  value={cc}
-                  onChange={(e) => setCc(e.target.value)}
-                  placeholder="cc@example.com"
-                  className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
-                />
-              </div>
-              <div>
-                <label htmlFor="compose-bcc" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-                  Bcc
-                </label>
-                <input
-                  id="compose-bcc"
-                  value={bcc}
-                  onChange={(e) => setBcc(e.target.value)}
-                  placeholder="bcc@example.com"
-                  className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
-                />
-              </div>
-            </>
-          )}
-
-          <div>
-            <label htmlFor="compose-subject" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-              Subject
-            </label>
-            <input
-              id="compose-subject"
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="Subject"
-              className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
-            />
-          </div>
-
-          <div className="flex-1 min-h-[120px]">
-            <label htmlFor="compose-body" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-              Message
-            </label>
-            <textarea
-              id="compose-body"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your message..."
-              rows={8}
-              className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none resize-y min-h-[120px]"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <span className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-                Attachments
-              </span>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={attachments.length >= MAX_COMPOSE_ATTACHMENTS}
-                className="flex items-center gap-1 text-[10px] text-accent hover:underline disabled:opacity-40"
-              >
-                <Paperclip size={12} />
-                Attach file
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                className="hidden"
-                onChange={(e) => handleFiles(e.target.files)}
-              />
-            </div>
-            {attachError && (
-              <p className="text-[10px] text-red-400 mb-1">{attachError}</p>
-            )}
-            <p className="text-[10px] text-theme-muted mb-1.5">
-              Max {MAX_COMPOSE_ATTACHMENTS} files, {MAX_COMPOSE_ATTACHMENT_BYTES / 1024 / 1024}MB each — synced to Vault → Email Files
-            </p>
-            {attachments.length > 0 ? (
-              <ul className="space-y-1">
-                {attachments.map((att) => (
-                  <li
-                    key={att.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg glass text-xs"
-                  >
-                    <span>{fileIcon(att.mimeType)}</span>
-                    <span className="flex-1 truncate text-theme-secondary">{att.filename}</span>
-                    <span className="text-theme-muted shrink-0">{formatFileSize(att.sizeBytes)}</span>
-                    <button
-                      type="button"
-                      onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
-                      className="p-0.5 rounded hover-theme text-theme-muted"
-                      aria-label={`Remove ${att.filename}`}
-                    >
-                      <X size={12} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-[10px] text-theme-muted">No attachments</p>
-            )}
-          </div>
         </div>
 
-        <div className="flex gap-2 p-3 border-t border-[var(--glass-border)] shrink-0">
+        {/* Footer */}
+        <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-t border-[var(--glass-border)] bg-[var(--glass-bg)]/60">
+          <label className="flex items-center gap-1.5 text-[10px] text-theme-muted cursor-pointer shrink-0">
+            <input
+              type="checkbox"
+              checked={scheduleLater}
+              onChange={(e) => setScheduleLater(e.target.checked)}
+              className="rounded accent-[var(--accent)]"
+            />
+            <Clock size={12} />
+            Schedule
+          </label>
+          <span className="text-[10px] text-theme-muted hidden sm:inline">
+            {wordCount} words
+          </span>
+          <span className="text-[10px] text-theme-muted/70 hidden sm:inline ml-1">
+            · click outside to save draft
+          </span>
+          <div className="flex-1" />
           <button
             type="button"
-            onClick={() => saveComposeDraft(draft)}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl glass text-sm text-theme-secondary hover-theme"
+            onClick={() => dismiss(false)}
+            className="px-3 py-2 rounded-xl glass text-xs text-theme-muted hover-theme"
           >
-            <FileEdit size={14} />
+            Discard
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              saveComposeDraft(draft)
+              setSavedHint('Saved to drafts')
+            }}
+            className="px-3 py-2 rounded-xl glass text-xs text-theme-secondary hover-theme hidden sm:inline-flex"
+          >
             Save draft
           </button>
           <button
             type="button"
-            onClick={closeCompose}
-            className="px-3 py-2 rounded-xl glass text-sm text-theme-muted hover-theme"
+            onClick={handleSend}
+            disabled={!to.trim() && !scheduleLater}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl btn-accent text-sm font-semibold disabled:opacity-40 shadow-lg shadow-[var(--accent)]/20"
           >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={() => sendComposedEmail(draft)}
-            disabled={!to.trim()}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl btn-accent text-sm font-medium disabled:opacity-40"
-          >
-            <Send size={14} />
-            Send
+            <Send size={16} />
+            {scheduleLater ? 'Schedule' : 'Send'}
+            <ChevronDown size={14} className="opacity-60 hidden sm:block" />
           </button>
         </div>
       </div>
+
+      <style>{`
+        .compose-tool {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 2rem;
+          height: 2rem;
+          border-radius: 0.5rem;
+          color: var(--theme-muted, #888);
+          transition: background 0.15s, color 0.15s;
+        }
+        .compose-tool:hover {
+          background: var(--glass-bg);
+          color: var(--theme-secondary);
+        }
+        .compose-tool-active {
+          background: var(--accent-soft);
+          color: var(--accent);
+        }
+      `}</style>
     </div>
   )
 }
