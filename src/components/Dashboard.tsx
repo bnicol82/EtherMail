@@ -47,7 +47,7 @@ export function Dashboard() {
   const monthTitle = weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 md:p-6 pb-24">
+    <div className="flex-1 overflow-y-auto p-3 md:p-6">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-xl md:text-2xl font-bold text-theme mb-0.5">Dashboard</h1>
         <p className="text-theme-muted text-xs md:text-sm mb-4 md:mb-6">Your unified workspace at a glance</p>

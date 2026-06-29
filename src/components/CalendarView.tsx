@@ -142,7 +142,7 @@ export function CalendarView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-3 md:p-6 pb-4">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-3 md:p-6">
       <div className="max-w-5xl mx-auto flex flex-col flex-1 min-h-0 w-full">
         <div className="shrink-0 flex items-center justify-between flex-wrap gap-2 mb-3 md:mb-4">
           <div>
@@ -253,7 +253,7 @@ export function CalendarView() {
         )}
 
         {!upcomingHidden && (
-          <div className="glass rounded-xl p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="glass rounded-xl p-4 flex-1 min-h-[13.5rem] sm:min-h-[15rem] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between mb-3 shrink-0">
               <h2 className="font-semibold text-theme">Upcoming</h2>
               <PanelHideButton panelId="calendar-upcoming" label="upcoming" />
@@ -262,7 +262,7 @@ export function CalendarView() {
             {upcoming.length === 0 ? (
               <p className="text-sm text-theme-muted">No upcoming events</p>
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-1 px-1">
+              <div className="flex-1 min-h-[11rem] overflow-y-auto overscroll-contain -mx-1 px-1">
                 <div className="space-y-2 pb-2">
                   {upcoming.map((e, i) => (
                     <button

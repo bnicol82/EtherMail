@@ -128,8 +128,6 @@ export function AIView() {
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 space-y-4 min-h-0">
-        <AIAlertsPanel />
-
         {chatMessages.length === 0 && (
           <div className="text-center py-12">
             <Sparkles size={40} className="mx-auto text-accent mb-4 opacity-60" />
@@ -189,6 +187,8 @@ export function AIView() {
           </div>
         )}
       </div>
+
+      <AIAlertsPanel variant="dock" />
 
       <div className="p-4 border-t border-[var(--glass-border)] glass shrink-0">
         <div className="flex gap-2 max-w-3xl mx-auto">
