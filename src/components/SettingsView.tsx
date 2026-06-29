@@ -23,16 +23,16 @@ export function SettingsView() {
   const setOAuthSettings = useEtherMailStore((s) => s.setOAuthSettings)
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
+    <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
       <button
         onClick={() => setView('dashboard')}
-        className="flex items-center gap-2 text-sm text-theme-muted hover:text-theme mb-6"
+        className="flex items-center gap-2 text-sm text-theme-muted hover:text-theme mb-4 md:mb-6"
       >
         <ArrowLeft size={16} /> Back to Dashboard
       </button>
 
-      <h1 className="text-2xl font-bold text-theme mb-1">Settings</h1>
-      <p className="text-sm text-theme-muted mb-8">Configure appearance, AI providers, and accounts</p>
+      <h1 className="text-xl md:text-2xl font-bold text-theme mb-0.5">Settings</h1>
+      <p className="text-xs md:text-sm text-theme-muted mb-6 md:mb-8">Configure appearance, AI providers, and accounts</p>
 
       {/* Theme */}
       <section className="glass rounded-xl p-5 mb-6">

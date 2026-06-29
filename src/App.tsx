@@ -12,8 +12,9 @@ import { NotesView } from './components/NotesView'
 import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
 import { ConnectAccountModal } from './components/ConnectAccountModal'
+import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { handleOAuthCallback } from './lib/oauth/connect'
-import { Menu } from 'lucide-react'
+import { Menu, SquarePen } from 'lucide-react'
 
 function MainContent() {
   const view = useEtherMailStore((s) => s.view)
@@ -47,6 +48,7 @@ export default function App() {
   const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const completeOAuthConnect = useEtherMailStore((s) => s.completeOAuthConnect)
+  const openCompose = useEtherMailStore((s) => s.openCompose)
 
   const showDock = view !== 'ai'
 
@@ -69,20 +71,29 @@ export default function App() {
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
       {/* App shell — sidebar + main only (fixed bars live outside this flex tree) */}
       <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
-        <header className="md:hidden flex items-center gap-3 px-4 py-3 glass border-b border-[var(--glass-border)] shrink-0">
+        <header className="md:hidden flex items-center gap-2 px-3 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 rounded-lg hover-theme"
+            className="p-1.5 rounded-lg hover-theme"
             aria-label="Toggle menu"
           >
-            <Menu size={20} className="text-theme" />
+            <Menu size={18} className="text-theme" />
           </button>
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md shrink-0">
               E
             </div>
-            <span className="font-semibold text-theme">EtherMail</span>
+            <span className="font-semibold text-theme text-sm truncate">EtherMail</span>
           </div>
+          {view === 'email' && (
+            <button
+              onClick={() => openCompose()}
+              className="p-1.5 rounded-lg btn-accent shrink-0"
+              aria-label="Compose email"
+            >
+              <SquarePen size={16} />
+            </button>
+          )}
         </header>
 
         {sidebarOpen && (
@@ -118,6 +129,7 @@ export default function App() {
       {showDock && <AIContextStrip />}
       {showDock && <BottomBar />}
       <ConnectAccountModal />
+      <ComposeEmailModal />
     </div>
   )
 }
