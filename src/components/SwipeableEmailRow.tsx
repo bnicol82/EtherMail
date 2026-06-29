@@ -4,6 +4,8 @@ import type { Email, EmailAccount } from '../types'
 import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
 import { Star, Link2, Paperclip, CheckCircle2 } from 'lucide-react'
+import { CategoryBadge } from './AIInboxBar'
+import type { EmailJunkCategory } from '../types'
 
 interface Props {
   email: Email
@@ -11,9 +13,11 @@ interface Props {
   active: boolean
   onSelect: () => void
   onDelete: () => void
+  category?: EmailJunkCategory
+  showCategory?: boolean
 }
 
-export function SwipeableEmailRow({ email, account, active, onSelect, onDelete }: Props) {
+export function SwipeableEmailRow({ email, account, active, onSelect, onDelete, category, showCategory }: Props) {
   const startX = useRef(0)
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
@@ -94,7 +98,12 @@ export function SwipeableEmailRow({ email, account, active, onSelect, onDelete }
           <p className={`text-sm truncate pl-4 ${email.read ? 'text-theme-muted' : 'text-theme-secondary'}`}>
             {email.subject}
           </p>
-          <p className="text-xs text-theme-muted truncate mt-0.5 pl-4">{email.preview}</p>
+          <div className="flex items-center gap-1.5 pl-4 mt-0.5">
+            <p className="text-xs text-theme-muted truncate flex-1">{email.preview}</p>
+            {showCategory && category && category !== 'important' && (
+              <CategoryBadge category={category} />
+            )}
+          </div>
         </button>
       </div>
     </div>

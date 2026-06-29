@@ -28,6 +28,9 @@ import { summarizeEmail } from '../lib/emailSummary'
 import { getAIContext } from '../lib/aiContext'
 import { EmailQuickAck } from './EmailQuickAck'
 import { SnoozeMenu } from './SnoozeMenu'
+import { AIInboxBar } from './AIInboxBar'
+import { EmailInboxTraining } from './EmailInboxTraining'
+import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import type { EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
@@ -62,6 +65,12 @@ export function EmailView() {
   const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
   const openCompose = useEtherMailStore((s) => s.openCompose)
   const snoozeEmail = useEtherMailStore((s) => s.snoozeEmail)
+  const aiInboxEnabled = useEtherMailStore((s) => s.aiInboxEnabled)
+  const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
+  const inboxTraining = useEtherMailStore((s) => s.inboxTraining)
+  const emailInboxOverrides = useEtherMailStore((s) => s.emailInboxOverrides)
+  const trainEmailImportant = useEtherMailStore((s) => s.trainEmailImportant)
+  const trainEmailJunk = useEtherMailStore((s) => s.trainEmailJunk)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
@@ -93,6 +102,21 @@ export function EmailView() {
 
   const aiCtx = getAIContext('email', { activeEmail, emails, notes })
 
+  const inboxStats = useMemo(
+    () => computeInboxStats(emails, inboxTraining, emailInboxOverrides),
+    [emails, inboxTraining, emailInboxOverrides],
+  )
+
+  const getClassification = (emailId: string) => {
+    const email = emails.find((e) => e.id === emailId)
+    if (!email) return null
+    return classifyEmail(email, inboxTraining, emailInboxOverrides[email.id])
+  }
+
+  const activeClassification = activeEmail
+    ? classifyEmail(activeEmail, inboxTraining, emailInboxOverrides[activeEmail.id])
+    : null
+
   const folderCounts = useMemo(() => {
     const counts: Record<EmailFolder, number> = {
       inbox: 0,
@@ -116,6 +140,10 @@ export function EmailView() {
     if (!acc?.connected) return false
     if (activeAccountId && e.accountId !== activeAccountId) return false
     if ((e.folder ?? 'inbox') !== activeEmailFolder) return false
+    if (aiInboxEnabled && activeEmailFolder === 'inbox') {
+      const c = classifyEmail(e, inboxTraining, emailInboxOverrides[e.id])
+      if (!c.important) return false
+    }
     if (!filter) return true
     const q = filter.toLowerCase()
     return (
@@ -195,6 +223,13 @@ export function EmailView() {
             <p className="text-[10px] text-theme-muted mb-2">
               Mail folders live here — attachments sync to <strong className="text-theme-secondary">Vault → Email Files</strong>
             </p>
+            {activeEmailFolder === 'inbox' && (
+              <AIInboxBar
+                enabled={aiInboxEnabled}
+                onToggle={() => setAiInboxEnabled(!aiInboxEnabled)}
+                stats={inboxStats}
+              />
+            )}
             <div className="relative mb-3">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-muted" />
               <input
@@ -230,11 +265,14 @@ export function EmailView() {
           <div className="flex-1 overflow-y-auto">
             {filtered.length === 0 ? (
               <p className="p-4 text-sm text-theme-muted text-center">
-                No messages in {currentFolder?.label ?? 'folder'}
+                {aiInboxEnabled && activeEmailFolder === 'inbox' && inboxStats.hidden > 0
+                  ? `No important mail — ${inboxStats.hidden} filtered by AI Inbox`
+                  : `No messages in ${currentFolder?.label ?? 'folder'}`}
               </p>
             ) : (
               filtered.map((e) => {
                 const acc = accounts.find((a) => a.id === e.accountId)
+                const c = getClassification(e.id)
                 return (
                   <SwipeableEmailRow
                     key={e.id}
@@ -243,6 +281,8 @@ export function EmailView() {
                     active={activeEmailId === e.id}
                     onSelect={() => handleSelectEmail(e.id)}
                     onDelete={() => deleteEmail(e.id)}
+                    category={c?.category}
+                    showCategory={aiInboxEnabled && activeEmailFolder === 'inbox'}
                   />
                 )
               })
@@ -397,6 +437,14 @@ export function EmailView() {
                   </div>
                 )}
                 <EmailQuickAck email={activeEmail} />
+                {(activeEmail.folder ?? 'inbox') === 'inbox' && (
+                  <EmailInboxTraining
+                    email={activeEmail}
+                    classificationReason={activeClassification?.reason}
+                    onMarkImportant={() => trainEmailImportant(activeEmail.id)}
+                    onMarkJunk={(cat) => trainEmailJunk(activeEmail.id, cat)}
+                  />
+                )}
               </div>
             </div>
 
