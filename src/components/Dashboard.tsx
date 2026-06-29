@@ -1,11 +1,13 @@
 import { useNexusStore, useGraph } from '../store/useStore'
 import { MiniGraph } from './MiniGraph'
+import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
 import { Sparkles, Tag, Link2 } from 'lucide-react'
 
 export function Dashboard() {
   const notes = useNexusStore((s) => s.notes)
   const emails = useNexusStore((s) => s.emails)
+  const accounts = useNexusStore((s) => s.accounts)
   const selectNote = useNexusStore((s) => s.selectNote)
   const selectEmail = useNexusStore((s) => s.selectEmail)
   const chatMessages = useNexusStore((s) => s.chatMessages)
@@ -139,7 +141,9 @@ export function Dashboard() {
               </button>
             </div>
             <div className="space-y-2">
-              {recentEmails.map((e) => (
+              {recentEmails.map((e) => {
+                const acc = accounts.find((a) => a.id === e.accountId)
+                return (
                 <button
                   key={e.id}
                   onClick={() => {
@@ -148,7 +152,8 @@ export function Dashboard() {
                   }}
                   className="w-full flex items-center gap-3 p-3 rounded-lg hover-theme text-left transition-colors"
                 >
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${e.read ? 'bg-transparent' : 'bg-[var(--accent)]'}`} />
+                  <AccountDot account={acc} />
+                  {!e.read && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0 -ml-1" />}
                   <div className="flex-1 min-w-0">
                     <p className={`text-sm truncate ${e.read ? 'text-theme-secondary' : 'text-theme font-medium'}`}>
                       {e.subject}
@@ -158,7 +163,7 @@ export function Dashboard() {
                   <span className="text-xs text-theme-muted shrink-0">{formatDate(e.date)}</span>
                   {e.linkedNoteId && <Link2 size={14} className="text-accent shrink-0" />}
                 </button>
-              ))}
+              )})}
             </div>
           </div>
         </div>

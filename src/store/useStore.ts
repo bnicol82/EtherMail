@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   SEED_ACCOUNTS,
+  SEED_ATTACHMENTS,
   SEED_CALENDAR,
   SEED_EMAILS,
   SEED_FOLDERS,
@@ -12,6 +13,7 @@ import type {
   AISettings,
   ChatMessage,
   Email,
+  EmailAttachment,
   Note,
   Theme,
   View,
@@ -28,11 +30,13 @@ interface EtherMailState {
   notes: Note[]
   folders: typeof SEED_FOLDERS
   emails: Email[]
+  emailAttachments: EmailAttachment[]
   accounts: typeof SEED_ACCOUNTS
   calendarEvents: typeof SEED_CALENDAR
 
   activeNoteId: string | null
   activeEmailId: string | null
+  activeAttachmentId: string | null
   activeFolderId: string
   activeAccountId: string | null
 
@@ -62,6 +66,7 @@ interface EtherMailState {
 
   selectNote: (id: string | null) => void
   selectEmail: (id: string | null) => void
+  selectAttachment: (id: string | null) => void
   selectFolder: (id: string) => void
   selectAccount: (accountId: string | null) => void
   updateNote: (id: string, updates: Partial<Note>) => void
@@ -87,11 +92,13 @@ export const useEtherMailStore = create<EtherMailState>()(
       notes: SEED_NOTES,
       folders: SEED_FOLDERS,
       emails: SEED_EMAILS,
+      emailAttachments: SEED_ATTACHMENTS,
       accounts: SEED_ACCOUNTS,
       calendarEvents: SEED_CALENDAR,
 
       activeNoteId: 'note-research',
       activeEmailId: 'email-1',
+      activeAttachmentId: null,
       activeFolderId: 'athena',
       activeAccountId: null,
 
@@ -143,10 +150,25 @@ export const useEtherMailStore = create<EtherMailState>()(
       setAiMode: (aiMode) => set({ aiMode }),
 
       selectNote: (id) =>
-        set({ activeNoteId: id, view: 'vault', mobilePanel: 'detail' }),
+        set({ activeNoteId: id, activeAttachmentId: null, view: 'vault', mobilePanel: 'detail' }),
       selectEmail: (id) =>
-        set({ activeEmailId: id, mobilePanel: 'detail' }),
-      selectFolder: (activeFolderId) => set({ activeFolderId }),
+        set({ activeEmailId: id, view: 'email', mobilePanel: 'detail' }),
+      selectAttachment: (id) =>
+        set({ activeAttachmentId: id, activeNoteId: null, view: 'vault', mobilePanel: 'detail' }),
+      selectFolder: (activeFolderId) => {
+        const state = get()
+        if (activeFolderId === 'email-files') {
+          const first = state.emailAttachments[0]
+          set({
+            activeFolderId,
+            activeNoteId: null,
+            activeAttachmentId: state.activeAttachmentId ?? first?.id ?? null,
+            view: 'vault',
+          })
+        } else {
+          set({ activeFolderId, activeAttachmentId: null })
+        }
+      },
       selectAccount: (activeAccountId) =>
         set({ activeAccountId, view: 'email', mobilePanel: 'list' }),
       updateNote: (id, updates) =>

@@ -33,7 +33,21 @@ export interface Folder {
   id: string
   name: string
   parentId: string | null
+  /** System folders are auto-populated (e.g. Email Files) */
+  isSystem?: boolean
 }
+
+export interface EmailAttachment {
+  id: string
+  emailId: string
+  accountId: string
+  filename: string
+  sizeBytes: number
+  mimeType: string
+  date: string
+}
+
+export const EMAIL_FILES_FOLDER_ID = 'email-files'
 
 export interface Email {
   id: string
@@ -48,6 +62,7 @@ export interface Email {
   read: boolean
   starred: boolean
   linkedNoteId: string | null
+  attachmentIds?: string[]
 }
 
 export interface GraphNode {

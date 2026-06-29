@@ -14,7 +14,8 @@ import {
 import { useEtherMailStore, useGraph } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
 import { MiniGraph } from './MiniGraph'
-import { formatDate, providerColor, providerLabel } from '../lib/utils'
+import { AccountDot } from './AccountDot'
+import { formatDate, formatFileSize, fileIcon, providerColor, providerLabel } from '../lib/utils'
 import { summarizeEmail } from '../lib/emailSummary'
 import { getAIContext } from '../lib/aiContext'
 
@@ -33,6 +34,7 @@ export function EmailView() {
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
   const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
+  const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
   const { nodes, edges } = useGraph()
 
   const [filter, setFilter] = useState('')
@@ -46,6 +48,13 @@ export function EmailView() {
   const linkedNote = activeEmail?.linkedNoteId
     ? notes.find((n) => n.id === activeEmail.linkedNoteId)
     : null
+
+  const activeEmailAttachments = useMemo(() => {
+    if (!activeEmail?.attachmentIds?.length) return []
+    return activeEmail.attachmentIds
+      .map((id) => emailAttachments.find((a) => a.id === id))
+      .filter((a): a is NonNullable<typeof a> => !!a)
+  }, [activeEmail, emailAttachments])
 
   const aiSummary = useMemo(
     () => (activeEmail ? summarizeEmail(activeEmail, notes) : null),
@@ -134,19 +143,20 @@ export function EmailView() {
                   }`}
                 >
                   <div className="flex items-center gap-2 mb-1">
-                    <div className={`w-2 h-2 rounded-full ${e.read ? 'opacity-0' : 'bg-[var(--accent)]'}`} />
+                    <AccountDot account={acc} />
+                    {!e.read && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0" />}
                     <span className="text-sm font-medium text-theme truncate flex-1">{e.fromName}</span>
                     {e.starred && <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />}
                     {e.linkedNoteId && <Link2 size={12} className="text-accent shrink-0" />}
+                    {e.attachmentIds && e.attachmentIds.length > 0 && (
+                      <Paperclip size={12} className="text-theme-muted shrink-0" />
+                    )}
                     <span className="text-xs text-theme-muted shrink-0">{formatDate(e.date)}</span>
                   </div>
-                  <p className={`text-sm truncate ${e.read ? 'text-theme-muted' : 'text-theme-secondary'}`}>
+                  <p className={`text-sm truncate pl-4 ${e.read ? 'text-theme-muted' : 'text-theme-secondary'}`}>
                     {e.subject}
                   </p>
-                  <p className="text-xs text-theme-muted truncate mt-0.5">{e.preview}</p>
-                  {!activeAccountId && acc && (
-                    <span className="text-[10px] text-theme-muted mt-1 inline-block opacity-70">{acc.email}</span>
-                  )}
+                  <p className="text-xs text-theme-muted truncate mt-0.5 pl-4">{e.preview}</p>
                 </button>
               )
             })
@@ -175,8 +185,12 @@ export function EmailView() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h2 className="text-base lg:text-lg font-semibold text-theme truncate">{activeEmail.subject}</h2>
-                    <p className="text-sm text-theme-muted mt-1">
+                    <p className="text-sm text-theme-muted mt-1 flex items-center gap-2 flex-wrap">
                       From <span className="text-theme-secondary">{activeEmail.fromName}</span>
+                      <AccountDot
+                        account={accounts.find((a) => a.id === activeEmail.accountId)}
+                        showLabel
+                      />
                     </p>
                     <p className="text-xs text-theme-muted mt-0.5">{new Date(activeEmail.date).toLocaleString()}</p>
                   </div>
@@ -234,6 +248,28 @@ export function EmailView() {
                 <div className="whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed">
                   {activeEmail.body}
                 </div>
+                {activeEmailAttachments.length > 0 && (
+                  <div className="mt-6 pt-4 border-t border-[var(--glass-border)]">
+                    <p className="text-xs text-theme-muted mb-2 flex items-center gap-1">
+                      <Paperclip size={12} />
+                      {activeEmailAttachments.length} attachment{activeEmailAttachments.length > 1 ? 's' : ''}
+                    </p>
+                    <div className="space-y-2">
+                      {activeEmailAttachments.map((att) => (
+                        <div
+                          key={att.id}
+                          className="flex items-center gap-3 p-2.5 rounded-lg glass text-sm"
+                        >
+                          <span>{fileIcon(att.mimeType)}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-theme truncate">{att.filename}</p>
+                            <p className="text-xs text-theme-muted">{formatFileSize(att.sizeBytes)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

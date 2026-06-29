@@ -1,4 +1,37 @@
-import type { Email, Note } from '../types'
+import type { Email, EmailAccount, Note } from '../types'
+
+const ACCOUNT_COLORS: Record<string, string> = {
+  'acc-gmail': '#ea4335',
+  'acc-outlook': '#0078d4',
+  'acc-yahoo': '#6001d2',
+}
+
+export function accountColor(account: EmailAccount | undefined): string {
+  if (!account) return '#6366f1'
+  return ACCOUNT_COLORS[account.id] ?? providerColor(account.provider)
+}
+
+export function accountShortLabel(account: EmailAccount): string {
+  const local = account.email.split('@')[0]
+  if (local.length <= 12) return local
+  return `${local.slice(0, 10)}…`
+}
+
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
+export function fileIcon(mimeType: string): string {
+  if (mimeType.includes('pdf')) return '📄'
+  if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) return '📊'
+  if (mimeType.includes('word') || mimeType.includes('document')) return '📝'
+  if (mimeType.includes('zip')) return '🗜️'
+  if (mimeType.includes('calendar')) return '📅'
+  if (mimeType.includes('image')) return '🖼️'
+  return '📎'
+}
 
 export function searchVault(
   query: string,
