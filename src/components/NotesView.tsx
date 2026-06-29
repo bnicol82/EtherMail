@@ -55,9 +55,13 @@ export function NotesView() {
   }
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden">
-      <PanelRestoreTab panelId="notes-list" label="Notes" className="m-2" />
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+        <PanelRestoreTab panelId="notes-list" label="Notes list" />
+        <PanelRestoreTab panelId="notes-editor" label="Editor" />
+      </div>
 
+      <div className="flex-1 flex min-h-0 overflow-hidden">
       {!listHidden && (
         <div
           className={`
@@ -93,8 +97,6 @@ export function NotesView() {
           </div>
         </div>
       )}
-
-      <PanelRestoreTab panelId="notes-editor" label="Editor" className="m-2" />
 
       {!editorHidden && (
         <div
@@ -180,6 +182,7 @@ export function NotesView() {
           )}
         </div>
       )}
+      </div>
     </div>
   )
 }

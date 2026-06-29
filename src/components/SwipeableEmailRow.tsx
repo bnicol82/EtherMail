@@ -1,7 +1,6 @@
 import { useRef, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import type { Email } from '../types'
-import type { EmailAccount } from '../types'
+import type { Email, EmailAccount } from '../types'
 import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
 import { Star, Link2, Paperclip } from 'lucide-react'
@@ -27,18 +26,22 @@ export function SwipeableEmailRow({ email, account, active, onSelect, onDelete }
     setOffset(0)
   }
 
+  const showDelete = offset < -8
+
   return (
     <div className="relative overflow-hidden border-b border-[var(--glass-border)]">
-      <div
-        className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500/90 text-white"
-        style={{ width: deleteWidth }}
-      >
-        <Trash2 size={18} />
-      </div>
+      {showDelete && (
+        <div
+          className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500/90 text-white transition-opacity"
+          style={{ width: deleteWidth, opacity: Math.min(1, Math.abs(offset) / deleteWidth) }}
+        >
+          <Trash2 size={18} />
+        </div>
+      )}
 
       <div
-        className={`relative bg-[var(--glass-bg)] hover-theme transition-colors ${
-          active ? 'bg-accent-soft' : ''
+        className={`relative hover-theme transition-colors ${
+          active ? 'bg-accent-soft' : 'bg-[var(--glass-bg)]'
         }`}
         style={{
           transform: `translateX(${offset}px)`,

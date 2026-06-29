@@ -135,9 +135,14 @@ export function EmailView() {
   const currentFolder = EMAIL_FOLDERS.find((f) => f.id === activeEmailFolder)
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden">
-      <PanelRestoreTab panelId="email-list" label="Inbox" className="m-1" />
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+        <PanelRestoreTab panelId="email-list" label="Inbox" />
+        <PanelRestoreTab panelId="email-detail" label="Email" />
+        <PanelRestoreTab panelId="email-ai" label="AI Summary" />
+      </div>
 
+      <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* Folder + list column */}
       {!listHidden && (
         <div
@@ -229,9 +234,6 @@ export function EmailView() {
           </div>
         </div>
       )}
-
-      <PanelRestoreTab panelId="email-detail" label="Email" className="m-1" />
-      <PanelRestoreTab panelId="email-ai" label="AI" className="m-1" />
 
       {/* Detail + AI */}
       <div
@@ -422,6 +424,7 @@ export function EmailView() {
             Select an email to read
           </div>
         )}
+      </div>
       </div>
     </div>
   )
