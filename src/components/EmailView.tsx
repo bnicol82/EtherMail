@@ -20,11 +20,15 @@ import {
   CheckSquare,
   Square,
   MailWarning,
+  MessagesSquare,
+  List,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
 import { AccountDot } from './AccountDot'
 import { SwipeableEmailRow } from './SwipeableEmailRow'
+import { EmailThreadRow } from './EmailThreadRow'
+import { EmailThreadConversation } from './EmailThreadConversation'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { formatFileSize, fileIcon, providerColor, providerLabel } from '../lib/utils'
 import { EMAIL_FOLDERS } from '../lib/emailFolders'
@@ -37,6 +41,7 @@ import { EmailInboxTraining } from './EmailInboxTraining'
 import { EmailLabelsBar, EmailLabelPicker } from './EmailLabelsBar'
 import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
+import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import type { ComposeAttachment, EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
@@ -100,6 +105,8 @@ export function EmailView() {
   const deleteEmailLabel = useEtherMailStore((s) => s.deleteEmailLabel)
   const toggleEmailLabelOnEmail = useEtherMailStore((s) => s.toggleEmailLabelOnEmail)
   const batchApplyEmailLabel = useEtherMailStore((s) => s.batchApplyEmailLabel)
+  const threadViewEnabled = useEtherMailStore((s) => s.threadViewEnabled)
+  const setThreadViewEnabled = useEtherMailStore((s) => s.setThreadViewEnabled)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
@@ -208,7 +215,39 @@ export function EmailView() {
     )
   })
 
-  const handleSelectEmail = (id: string) => {
+  const accountEmailPool = useMemo(
+    () =>
+      emails.filter((e) => {
+        const acc = accounts.find((a) => a.id === e.accountId)
+        if (!acc?.connected) return false
+        if (activeAccountId && e.accountId !== activeAccountId) return false
+        return true
+      }),
+    [emails, accounts, activeAccountId],
+  )
+
+  const threadedList = useMemo(
+    () => (threadViewEnabled ? threadsForFilteredList(accountEmailPool, filtered) : []),
+    [threadViewEnabled, accountEmailPool, filtered],
+  )
+
+  const activeThread = useMemo(
+    () =>
+      activeEmail && threadViewEnabled
+        ? getThreadForEmail(activeEmail, accountEmailPool)
+        : null,
+    [activeEmail, threadViewEnabled, accountEmailPool],
+  )
+
+  const visibleListIds = useMemo(
+    () =>
+      threadViewEnabled
+        ? threadedList.map((t) => t.latest.id)
+        : filtered.map((e) => e.id),
+    [threadViewEnabled, threadedList, filtered],
+  )
+
+  const handleSelectEmail = (id: string, threadEmailIds?: string[]) => {
     const email = emails.find((e) => e.id === id)
     if (email && (email.folder ?? 'inbox') === 'drafts') {
       const draftAttachments: ComposeAttachment[] = (email.attachmentIds ?? [])
@@ -234,7 +273,11 @@ export function EmailView() {
       return
     }
     selectEmail(id)
-    markEmailRead(id)
+    if (threadEmailIds?.length) {
+      for (const threadId of threadEmailIds) markEmailRead(threadId)
+    } else {
+      markEmailRead(id)
+    }
     setMobilePanel('detail')
   }
 
@@ -351,10 +394,10 @@ export function EmailView() {
                   </span>
                   <button
                     type="button"
-                    onClick={() => selectAllVisibleEmails(filtered.map((e) => e.id))}
+                    onClick={() => selectAllVisibleEmails(visibleListIds)}
                     className="text-[10px] text-accent hover:underline"
                   >
-                    Select all ({filtered.length})
+                    Select all ({visibleListIds.length})
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -429,6 +472,21 @@ export function EmailView() {
                 </div>
               </div>
             )}
+            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setThreadViewEnabled(!threadViewEnabled)}
+                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                  threadViewEnabled
+                    ? 'bg-accent-soft text-accent border border-[var(--accent)]/30'
+                    : 'glass text-theme-muted hover-theme'
+                }`}
+                title={threadViewEnabled ? 'Switch to flat list view' : 'Group messages into conversations'}
+              >
+                {threadViewEnabled ? <MessagesSquare size={12} /> : <List size={12} />}
+                {threadViewEnabled ? 'Thread view' : 'List view'}
+              </button>
+            </div>
             <div className="relative mb-3">
               <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-muted" />
               <input
@@ -462,7 +520,7 @@ export function EmailView() {
             </nav>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filtered.length === 0 ? (
+            {(threadViewEnabled ? threadedList.length : filtered.length) === 0 ? (
               <p className="p-4 text-sm text-theme-muted text-center">
                 {followUpFilterEnabled && activeEmailFolder === 'inbox'
                   ? 'No emails flagged for follow-up — you are caught up!'
@@ -474,6 +532,37 @@ export function EmailView() {
                     ? `No important mail — ${inboxStats.hidden} filtered by AI Inbox`
                     : `No messages in ${currentFolder?.label ?? 'folder'}`}
               </p>
+            ) : threadViewEnabled ? (
+              threadedList.map((thread) => {
+                const acc = accounts.find((a) => a.id === thread.latest.accountId)
+                const c = getClassification(thread.latest.id)
+                const rowLabels = emailLabels.filter((l) =>
+                  thread.latest.labelIds?.includes(l.id),
+                )
+                return (
+                  <EmailThreadRow
+                    key={thread.id}
+                    thread={thread}
+                    account={acc}
+                    active={activeEmailId === thread.latest.id}
+                    onSelect={() =>
+                      handleSelectEmail(
+                        thread.latest.id,
+                        thread.emails.map((e) => e.id),
+                      )
+                    }
+                    onDelete={() => deleteEmail(thread.latest.id)}
+                    category={c?.category}
+                    showCategory={
+                      activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)
+                    }
+                    selectionMode={emailSelectionMode}
+                    selected={selectedEmailIds.includes(thread.latest.id)}
+                    onToggleSelect={() => toggleEmailSelection(thread.latest.id)}
+                    labels={rowLabels}
+                  />
+                )
+              })
             ) : (
               filtered.map((e) => {
                 const acc = accounts.find((a) => a.id === e.accountId)
@@ -642,9 +731,18 @@ export function EmailView() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 min-h-0">
-                <div className="whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed">
-                  {activeEmail.body}
-                </div>
+                {activeThread && activeThread.emails.length > 1 && (
+                  <EmailThreadConversation
+                    thread={activeThread}
+                    activeEmailId={activeEmailId}
+                    onSelectMessage={(id) => handleSelectEmail(id)}
+                  />
+                )}
+                {(!activeThread || activeThread.emails.length <= 1) && (
+                  <div className="whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed">
+                    {activeEmail.body}
+                  </div>
+                )}
                 {activeEmailAttachments.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-[var(--glass-border)]">
                     <p className="text-xs text-theme-muted mb-2 flex items-center gap-1">

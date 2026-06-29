@@ -339,6 +339,26 @@ Sarah J.`,
     labelIds: ['label-athena'],
   },
   {
+    id: 'email-1-reply',
+    accountId: 'acc-outlook',
+    from: 'sarah.j@corp.com',
+    fromName: 'Sarah J.',
+    to: 'work@corp.com',
+    subject: 'Re: Project Update — Athena Q3',
+    preview: 'Thanks for the quick review — can you also loop in the design team on the regional launch slides?',
+    body: `Thanks for the quick review!
+
+Can you also loop in the design team on the regional launch slides before Monday's sync? I want their input on the visual direction for the three markets.
+
+Best,
+Sarah J.`,
+    date: '2026-06-27T16:30:00Z',
+    read: false,
+    starred: false,
+    linkedNoteId: 'note-q3-marketing',
+    labelIds: ['label-athena'],
+  },
+  {
     id: 'email-2',
     accountId: 'acc-gmail',
     from: 'finance@corp.com',
@@ -586,8 +606,8 @@ Unsubscribe from promotional emails.`,
   },
   {
     id: 'email-sent-1',
-    accountId: 'acc-gmail',
-    from: 'name@gmail.com',
+    accountId: 'acc-outlook',
+    from: 'work@corp.com',
     fromName: 'You',
     to: 'sarah.j@corp.com',
     subject: 'Re: Project Update — Athena Q3',

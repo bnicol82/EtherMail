@@ -174,6 +174,9 @@ interface EtherMailState {
   markAllAlertsRead: () => void
   snoozeEmail: (emailId: string, presetId: string) => void
 
+  threadViewEnabled: boolean
+  setThreadViewEnabled: (enabled: boolean) => void
+
   aiInboxEnabled: boolean
   setAiInboxEnabled: (enabled: boolean) => void
   aiOutboxEnabled: boolean
@@ -895,6 +898,9 @@ export const useEtherMailStore = create<EtherMailState>()(
           ),
         })),
 
+      threadViewEnabled: false,
+      setThreadViewEnabled: (threadViewEnabled) => set({ threadViewEnabled }),
+
       aiInboxEnabled: false,
       setAiInboxEnabled: (aiInboxEnabled) =>
         set({ aiInboxEnabled, aiOutboxEnabled: aiInboxEnabled ? false : get().aiOutboxEnabled }),
@@ -1161,7 +1167,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 6,
+      version: 7,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1220,6 +1226,24 @@ export const useEtherMailStore = create<EtherMailState>()(
             })),
           }
         }
+        if (version < 7) {
+          next = { ...next, threadViewEnabled: false }
+          const existing = (next.emails as Email[]) ?? []
+          const ids = new Set(existing.map((e) => e.id))
+          const threadReply = SEED_EMAILS.find((e) => e.id === 'email-1-reply')
+          const sentFix = SEED_EMAILS.find((e) => e.id === 'email-sent-1')
+          next = {
+            ...next,
+            emails: [
+              ...existing.map((e) =>
+                e.id === 'email-sent-1' && sentFix
+                  ? { ...e, accountId: sentFix.accountId, from: sentFix.from, fromName: sentFix.fromName }
+                  : e,
+              ),
+              ...(threadReply && !ids.has(threadReply.id) ? [threadReply] : []),
+            ],
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1259,6 +1283,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         assistantSettings: s.assistantSettings,
         completedTodos: s.completedTodos,
         announcedProactive: s.announcedProactive,
+        threadViewEnabled: s.threadViewEnabled,
         aiInboxEnabled: s.aiInboxEnabled,
         aiOutboxEnabled: s.aiOutboxEnabled,
         followUpFilterEnabled: s.followUpFilterEnabled,
