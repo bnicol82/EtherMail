@@ -15,9 +15,12 @@ export function ComposeEmailModal() {
   const saveComposeDraft = useEtherMailStore((s) => s.saveComposeDraft)
 
   const [to, setTo] = useState('')
+  const [cc, setCc] = useState('')
+  const [bcc, setBcc] = useState('')
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
   const [accountId, setAccountId] = useState('')
+  const [showCcBcc, setShowCcBcc] = useState(false)
   const [showTemplates, setShowTemplates] = useState(false)
   const [aiInstruction, setAiInstruction] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
@@ -28,9 +31,12 @@ export function ComposeEmailModal() {
   useEffect(() => {
     if (!composeDraft) return
     setTo(composeDraft.to)
+    setCc(composeDraft.cc ?? '')
+    setBcc(composeDraft.bcc ?? '')
     setSubject(composeDraft.subject)
     setBody(composeDraft.body)
     setAccountId(composeDraft.accountId)
+    setShowCcBcc(!!(composeDraft.cc || composeDraft.bcc))
     setReplyToEmail(undefined)
   }, [composeDraft])
 
@@ -40,6 +46,8 @@ export function ComposeEmailModal() {
   const draft: ComposeDraft = {
     id: composeDraft.id,
     to,
+    cc: cc || undefined,
+    bcc: bcc || undefined,
     subject,
     body,
     accountId: accountId || composeDraft.accountId,
@@ -177,9 +185,20 @@ export function ComposeEmailModal() {
           )}
 
           <div>
-            <label htmlFor="compose-to" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
-              To
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="compose-to" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
+                To
+              </label>
+              {!showCcBcc && (
+                <button
+                  type="button"
+                  onClick={() => setShowCcBcc(true)}
+                  className="text-[10px] text-accent hover:underline"
+                >
+                  Cc/Bcc
+                </button>
+              )}
+            </div>
             <input
               id="compose-to"
               value={to}
@@ -188,6 +207,35 @@ export function ComposeEmailModal() {
               className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
             />
           </div>
+
+          {showCcBcc && (
+            <>
+              <div>
+                <label htmlFor="compose-cc" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
+                  Cc
+                </label>
+                <input
+                  id="compose-cc"
+                  value={cc}
+                  onChange={(e) => setCc(e.target.value)}
+                  placeholder="cc@example.com"
+                  className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="compose-bcc" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
+                  Bcc
+                </label>
+                <input
+                  id="compose-bcc"
+                  value={bcc}
+                  onChange={(e) => setBcc(e.target.value)}
+                  placeholder="bcc@example.com"
+                  className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
+                />
+              </div>
+            </>
+          )}
 
           <div>
             <label htmlFor="compose-subject" className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">

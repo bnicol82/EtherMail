@@ -34,6 +34,11 @@ import type {
 } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
+import {
+  buildForwardDraft,
+  buildReplyAllDraft,
+  buildReplyDraft,
+} from '../lib/emailCompose'
 import { computeAIAlerts } from '../lib/aiAlerts'
 import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
@@ -129,13 +134,20 @@ interface EtherMailState {
   selectVaultFile: (id: string | null) => void
   linkEmailToNote: (emailId: string, noteId: string | null) => void
   markEmailRead: (emailId: string) => void
+  markEmailUnread: (emailId: string) => void
   setActiveEmailFolder: (folder: EmailFolder) => void
   deleteEmail: (emailId: string) => void
   archiveEmail: (emailId: string) => void
   toggleEmailStar: (emailId: string) => void
 
   composeDraft: ComposeDraft | null
-  openCompose: (initial?: Partial<ComposeDraft> & { replyTo?: Email; forwardEmail?: Email }) => void
+  openCompose: (
+    initial?: Partial<ComposeDraft> & {
+      replyTo?: Email
+      replyAllTo?: Email
+      forwardEmail?: Email
+    },
+  ) => void
   closeCompose: () => void
   sendComposedEmail: (draft: ComposeDraft) => void
   saveComposeDraft: (draft: ComposeDraft) => void
@@ -496,6 +508,12 @@ export const useEtherMailStore = create<EtherMailState>()(
             e.id === emailId ? { ...e, read: true } : e,
           ),
         })),
+      markEmailUnread: (emailId) =>
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId ? { ...e, read: false } : e,
+          ),
+        })),
 
       setActiveEmailFolder: (activeEmailFolder) =>
         set({ activeEmailFolder, mobilePanel: 'list' }),
@@ -546,29 +564,38 @@ export const useEtherMailStore = create<EtherMailState>()(
           ''
 
         let to = initial?.to ?? ''
+        let cc = initial?.cc ?? ''
+        let bcc = initial?.bcc ?? ''
         let subject = initial?.subject ?? ''
         let body = initial?.body ?? ''
 
         if (initial?.replyTo) {
-          const e = initial.replyTo
-          to = e.from
-          subject = e.subject.startsWith('Re:') ? e.subject : `Re: ${e.subject}`
-          body = `\n\n---\nOn ${new Date(e.date).toLocaleString()}, ${e.fromName} wrote:\n\n${e.body
-            .split('\n')
-            .map((line) => `> ${line}`)
-            .join('\n')}`
+          const draft = buildReplyDraft(initial.replyTo)
+          to = draft.to
+          subject = draft.subject
+          body = draft.body
+        }
+
+        if (initial?.replyAllTo) {
+          const draft = buildReplyAllDraft(initial.replyAllTo, state.accounts)
+          to = draft.to
+          cc = draft.cc ?? ''
+          subject = draft.subject
+          body = draft.body
         }
 
         if (initial?.forwardEmail) {
-          const e = initial.forwardEmail
-          subject = e.subject.startsWith('Fwd:') ? e.subject : `Fwd: ${e.subject}`
-          body = `\n\n---------- Forwarded message ----------\nFrom: ${e.fromName} <${e.from}>\nDate: ${new Date(e.date).toLocaleString()}\nSubject: ${e.subject}\n\n${e.body}`
+          const draft = buildForwardDraft(initial.forwardEmail)
+          subject = draft.subject
+          body = draft.body
         }
 
         set({
           composeDraft: {
             id: initial?.id,
             to,
+            cc: cc || undefined,
+            bcc: bcc || undefined,
             subject,
             body,
             accountId: initial?.accountId ?? defaultAccount,
@@ -593,6 +620,8 @@ export const useEtherMailStore = create<EtherMailState>()(
                 ? {
                     ...e,
                     to: draft.to,
+                    cc: draft.cc,
+                    bcc: draft.bcc,
                     subject: draft.subject,
                     body: draft.body,
                     preview,
@@ -617,6 +646,8 @@ export const useEtherMailStore = create<EtherMailState>()(
           from: account?.email ?? 'you@example.com',
           fromName: 'Me',
           to: draft.to,
+          cc: draft.cc,
+          bcc: draft.bcc,
           subject: draft.subject || '(no subject)',
           body: draft.body,
           preview,
@@ -648,6 +679,8 @@ export const useEtherMailStore = create<EtherMailState>()(
                 ? {
                     ...e,
                     to: draft.to,
+                    cc: draft.cc,
+                    bcc: draft.bcc,
                     subject: draft.subject,
                     body: draft.body,
                     preview,
@@ -671,6 +704,8 @@ export const useEtherMailStore = create<EtherMailState>()(
           from: account?.email ?? 'you@example.com',
           fromName: 'Me',
           to: draft.to,
+          cc: draft.cc,
+          bcc: draft.bcc,
           subject: draft.subject || '(no subject)',
           body: draft.body,
           preview,

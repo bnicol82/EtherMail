@@ -5,6 +5,7 @@ import {
   Link2,
   Unlink,
   Reply,
+  ReplyAll,
   Forward,
   Sparkles,
   Paperclip,
@@ -56,6 +57,7 @@ export function EmailView() {
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
   const linkEmailToNote = useEtherMailStore((s) => s.linkEmailToNote)
   const markEmailRead = useEtherMailStore((s) => s.markEmailRead)
+  const markEmailUnread = useEtherMailStore((s) => s.markEmailUnread)
   const deleteEmail = useEtherMailStore((s) => s.deleteEmail)
   const archiveEmail = useEtherMailStore((s) => s.archiveEmail)
   const toggleEmailStar = useEtherMailStore((s) => s.toggleEmailStar)
@@ -461,6 +463,10 @@ export function EmailView() {
                         showLabel
                       />
                     </p>
+                    <p className="text-xs text-theme-muted mt-0.5">
+                      To {activeEmail.to}
+                      {activeEmail.cc && <span className="ml-2">Cc {activeEmail.cc}</span>}
+                    </p>
                     <p className="text-xs text-theme-muted mt-0.5">{new Date(activeEmail.date).toLocaleString()}</p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -478,6 +484,12 @@ export function EmailView() {
                     <Reply size={14} /> Reply
                   </button>
                   <button
+                    onClick={() => openCompose({ replyAllTo: activeEmail })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                  >
+                    <ReplyAll size={14} /> Reply all
+                  </button>
+                  <button
                     onClick={() => openCompose({ forwardEmail: activeEmail })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
@@ -488,6 +500,16 @@ export function EmailView() {
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
                     <Sparkles size={14} /> AI Draft
+                  </button>
+                  <button
+                    onClick={() =>
+                      activeEmail.read
+                        ? markEmailUnread(activeEmail.id)
+                        : markEmailRead(activeEmail.id)
+                    }
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                  >
+                    {activeEmail.read ? 'Mark unread' : 'Mark read'}
                   </button>
                   <button
                     onClick={() => toggleEmailStar(activeEmail.id)}
