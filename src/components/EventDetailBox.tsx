@@ -1,7 +1,9 @@
-import { X, Users, Calendar, Clock, MapPin, DoorOpen, Forward, Pencil, Sparkles, CalendarClock } from 'lucide-react'
+import { X, Users, Calendar, Clock, MapPin, DoorOpen, Forward, Pencil, Sparkles, CalendarClock, Download, Lightbulb } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
 import { formatEventTimeRange } from '../lib/utils'
+import { downloadIcsFile } from '../lib/ics'
+import { getRoomHintForEvent } from '../lib/roomHints'
 
 interface Props {
   event: CalendarEvent
@@ -10,7 +12,9 @@ interface Props {
 }
 
 export function EventDetailBox({ event, color, onClose }: Props) {
+  const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
   const setEditingEventId = useEtherMailStore((s) => s.setEditingEventId)
+  const updateCalendarEvent = useEtherMailStore((s) => s.updateCalendarEvent)
   const forwardCalendarInvite = useEtherMailStore((s) => s.forwardCalendarInvite)
   const openMeetingPrepBrief = useEtherMailStore((s) => s.openMeetingPrepBrief)
   const smartProposeMeetingTimes = useEtherMailStore((s) => s.smartProposeMeetingTimes)
@@ -19,6 +23,7 @@ export function EventDetailBox({ event, color, onClose }: Props) {
 
   const start = new Date(event.start)
   const end = new Date(event.end)
+  const roomHint = getRoomHintForEvent(event, calendarEvents)
 
   const openSourceEmail = () => {
     if (!event.sourceEmailId) return
@@ -88,6 +93,27 @@ export function EventDetailBox({ event, color, onClose }: Props) {
                 </div>
               </div>
             )}
+            {roomHint && (
+              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-sm">
+                <Lightbulb size={16} className="text-amber-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-theme-secondary">
+                    Suggested room <strong className="text-theme">{roomHint.room}</strong>
+                  </p>
+                  <p className="text-xs text-theme-muted mt-0.5">{roomHint.reason}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateCalendarEvent(event.id, { room: roomHint.room, location: event.location ?? roomHint.location })
+                      onClose()
+                    }}
+                    className="mt-1.5 text-xs text-accent hover:underline"
+                  >
+                    Apply suggestion
+                  </button>
+                </div>
+              </div>
+            )}
             {event.attendees && event.attendees.length > 0 && (
               <div className="flex items-start gap-2 text-theme-secondary">
                 <Users size={16} className="text-accent shrink-0 mt-0.5" />
@@ -121,6 +147,14 @@ export function EventDetailBox({ event, color, onClose }: Props) {
             >
               <CalendarClock size={14} />
               Smart propose times
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadIcsFile([event], `${event.title.replace(/\s+/g, '-').toLowerCase()}.ics`)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass text-xs text-theme-secondary hover-theme"
+            >
+              <Download size={14} />
+              Download .ics
             </button>
             <button
               type="button"

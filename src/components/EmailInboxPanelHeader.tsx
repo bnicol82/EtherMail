@@ -5,6 +5,7 @@ import {
   Inbox,
   Send,
   FileEdit,
+  Clock,
   Archive,
   Trash2,
   Bot,
@@ -30,6 +31,7 @@ const FOLDER_ICONS: Partial<Record<EmailFolder, typeof Inbox>> = {
   inbox: Inbox,
   sent: Send,
   drafts: FileEdit,
+  scheduled: Clock,
   archive: Archive,
   trash: Trash2,
 }

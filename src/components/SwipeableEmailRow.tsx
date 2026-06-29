@@ -3,10 +3,11 @@ import { Trash2 } from 'lucide-react'
 import type { Email, EmailAccount } from '../types'
 import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
-import { Star, Link2, Paperclip, CheckCircle2 } from 'lucide-react'
+import { Star, Link2, Paperclip, CheckCircle2, Clock } from 'lucide-react'
 import { CategoryBadge } from './AIInboxBar'
 import { EmailLabelChip } from './EmailLabelsBar'
 import type { EmailJunkCategory, EmailLabel } from '../types'
+import { formatScheduledAt } from '../lib/scheduledSend'
 
 interface Props {
   email: Email
@@ -127,6 +128,12 @@ export function SwipeableEmailRow({
           </p>
           <div className="flex items-center gap-1.5 pl-4 mt-0.5 flex-wrap">
             <p className="text-xs text-theme-muted truncate flex-1 min-w-0">{email.preview}</p>
+            {email.scheduledAt && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-accent-soft text-[9px] text-accent shrink-0">
+                <Clock size={9} />
+                {formatScheduledAt(email.scheduledAt)}
+              </span>
+            )}
             {labels.slice(0, 2).map((label) => (
               <EmailLabelChip key={label.id} label={label} />
             ))}

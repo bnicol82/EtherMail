@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react'
+import { useMemo, useRef, useState } from 'react'
+import { ChevronLeft, ChevronRight, Calendar, Users, Download, Upload } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
+import { downloadIcsFile, readIcsFile } from '../lib/ics'
 import {
   addDays,
   addMonths,
@@ -95,10 +96,13 @@ function MonthGrid({
 
 export function CalendarView() {
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
+  const importCalendarEvents = useEtherMailStore((s) => s.importCalendarEvents)
   const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
+  const [importHint, setImportHint] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const weekHidden = hiddenPanels['calendar-week'] ?? false
   const upcomingHidden = hiddenPanels['calendar-upcoming'] ?? false
@@ -141,6 +145,22 @@ export function CalendarView() {
     return EVENT_COLORS[(idx >= 0 ? idx : 0) % EVENT_COLORS.length]
   }
 
+  const handleImport = async (files: FileList | null) => {
+    if (!files?.[0]) return
+    try {
+      const parsed = await readIcsFile(files[0])
+      const added = importCalendarEvents(parsed)
+      setImportHint(
+        added > 0 ? `Imported ${added} event${added === 1 ? '' : 's'}` : `Updated ${parsed.length} event${parsed.length === 1 ? '' : 's'}`,
+      )
+      window.setTimeout(() => setImportHint(null), 3000)
+    } catch {
+      setImportHint('Could not read .ics file')
+      window.setTimeout(() => setImportHint(null), 3000)
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-3 md:p-6">
       <div className="max-w-5xl mx-auto flex flex-col flex-1 min-h-0 w-full">
@@ -152,9 +172,35 @@ export function CalendarView() {
             </h1>
             <p className="text-xs md:text-sm text-theme-muted mt-0.5">
               Synced from your connected accounts and email invitations
+              {importHint && <span className="ml-2 text-accent">· {importHint}</span>}
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => downloadIcsFile(sortedEvents)}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+              title="Export all events as .ics"
+            >
+              <Download size={14} />
+              Export
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+              title="Import .ics file"
+            >
+              <Upload size={14} />
+              Import
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".ics,text/calendar"
+              className="hidden"
+              onChange={(e) => handleImport(e.target.files)}
+            />
             <button
               onClick={() =>
                 fullCalendarOpen
