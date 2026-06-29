@@ -354,10 +354,9 @@ export function SettingsView() {
         <div className="flex items-center gap-2 mb-4">
           <Link2 size={18} className="text-accent" />
           <h2 className="font-semibold text-theme">AI Bridge Mode</h2>
-          <span className="text-xs px-2 py-0.5 rounded bg-amber-500/20 text-amber-500">Phase 3</span>
         </div>
         <p className="text-sm text-theme-muted mb-4">
-          Allow Vault AI and External AI to exchange curated context packets — only when you enable it.
+          When enabled, External AI receives curated vault excerpts (notes, emails, calendar) as a context packet — never your full vault.
         </p>
         <label className="flex items-center gap-3 cursor-pointer">
           <input
@@ -387,7 +386,7 @@ export function SettingsView() {
           <div>
             <p className="text-sm font-medium text-theme">External AI</p>
             <p className="text-xs text-theme-muted mt-1">
-              Uses your API key to call third-party models. Sees only what you type — never your vault.
+              Uses your API key to call third-party models. With Bridge mode, receives curated vault excerpts only.
             </p>
           </div>
         </div>

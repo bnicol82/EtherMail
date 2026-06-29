@@ -1,4 +1,4 @@
-import { X, Users, Calendar, Clock, MapPin, DoorOpen, Forward, Pencil } from 'lucide-react'
+import { X, Users, Calendar, Clock, MapPin, DoorOpen, Forward, Pencil, Sparkles, CalendarClock } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
 import { formatEventTimeRange } from '../lib/utils'
@@ -12,6 +12,8 @@ interface Props {
 export function EventDetailBox({ event, color, onClose }: Props) {
   const setEditingEventId = useEtherMailStore((s) => s.setEditingEventId)
   const forwardCalendarInvite = useEtherMailStore((s) => s.forwardCalendarInvite)
+  const openMeetingPrepBrief = useEtherMailStore((s) => s.openMeetingPrepBrief)
+  const smartProposeMeetingTimes = useEtherMailStore((s) => s.smartProposeMeetingTimes)
   const setView = useEtherMailStore((s) => s.setView)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
 
@@ -98,6 +100,28 @@ export function EventDetailBox({ event, color, onClose }: Props) {
           </div>
 
           <div className="flex flex-wrap gap-2 mt-5">
+            <button
+              type="button"
+              onClick={() => {
+                openMeetingPrepBrief(event.id)
+                onClose()
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl btn-accent text-xs"
+            >
+              <Sparkles size={14} />
+              Prep brief
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                smartProposeMeetingTimes(event.id)
+                onClose()
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl glass text-xs text-theme-secondary hover-theme"
+            >
+              <CalendarClock size={14} />
+              Smart propose times
+            </button>
             <button
               type="button"
               onClick={() => {
