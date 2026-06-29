@@ -30,16 +30,25 @@ import type {
   Note,
   OAuthSettings,
   Theme,
+  VaultFile,
   View,
   WeatherSettings,
 } from '../types'
+import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
+import {
+  buildForwardDraft,
+  buildReplyAllDraft,
+  buildReplyDraft,
+} from '../lib/emailCompose'
 import { computeAIAlerts } from '../lib/aiAlerts'
-import { generateVaultAIResponse } from '../lib/rag'
+import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
 import { completeNoteTodo } from '../lib/todos'
 import { snoozeUntilFromPreset } from '../lib/snooze'
-import { DEFAULT_INBOX_TRAINING } from '../lib/aiInbox'
+import { DEFAULT_INBOX_TRAINING, getOutboxEmails } from '../lib/aiInbox'
+import { generateMeetingBrief } from '../lib/meetingPrep'
+import { findFreeSlots, formatProposalEmail } from '../lib/smartPropose'
 
 function uniquePush(arr: string[], value: string): string[] {
   const v = value.toLowerCase()
@@ -63,12 +72,14 @@ interface EtherMailState {
   folders: typeof SEED_FOLDERS
   emails: Email[]
   emailAttachments: EmailAttachment[]
+  vaultFiles: VaultFile[]
   accounts: typeof SEED_ACCOUNTS
   calendarEvents: typeof SEED_CALENDAR
 
   activeNoteId: string | null
   activeEmailId: string | null
   activeAttachmentId: string | null
+  activeVaultFileId: string | null
   activeFolderId: string
   activeAccountId: string | null
   activeEmailFolder: EmailFolder
@@ -95,8 +106,10 @@ interface EtherMailState {
 
   aiLoading: boolean
   aiContextResponse: string | null
-  submitAiQuery: (query: string, contextPrefix?: string) => Promise<void>
+  submitAiQuery: (query: string, contextPrefix?: string, opts?: { eventId?: string }) => Promise<void>
   clearAiContextResponse: () => void
+  openMeetingPrepBrief: (eventId: string) => Promise<void>
+  smartProposeMeetingTimes: (eventId?: string) => void
 
   aiSettings: AISettings
   setAISettings: (settings: Partial<AISettings>) => void
@@ -118,15 +131,25 @@ interface EtherMailState {
   selectAccount: (accountId: string | null) => void
   updateNote: (id: string, updates: Partial<Note>) => void
   createNote: (folderId?: string) => string
+  createFolder: (name: string, parentId?: string) => string
+  uploadVaultFile: (file: File, folderId: string) => Promise<void>
+  selectVaultFile: (id: string | null) => void
   linkEmailToNote: (emailId: string, noteId: string | null) => void
   markEmailRead: (emailId: string) => void
+  markEmailUnread: (emailId: string) => void
   setActiveEmailFolder: (folder: EmailFolder) => void
   deleteEmail: (emailId: string) => void
   archiveEmail: (emailId: string) => void
   toggleEmailStar: (emailId: string) => void
 
   composeDraft: ComposeDraft | null
-  openCompose: (initial?: Partial<ComposeDraft> & { replyTo?: Email; forwardEmail?: Email }) => void
+  openCompose: (
+    initial?: Partial<ComposeDraft> & {
+      replyTo?: Email
+      replyAllTo?: Email
+      forwardEmail?: Email
+    },
+  ) => void
   closeCompose: () => void
   sendComposedEmail: (draft: ComposeDraft) => void
   saveComposeDraft: (draft: ComposeDraft) => void
@@ -150,11 +173,27 @@ interface EtherMailState {
 
   aiInboxEnabled: boolean
   setAiInboxEnabled: (enabled: boolean) => void
+  aiOutboxEnabled: boolean
+  setAiOutboxEnabled: (enabled: boolean) => void
+  deleteAllOutboxEmails: () => void
   inboxTraining: EmailInboxTraining
   emailInboxOverrides: Record<string, EmailInboxOverride>
   trainEmailImportant: (emailId: string) => void
   trainEmailJunk: (emailId: string, category: EmailJunkCategory) => void
   clearInboxTraining: () => void
+
+  selectedEmailIds: string[]
+  emailSelectionMode: boolean
+  followUpFilterEnabled: boolean
+  setEmailSelectionMode: (enabled: boolean) => void
+  setFollowUpFilterEnabled: (enabled: boolean) => void
+  toggleEmailSelection: (emailId: string) => void
+  selectAllVisibleEmails: (emailIds: string[]) => void
+  clearEmailSelection: () => void
+  batchArchiveEmails: (emailIds: string[]) => void
+  batchDeleteEmails: (emailIds: string[]) => void
+  batchStarEmails: (emailIds: string[], starred: boolean) => void
+  batchMarkEmailsRead: (emailIds: string[], read: boolean) => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -187,12 +226,14 @@ export const useEtherMailStore = create<EtherMailState>()(
       folders: SEED_FOLDERS,
       emails: SEED_EMAILS,
       emailAttachments: SEED_ATTACHMENTS,
+      vaultFiles: [],
       accounts: SEED_ACCOUNTS,
       calendarEvents: SEED_CALENDAR,
 
       activeNoteId: 'note-research',
       activeEmailId: 'email-1',
       activeAttachmentId: null,
+      activeVaultFileId: null,
       activeFolderId: 'athena',
       activeAccountId: null,
       activeEmailFolder: 'inbox',
@@ -251,16 +292,60 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       aiLoading: false,
       aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
-      submitAiQuery: async (query, contextPrefix = '') => {
+      submitAiQuery: async (query, contextPrefix = '', opts) => {
         const state = get()
+        const mode = state.aiMode
         set({ aiLoading: true })
-        state.addChatMessage({ role: 'user', content: query, mode: 'vault' })
+        state.addChatMessage({ role: 'user', content: query, mode })
         const fullQuery = contextPrefix ? `${contextPrefix}${query}` : query
-        const reply = await generateVaultAIResponse(fullQuery, state.notes, state.emails)
-        state.addChatMessage({ role: 'assistant', content: reply, mode: 'vault' })
+
+        const reply =
+          mode === 'vault'
+            ? await generateVaultAIResponse(fullQuery, state.notes, state.emails, {
+                calendarEvents: state.calendarEvents,
+                eventId: opts?.eventId,
+              })
+            : await generateExternalAIResponse(
+                fullQuery,
+                state.aiSettings.externalApiKey,
+                state.aiSettings.externalProvider,
+                state.aiSettings.bridgeEnabled,
+                state.aiSettings.bridgeEnabled ? state.notes : [],
+                state.aiSettings.bridgeEnabled ? state.emails : [],
+                state.aiSettings.bridgeEnabled ? state.calendarEvents : [],
+              )
+
+        state.addChatMessage({ role: 'assistant', content: reply, mode })
         set({ aiLoading: false, aiContextResponse: reply, aiAssistantOpen: true })
       },
       clearAiContextResponse: () => set({ aiContextResponse: null, aiAssistantOpen: false }),
+
+      openMeetingPrepBrief: async (eventId) => {
+        const state = get()
+        const event = state.calendarEvents.find((e) => e.id === eventId)
+        if (!event) return
+        const brief = generateMeetingBrief(event, state.notes, state.emails)
+        set({ aiLoading: true, view: 'ai' })
+        state.addChatMessage({ role: 'user', content: `Prep brief for ${event.title}`, mode: 'vault' })
+        state.addChatMessage({ role: 'assistant', content: brief.markdown, mode: 'vault' })
+        set({ aiLoading: false, aiContextResponse: brief.markdown, aiAssistantOpen: true })
+      },
+
+      smartProposeMeetingTimes: (eventId) => {
+        const state = get()
+        const event = eventId ? state.calendarEvents.find((e) => e.id === eventId) : undefined
+        const topic = event?.title ?? 'our meeting'
+        const slots = findFreeSlots(state.calendarEvents, 60, 3)
+        const proposal = formatProposalEmail(slots, topic, event?.attendees)
+        const account =
+          state.accounts.find((a) => a.connected) ?? state.accounts[0]
+        state.openCompose({
+          to: event?.attendees?.join(', ') ?? '',
+          subject: proposal.subject,
+          body: proposal.body,
+          accountId: account?.id ?? '',
+        })
+      },
 
       aiSettings: {
         externalApiKey: '',
@@ -297,12 +382,32 @@ export const useEtherMailStore = create<EtherMailState>()(
       selectNote: (id, opts) => {
         const current = get().view
         const nextView = opts?.view ?? (current === 'notes' ? 'notes' : 'vault')
-        set({ activeNoteId: id, activeAttachmentId: null, view: nextView, mobilePanel: 'detail' })
+        set({
+          activeNoteId: id,
+          activeAttachmentId: null,
+          activeVaultFileId: null,
+          view: nextView,
+          mobilePanel: 'detail',
+        })
       },
       selectEmail: (id) =>
         set({ activeEmailId: id, view: 'email', mobilePanel: 'detail' }),
       selectAttachment: (id) =>
-        set({ activeAttachmentId: id, activeNoteId: null, view: 'vault', mobilePanel: 'detail' }),
+        set({
+          activeAttachmentId: id,
+          activeNoteId: null,
+          activeVaultFileId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }),
+      selectVaultFile: (id) =>
+        set({
+          activeVaultFileId: id,
+          activeNoteId: null,
+          activeAttachmentId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }),
       selectFolder: (activeFolderId) => {
         const state = get()
         if (activeFolderId === 'email-files') {
@@ -310,11 +415,12 @@ export const useEtherMailStore = create<EtherMailState>()(
           set({
             activeFolderId,
             activeNoteId: null,
+            activeVaultFileId: null,
             activeAttachmentId: state.activeAttachmentId ?? first?.id ?? null,
             view: 'vault',
           })
         } else {
-          set({ activeFolderId, activeAttachmentId: null })
+          set({ activeFolderId, activeAttachmentId: null, activeVaultFileId: null })
         }
       },
       selectAccount: (activeAccountId) =>
@@ -329,7 +435,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         })),
       createNote: (folderId) => {
         const id = `note-${Date.now()}`
-        const folder = folderId ?? get().activeFolderId
+        let folder = folderId ?? get().activeFolderId
+        if (folder === EMAIL_FILES_FOLDER_ID) folder = 'athena'
         const note: Note = {
           id,
           title: 'Untitled Note',
@@ -343,11 +450,54 @@ export const useEtherMailStore = create<EtherMailState>()(
         set((s) => ({
           notes: [...s.notes, note],
           activeNoteId: id,
+          activeVaultFileId: null,
           view,
           mobilePanel: 'detail',
         }))
         return id
       },
+
+      createFolder: (name, parentId) => {
+        const parent = parentId ?? get().activeFolderId
+        if (parent === EMAIL_FILES_FOLDER_ID) return ''
+        const trimmed = name.trim()
+        if (!trimmed) return ''
+        const id = `folder-${Date.now()}`
+        set((s) => ({
+          folders: [...s.folders, { id, name: trimmed, parentId: parent }],
+          activeFolderId: id,
+        }))
+        return id
+      },
+
+      uploadVaultFile: async (file, folderId) => {
+        if (folderId === EMAIL_FILES_FOLDER_ID) return
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error('read failed'))
+          reader.readAsDataURL(file)
+        })
+        const id = `vfile-${Date.now()}`
+        const entry: VaultFile = {
+          id,
+          folderId,
+          filename: file.name,
+          sizeBytes: file.size,
+          mimeType: file.type || 'application/octet-stream',
+          uploadedAt: new Date().toISOString(),
+          dataUrl,
+        }
+        set((s) => ({
+          vaultFiles: [...s.vaultFiles, entry],
+          activeVaultFileId: id,
+          activeNoteId: null,
+          activeAttachmentId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }))
+      },
+
       linkEmailToNote: (emailId, noteId) =>
         set((s) => ({
           emails: s.emails.map((e) =>
@@ -358,6 +508,12 @@ export const useEtherMailStore = create<EtherMailState>()(
         set((s) => ({
           emails: s.emails.map((e) =>
             e.id === emailId ? { ...e, read: true } : e,
+          ),
+        })),
+      markEmailUnread: (emailId) =>
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId ? { ...e, read: false } : e,
           ),
         })),
 
@@ -410,29 +566,38 @@ export const useEtherMailStore = create<EtherMailState>()(
           ''
 
         let to = initial?.to ?? ''
+        let cc = initial?.cc ?? ''
+        let bcc = initial?.bcc ?? ''
         let subject = initial?.subject ?? ''
         let body = initial?.body ?? ''
 
         if (initial?.replyTo) {
-          const e = initial.replyTo
-          to = e.from
-          subject = e.subject.startsWith('Re:') ? e.subject : `Re: ${e.subject}`
-          body = `\n\n---\nOn ${new Date(e.date).toLocaleString()}, ${e.fromName} wrote:\n\n${e.body
-            .split('\n')
-            .map((line) => `> ${line}`)
-            .join('\n')}`
+          const draft = buildReplyDraft(initial.replyTo)
+          to = draft.to
+          subject = draft.subject
+          body = draft.body
+        }
+
+        if (initial?.replyAllTo) {
+          const draft = buildReplyAllDraft(initial.replyAllTo, state.accounts)
+          to = draft.to
+          cc = draft.cc ?? ''
+          subject = draft.subject
+          body = draft.body
         }
 
         if (initial?.forwardEmail) {
-          const e = initial.forwardEmail
-          subject = e.subject.startsWith('Fwd:') ? e.subject : `Fwd: ${e.subject}`
-          body = `\n\n---------- Forwarded message ----------\nFrom: ${e.fromName} <${e.from}>\nDate: ${new Date(e.date).toLocaleString()}\nSubject: ${e.subject}\n\n${e.body}`
+          const draft = buildForwardDraft(initial.forwardEmail)
+          subject = draft.subject
+          body = draft.body
         }
 
         set({
           composeDraft: {
             id: initial?.id,
             to,
+            cc: cc || undefined,
+            bcc: bcc || undefined,
             subject,
             body,
             accountId: initial?.accountId ?? defaultAccount,
@@ -457,6 +622,8 @@ export const useEtherMailStore = create<EtherMailState>()(
                 ? {
                     ...e,
                     to: draft.to,
+                    cc: draft.cc,
+                    bcc: draft.bcc,
                     subject: draft.subject,
                     body: draft.body,
                     preview,
@@ -481,6 +648,8 @@ export const useEtherMailStore = create<EtherMailState>()(
           from: account?.email ?? 'you@example.com',
           fromName: 'Me',
           to: draft.to,
+          cc: draft.cc,
+          bcc: draft.bcc,
           subject: draft.subject || '(no subject)',
           body: draft.body,
           preview,
@@ -512,6 +681,8 @@ export const useEtherMailStore = create<EtherMailState>()(
                 ? {
                     ...e,
                     to: draft.to,
+                    cc: draft.cc,
+                    bcc: draft.bcc,
                     subject: draft.subject,
                     body: draft.body,
                     preview,
@@ -535,6 +706,8 @@ export const useEtherMailStore = create<EtherMailState>()(
           from: account?.email ?? 'you@example.com',
           fromName: 'Me',
           to: draft.to,
+          cc: draft.cc,
+          bcc: draft.bcc,
           subject: draft.subject || '(no subject)',
           body: draft.body,
           preview,
@@ -671,7 +844,31 @@ export const useEtherMailStore = create<EtherMailState>()(
         })),
 
       aiInboxEnabled: false,
-      setAiInboxEnabled: (aiInboxEnabled) => set({ aiInboxEnabled }),
+      setAiInboxEnabled: (aiInboxEnabled) =>
+        set({ aiInboxEnabled, aiOutboxEnabled: aiInboxEnabled ? false : get().aiOutboxEnabled }),
+
+      aiOutboxEnabled: false,
+      setAiOutboxEnabled: (aiOutboxEnabled) =>
+        set({ aiOutboxEnabled, aiInboxEnabled: aiOutboxEnabled ? false : get().aiInboxEnabled }),
+
+      deleteAllOutboxEmails: () => {
+        const state = get()
+        const outboxIds = new Set(
+          getOutboxEmails(state.emails, state.inboxTraining, state.emailInboxOverrides).map(
+            (e) => e.id,
+          ),
+        )
+        if (outboxIds.size === 0) return
+        set({
+          emails: state.emails.map((e) =>
+            outboxIds.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e,
+          ),
+          activeEmailId:
+            state.activeEmailId && outboxIds.has(state.activeEmailId)
+              ? null
+              : state.activeEmailId,
+        })
+      },
 
       inboxTraining: DEFAULT_INBOX_TRAINING,
       emailInboxOverrides: {},
@@ -726,6 +923,53 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       clearInboxTraining: () =>
         set({ inboxTraining: DEFAULT_INBOX_TRAINING, emailInboxOverrides: {} }),
+
+      selectedEmailIds: [],
+      emailSelectionMode: false,
+      followUpFilterEnabled: false,
+      setEmailSelectionMode: (emailSelectionMode) =>
+        set({ emailSelectionMode, selectedEmailIds: emailSelectionMode ? get().selectedEmailIds : [] }),
+      setFollowUpFilterEnabled: (followUpFilterEnabled) => set({ followUpFilterEnabled }),
+      toggleEmailSelection: (emailId) =>
+        set((s) => ({
+          selectedEmailIds: s.selectedEmailIds.includes(emailId)
+            ? s.selectedEmailIds.filter((id) => id !== emailId)
+            : [...s.selectedEmailIds, emailId],
+        })),
+      selectAllVisibleEmails: (emailIds) => set({ selectedEmailIds: emailIds }),
+      clearEmailSelection: () => set({ selectedEmailIds: [], emailSelectionMode: false }),
+      batchArchiveEmails: (emailIds) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'archive' as EmailFolder } : e)),
+          selectedEmailIds: [],
+          emailSelectionMode: false,
+          activeEmailId:
+            s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
+        }))
+      },
+      batchDeleteEmails: (emailIds) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e)),
+          selectedEmailIds: [],
+          emailSelectionMode: false,
+          activeEmailId:
+            s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
+        }))
+      },
+      batchStarEmails: (emailIds, starred) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, starred } : e)),
+        }))
+      },
+      batchMarkEmailsRead: (emailIds, read) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, read } : e)),
+        }))
+      },
 
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
@@ -810,7 +1054,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -855,6 +1099,9 @@ export const useEtherMailStore = create<EtherMailState>()(
             emailInboxOverrides: {},
           }
         }
+        if (version < 5) {
+          next = { ...next, vaultFiles: [] }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -872,7 +1119,9 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
       partialize: (s) => ({
         notes: s.notes,
+        folders: s.folders,
         emails: s.emails,
+        vaultFiles: s.vaultFiles,
         accounts: s.accounts,
         calendarEvents: s.calendarEvents,
         oauthSettings: s.oauthSettings,
@@ -893,6 +1142,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         completedTodos: s.completedTodos,
         announcedProactive: s.announcedProactive,
         aiInboxEnabled: s.aiInboxEnabled,
+        aiOutboxEnabled: s.aiOutboxEnabled,
+        followUpFilterEnabled: s.followUpFilterEnabled,
         inboxTraining: s.inboxTraining,
         emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,

@@ -1,4 +1,8 @@
-import type { Email, Note } from '../types'
+import type { CalendarEvent, Email, Note } from '../types'
+import { buildContextPacket, formatPacketForExternal } from './aiBridge'
+import { detectFollowUps } from './followUp'
+import { generateMeetingBrief, getNextMeeting } from './meetingPrep'
+import { findFreeSlots, formatProposalEmail, hasConflict } from './smartPropose'
 
 interface RetrievalResult {
   type: 'note' | 'email'
@@ -62,12 +66,84 @@ export function retrieveContext(
   return results.sort((a, b) => b.score - a.score).slice(0, limit)
 }
 
+export interface VaultAIContext {
+  calendarEvents?: CalendarEvent[]
+  eventId?: string
+}
+
 export async function generateVaultAIResponse(
   query: string,
   notes: Note[],
   emails: Email[],
+  ctx: VaultAIContext = {},
 ): Promise<string> {
   const q = query.toLowerCase()
+  const events = ctx.calendarEvents ?? []
+
+  if ((q.includes('prep') || q.includes('brief')) && (q.includes('meeting') || q.includes('calendar') || events.length > 0)) {
+    const event =
+      (ctx.eventId ? events.find((e) => e.id === ctx.eventId) : undefined) ??
+      getNextMeeting(events)
+    if (event) {
+      const brief = generateMeetingBrief(event, notes, emails)
+      return brief.markdown
+    }
+    return 'No upcoming meetings found on your calendar to prep for.'
+  }
+
+  if (
+    q.includes('propose') ||
+    (q.includes('suggest') && q.includes('time')) ||
+    (q.includes('schedule') && q.includes('slot'))
+  ) {
+    const slots = findFreeSlots(events, 60, 3)
+    const proposal = formatProposalEmail(slots, 'our meeting')
+    return `**Smart propose** — here are open slots on your calendar:\n\n${slots.map((s, i) => `${i + 1}. ${s.label}`).join('\n') || '_No free slots in the next two weeks._'}\n\n**Draft email:**\n\n---\n\n**Subject:** ${proposal.subject}\n\n${proposal.body}\n\n---\n\n_Open compose to send, or ask me to propose times for a specific meeting._`
+  }
+
+  if (q.includes('conflict') && (q.includes('calendar') || q.includes('meeting') || q.includes('today'))) {
+    const today = new Date()
+    const todayEvents = events.filter((e) => {
+      const d = new Date(e.start)
+      return d.toDateString() === today.toDateString()
+    })
+    if (todayEvents.length <= 1) {
+      return todayEvents.length === 0
+        ? 'No meetings on your calendar today — no conflicts.'
+        : `You have one meeting today: **${todayEvents[0].title}**. No conflicts.`
+    }
+    const conflicts: string[] = []
+    for (let i = 0; i < todayEvents.length; i++) {
+      for (let j = i + 1; j < todayEvents.length; j++) {
+        const a = todayEvents[i]
+        const b = todayEvents[j]
+        if (hasConflict([a], b.start, b.end)) {
+          conflicts.push(`**${a.title}** overlaps **${b.title}**`)
+        }
+      }
+    }
+    return conflicts.length > 0
+      ? `**Conflicts today:**\n\n${conflicts.map((c) => `- ${c}`).join('\n')}`
+      : `You have ${todayEvents.length} meetings today with no overlaps.`
+  }
+
+  if (
+    q.includes('follow') ||
+    (q.includes('need') && q.includes('reply')) ||
+    q.includes('waiting')
+  ) {
+    const hints = detectFollowUps(emails)
+    if (hints.length === 0) {
+      return 'No emails flagged for follow-up right now. Your inbox looks caught up!'
+    }
+    return `**${hints.length} email${hints.length === 1 ? '' : 's'} needing follow-up:**\n\n${hints
+      .slice(0, 6)
+      .map(
+        (h, i) =>
+          `${i + 1}. **${h.subject}** — ${h.fromName} (${h.label}, ${h.severity})`,
+      )
+      .join('\n')}\n\n_Enable **Needs follow-up** in the inbox toolbar to filter these._`
+  }
 
   if (q.includes('how') && (q.includes('link') || q.includes('connect'))) {
     return `To link an email to a note in EtherMail:
@@ -80,16 +156,16 @@ The link appears in the **Knowledge Graph** as a \`references\` edge between the
   }
 
   if (q.includes('summarize') || q.includes('summary')) {
-    const ctx = retrieveContext('q3 marketing strategy project athena', notes, emails, 3)
-    if (ctx.length === 0) {
+    const ctxResults = retrieveContext('q3 marketing strategy project athena', notes, emails, 3)
+    if (ctxResults.length === 0) {
       return "I couldn't find relevant content to summarize. Try asking about Q3 Marketing Strategy, Research Notes, or Project Athena emails."
     }
-    const parts = ctx.map((c) => `**${c.title}**: ${c.excerpt}`)
-    return `Here's a summary based on your vault and inbox:\n\n${parts.join('\n\n')}\n\n*Sources: ${ctx.map((c) => c.title).join(', ')}*`
+    const parts = ctxResults.map((c) => `**${c.title}**: ${c.excerpt}`)
+    return `Here's a summary based on your vault and inbox:\n\n${parts.join('\n\n')}\n\n*Sources: ${ctxResults.map((c) => c.title).join(', ')}*`
   }
 
   if (q.includes('draft') && q.includes('reply')) {
-  const email = emails.find((e) => e.fromName.includes('Sarah')) ?? emails[0]
+    const email = emails.find((e) => e.fromName.includes('Sarah')) ?? emails[0]
     const note = notes.find((n) => n.id === email?.linkedNoteId)
     return `**Draft reply** to ${email?.fromName} re: "${email?.subject}":
 
@@ -113,9 +189,9 @@ Best regards
   }
 
   if (q.includes('similar') || q.includes('find')) {
-    const ctx = retrieveContext(query, notes, emails, 4)
-    if (ctx.length === 0) return 'No similar notes or emails found in your vault.'
-    return `**Similar items in your vault:**\n\n${ctx.map((c, i) => `${i + 1}. **${c.title}** (${c.type}) — ${c.excerpt.slice(0, 100)}...`).join('\n')}`
+    const ctxResults = retrieveContext(query, notes, emails, 4)
+    if (ctxResults.length === 0) return 'No similar notes or emails found in your vault.'
+    return `**Similar items in your vault:**\n\n${ctxResults.map((c, i) => `${i + 1}. **${c.title}** (${c.type}) — ${c.excerpt.slice(0, 100)}...`).join('\n')}`
   }
 
   if (q.includes('reminder') || q.includes('expense')) {
@@ -131,25 +207,30 @@ Suggested actions:
 - Open linked [[Budget Q4]] note for reference`
   }
 
-  const ctx = retrieveContext(query, notes, emails, 3)
-  if (ctx.length > 0) {
-    return `Based on your vault and inbox, here's what I found:\n\n${ctx.map((c) => `**${c.title}** (${c.type}): ${c.excerpt}`).join('\n\n')}\n\nAsk me to summarize, draft a reply, find similar notes, or explain how EtherMail features work.`
+  const ctxResults = retrieveContext(query, notes, emails, 3)
+  if (ctxResults.length > 0) {
+    return `Based on your vault and inbox, here's what I found:\n\n${ctxResults.map((c) => `**${c.title}** (${c.type}): ${c.excerpt}`).join('\n\n')}\n\nAsk me to summarize, draft a reply, prep for a meeting, detect follow-ups, or propose meeting times.`
   }
 
   return `I'm your **EtherMail Vault AI** — I have access to your notes, emails, links, and tags. I don't share this data with external AI unless you enable Bridge mode.
 
 Try:
+- "Prep for my next meeting"
+- "Show emails needing follow-up"
+- "Propose meeting times"
 - "Summarize Q3 Plan"
 - "Draft reply to Sarah"
-- "Find similar notes about budget"
-- "Scan for reminders"
-- "How do I link an email to a note?"`
+- "Any conflicts today?"`
 }
 
 export async function generateExternalAIResponse(
   query: string,
   apiKey: string,
   provider: string,
+  bridgeEnabled = false,
+  notes: Note[] = [],
+  emails: Email[] = [],
+  calendarEvents: CalendarEvent[] = [],
 ): Promise<string> {
   if (!apiKey.trim()) {
     return `**External AI** requires an API key. Go to **Settings** to add your ${provider} key.
@@ -157,16 +238,29 @@ export async function generateExternalAIResponse(
 External AI has **no access** to your vault or inbox. It can only answer general questions with the context you explicitly provide.`
   }
 
-  // Phase 1: simulated external response (no real API calls on GitHub Pages demo)
+  let effectiveQuery = query
+  let bridgeNote = ''
+
+  if (bridgeEnabled) {
+    const packet = buildContextPacket(query, notes, emails, calendarEvents)
+    if (packet.excerpts.length > 0) {
+      effectiveQuery = formatPacketForExternal(query, packet)
+      bridgeNote = `\n\n---\n*Bridge mode: attached ${packet.excerpts.length} curated vault excerpt(s) (${packet.charCount} chars). External AI received only this packet — not your full vault.*`
+    } else {
+      bridgeNote =
+        '\n\n---\n*Bridge mode is on but no vault excerpts matched this query. External AI answered from your message only.*'
+    }
+  }
+
   return `**[External AI — ${provider}]** (demo mode)
 
-Your API key is configured. In production, this would call the ${provider} API with **only** the text you typed — no vault data.
+Your API key is configured. In production, this would call the ${provider} API with **only** the text you typed${bridgeEnabled ? ' plus the Bridge context packet below' : ''} — no full vault access.
 
 ---
 
 Regarding: "${query}"
 
-This is a simulated response for the GitHub Pages demo. When connected to a real API, external AI would answer general knowledge questions here without seeing your private notes or emails.
+${bridgeEnabled && effectiveQuery !== query ? `**Bridge context packet sent:**\n\`\`\`\n${effectiveQuery.slice(0, 1200)}${effectiveQuery.length > 1200 ? '\n…' : ''}\n\`\`\`\n\n**Simulated response:**\n` : ''}This is a simulated response for the GitHub Pages demo. When connected to a real API, external AI would answer using general knowledge${bridgeEnabled ? ' enriched by the curated vault excerpts you approved via Bridge mode' : ''}.
 
-To combine vault context with external AI, enable **Bridge mode** in Settings (coming in Phase 3).`
+${bridgeEnabled ? '' : 'To combine vault context with external AI, enable **Bridge mode** in Settings.'}${bridgeNote}`
 }

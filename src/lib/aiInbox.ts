@@ -176,6 +176,28 @@ export function computeInboxStats(
   }
 }
 
+/** Inbox emails classified as not important (AI Outbox) */
+export function getOutboxEmails(
+  emails: Email[],
+  training: EmailInboxTraining,
+  overrides: Record<string, { verdict: 'important' | 'junk'; category?: EmailJunkCategory }>,
+): Email[] {
+  return emails.filter((e) => {
+    if ((e.folder ?? 'inbox') !== 'inbox') return false
+    const c = classifyEmail(e, training, overrides[e.id])
+    return !c.important
+  })
+}
+
+export function isImportantInboxEmail(
+  email: Email,
+  training: EmailInboxTraining,
+  overrides: Record<string, { verdict: 'important' | 'junk'; category?: EmailJunkCategory }>,
+): boolean {
+  if ((email.folder ?? 'inbox') !== 'inbox') return true
+  return classifyEmail(email, training, overrides[email.id]).important
+}
+
 export const DEFAULT_INBOX_TRAINING: EmailInboxTraining = {
   importantSenders: ['sarah.j@corp.com', 'finance@corp.com', 'client@acme.com', 'calendar@corp.com'],
   junkSenders: [],

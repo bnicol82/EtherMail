@@ -8,16 +8,18 @@ import { listenOnce, speakText, isListeningSupported, stopSpeaking } from '../li
 import { formatAssistantReplyForSpeech } from '../lib/proactiveAssistant'
 
 const SUGGESTIONS = [
+  'Prep for my next meeting',
+  'Show emails needing follow-up',
+  'Propose meeting times',
   'Summarize Q3 Plan',
   'Draft reply to Sarah',
-  'Find similar notes about budget',
   'Scan for reminders',
-  'How do I link an email to a note?',
 ]
 
 export function AIView() {
   const notes = useEtherMailStore((s) => s.notes)
   const emails = useEtherMailStore((s) => s.emails)
+  const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
   const aiMode = useEtherMailStore((s) => s.aiMode)
   const setAiMode = useEtherMailStore((s) => s.setAiMode)
   const chatMessages = useEtherMailStore((s) => s.chatMessages)
@@ -54,11 +56,15 @@ export function AIView() {
     const respond = async () => {
       const content =
         last.mode === 'vault'
-          ? await generateVaultAIResponse(last.content, notes, emails)
+          ? await generateVaultAIResponse(last.content, notes, emails, { calendarEvents })
           : await generateExternalAIResponse(
               last.content,
               aiSettings.externalApiKey,
               aiSettings.externalProvider,
+              aiSettings.bridgeEnabled,
+              aiSettings.bridgeEnabled ? notes : [],
+              aiSettings.bridgeEnabled ? emails : [],
+              aiSettings.bridgeEnabled ? calendarEvents : [],
             )
       addChatMessage({ role: 'assistant', content, mode: last.mode })
 
@@ -72,7 +78,7 @@ export function AIView() {
     }
     const t = setTimeout(respond, 600)
     return () => clearTimeout(t)
-  }, [chatMessages, notes, emails, aiSettings, assistantSettings, addChatMessage])
+  }, [chatMessages, notes, emails, calendarEvents, aiSettings, assistantSettings, addChatMessage])
 
   const send = async () => {
     if (!input.trim() || loading) return
@@ -153,7 +159,10 @@ export function AIView() {
             </span>
           ) : (
             <span className="flex items-center gap-1.5 text-amber-400">
-              <Globe size={12} /> No vault access — general knowledge only
+              <Globe size={12} />
+              {aiSettings.bridgeEnabled
+                ? 'Bridge on — curated vault excerpts may be attached'
+                : 'No vault access — general knowledge only'}
             </span>
           )}
           {assistantSettings.voiceChatEnabled && (

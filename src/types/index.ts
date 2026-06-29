@@ -62,6 +62,18 @@ export interface Folder {
   isSystem?: boolean
 }
 
+/** User-uploaded file stored in a vault folder */
+export interface VaultFile {
+  id: string
+  folderId: string
+  filename: string
+  sizeBytes: number
+  mimeType: string
+  uploadedAt: string
+  /** Base64 data URL for demo persistence (small files only) */
+  dataUrl?: string
+}
+
 export interface EmailAttachment {
   id: string
   emailId: string
@@ -80,6 +92,8 @@ export interface Email {
   from: string
   fromName: string
   to: string
+  cc?: string
+  bcc?: string
   subject: string
   body: string
   preview: string
@@ -133,6 +147,8 @@ export interface EmailInboxOverride {
 export interface ComposeDraft {
   id?: string
   to: string
+  cc?: string
+  bcc?: string
   subject: string
   body: string
   accountId: string
@@ -185,6 +201,9 @@ export interface AIAlert {
   category: AIAlertCategory
   actionView?: View
   sourceId?: string
+  /** Optional secondary action (e.g. "Prep brief") */
+  secondaryActionLabel?: string
+  secondaryActionQuery?: string
   createdAt: string
   read: boolean
 }
