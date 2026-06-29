@@ -8,6 +8,7 @@ import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
 import { GraphView } from './components/GraphView'
 import { AIView } from './components/AIView'
+import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
 import { Menu } from 'lucide-react'
 
@@ -23,6 +24,8 @@ function MainContent() {
       return <EmailView />
     case 'graph':
       return <GraphView />
+    case 'calendar':
+      return <CalendarView />
     case 'ai':
       return <AIView />
     case 'settings':
@@ -34,8 +37,11 @@ function MainContent() {
 
 export default function App() {
   const theme = useEtherMailStore((s) => s.theme)
+  const view = useEtherMailStore((s) => s.view)
   const sidebarOpen = useEtherMailStore((s) => s.sidebarOpen)
   const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
+
+  const showDock = view !== 'ai'
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -81,14 +87,18 @@ export default function App() {
           <Sidebar />
         </div>
 
-        <main className="flex-1 w-full min-w-0 min-h-0 flex flex-col overflow-hidden pt-0 pb-[7.5rem] sm:pb-[6.5rem]">
+        <main
+          className={`flex-1 w-full min-w-0 min-h-0 flex flex-col overflow-hidden pt-0 ${
+            showDock ? 'pb-[7.5rem] sm:pb-[6.5rem]' : 'pb-0'
+          }`}
+        >
           <MainContent />
         </main>
       </div>
 
-      {/* Fixed UI layers — must NOT be flex children of app-shell */}
-      <AIContextStrip />
-      <BottomBar />
+      {/* Fixed UI layers — hidden on full AI chat to avoid stacked inputs */}
+      {showDock && <AIContextStrip />}
+      {showDock && <BottomBar />}
     </div>
   )
 }

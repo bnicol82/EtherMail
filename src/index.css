@@ -336,8 +336,6 @@ body {
   );
 }
 
-@media (max-width: 768px) {
-  body {
-    overflow: auto;
-  }
+html {
+  overflow: hidden;
 }

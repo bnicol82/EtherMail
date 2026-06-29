@@ -120,7 +120,7 @@ export function BottomBar() {
               if (e.key === 'Enter') submit()
             }}
             placeholder={ctx.placeholder}
-            className="flex-1 min-w-0 px-3 py-2 rounded-lg input-theme text-sm outline-none focus:border-[var(--accent-border)]"
+            className="flex-1 min-w-0 px-3 py-2 rounded-lg input-theme text-base outline-none focus:border-[var(--accent-border)]"
           />
           <button
             onClick={submit}
