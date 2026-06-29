@@ -161,9 +161,14 @@ export function VaultView() {
   }
 
   return (
-    <div className="flex-1 flex min-h-0 overflow-hidden">
-      <PanelRestoreTab panelId="vault-tree" label="Folders" className="m-1" />
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+        <PanelRestoreTab panelId="vault-tree" label="Folders" />
+        <PanelRestoreTab panelId="vault-editor" label="Editor" />
+        <PanelRestoreTab panelId="vault-rail" label="Insights" />
+      </div>
 
+      <div className="flex-1 flex min-h-0 overflow-hidden">
       {!treeHidden && (
       <div
         className={`
@@ -228,9 +233,6 @@ export function VaultView() {
         </div>
       </div>
       )}
-
-      <PanelRestoreTab panelId="vault-editor" label="Editor" className="m-1" />
-      <PanelRestoreTab panelId="vault-rail" label="Insights" className="m-1" />
 
       {/* Editor / attachment detail */}
       {!editorHidden && (
@@ -456,6 +458,7 @@ export function VaultView() {
         )}
       </div>
       )}
+      </div>
     </div>
   )
 }
