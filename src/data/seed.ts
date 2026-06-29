@@ -1,4 +1,4 @@
-import type { Email, EmailAccount, EmailAttachment, Folder, GraphEdge, GraphNode, Note, CalendarEvent } from '../types'
+import type { Email, EmailAccount, EmailAttachment, EmailLabel, Folder, GraphEdge, GraphNode, Note, CalendarEvent } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 
 export const SEED_FOLDERS: Folder[] = [
@@ -8,6 +8,13 @@ export const SEED_FOLDERS: Folder[] = [
   { id: 'archives', name: 'Archives', parentId: 'root' },
   { id: 'projects', name: 'Projects', parentId: 'root' },
   { id: 'athena', name: 'Project Athena', parentId: 'projects' },
+]
+
+export const SEED_EMAIL_LABELS: EmailLabel[] = [
+  { id: 'label-athena', name: 'Project Athena', color: '#6366f1' },
+  { id: 'label-finance', name: 'Finance', color: '#10b981' },
+  { id: 'label-urgent', name: 'Urgent', color: '#ef4444' },
+  { id: 'label-followup', name: 'Follow-up', color: '#f59e0b' },
 ]
 
 export const SEED_NOTES: Note[] = [
@@ -318,6 +325,7 @@ Sarah J.`,
     starred: true,
     linkedNoteId: 'note-q3-marketing',
     attachmentIds: ['att-1', 'att-2'],
+    labelIds: ['label-athena'],
   },
   {
     id: 'email-2',
@@ -340,6 +348,7 @@ Finance Team`,
     starred: false,
     linkedNoteId: 'note-budget',
     attachmentIds: ['att-3', 'att-4'],
+    labelIds: ['label-finance', 'label-urgent'],
   },
   {
     id: 'email-3',
@@ -407,6 +416,7 @@ This event relates to your Budget Q4 planning notes.`,
     linkedNoteId: 'note-budget',
     attachmentIds: ['att-6', 'att-7'],
     folder: 'inbox',
+    labelIds: ['label-finance', 'label-athena'],
   },
   {
     id: 'email-junk-spam',
