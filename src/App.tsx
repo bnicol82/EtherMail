@@ -116,7 +116,7 @@ export default function App() {
 
         <main
           className={`flex-1 w-full min-w-0 min-h-0 flex flex-col overflow-hidden pt-0 ${
-            showDock ? 'pb-[9.5rem] sm:pb-[8.5rem]' : 'pb-0'
+            showDock ? 'pb-[6.5rem] sm:pb-[5.5rem]' : 'pb-0'
           }`}
         >
           <MainContent />
