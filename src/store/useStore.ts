@@ -8,6 +8,7 @@ import {
   SEED_FOLDERS,
   SEED_NOTES,
   buildGraphFromData,
+  getDemoEmailsForAccount,
 } from '../data/seed'
 import type {
   AISettings,
@@ -15,10 +16,12 @@ import type {
   Email,
   EmailAttachment,
   Note,
+  OAuthSettings,
   Theme,
   View,
 } from '../types'
 import { generateVaultAIResponse } from '../lib/rag'
+import { syncCalendarFromEmails } from '../lib/calendarSync'
 
 interface EtherMailState {
   view: View
@@ -73,6 +76,15 @@ interface EtherMailState {
   createNote: (folderId?: string) => string
   linkEmailToNote: (emailId: string, noteId: string | null) => void
   markEmailRead: (emailId: string) => void
+
+  oauthSettings: OAuthSettings
+  setOAuthSettings: (settings: Partial<OAuthSettings>) => void
+  connectingAccountId: string | null
+  setConnectingAccountId: (id: string | null) => void
+  startConnectAccount: (accountId: string) => void
+  finishConnectAccount: (accountId: string, syncMode: 'demo' | 'oauth') => void
+  disconnectAccount: (accountId: string) => void
+  completeOAuthConnect: (accountId: string) => void
 
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -212,6 +224,73 @@ export const useEtherMailStore = create<EtherMailState>()(
           ),
         })),
 
+      oauthSettings: {
+        googleClientId: (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ?? '',
+        microsoftClientId: '',
+        yahooClientId: '',
+      },
+      setOAuthSettings: (settings) =>
+        set((s) => ({ oauthSettings: { ...s.oauthSettings, ...settings } })),
+
+      connectingAccountId: null,
+      setConnectingAccountId: (connectingAccountId) => set({ connectingAccountId }),
+
+      startConnectAccount: (accountId) => set({ connectingAccountId: accountId }),
+
+      finishConnectAccount: (accountId, syncMode) => {
+        const state = get()
+        const demoEmails = getDemoEmailsForAccount(accountId)
+        const existingIds = new Set(state.emails.map((e) => e.id))
+        const newEmails = demoEmails.filter((e) => !existingIds.has(e.id))
+        const allEmails = [...state.emails, ...newEmails]
+
+        set({
+          accounts: state.accounts.map((a) =>
+            a.id === accountId
+              ? { ...a, connected: true, connectedAt: new Date().toISOString(), syncMode }
+              : a,
+          ),
+          emails: allEmails,
+          calendarEvents: syncCalendarFromEmails(
+            allEmails,
+            state.emailAttachments,
+            state.calendarEvents,
+          ),
+          connectingAccountId: null,
+        })
+      },
+
+      completeOAuthConnect: (accountId) => {
+        get().finishConnectAccount(accountId, 'oauth')
+      },
+
+      disconnectAccount: (accountId) => {
+        const state = get()
+        const remainingEmails = state.emails.filter((e) => e.accountId !== accountId)
+        const connectedIds = new Set(
+          state.accounts
+            .filter((a) => a.connected && a.id !== accountId)
+            .map((a) => a.id),
+        )
+        const connectedEmails = remainingEmails.filter((e) => connectedIds.has(e.accountId))
+
+        set({
+          accounts: state.accounts.map((a) =>
+            a.id === accountId
+              ? { ...a, connected: false, connectedAt: undefined, syncMode: undefined }
+              : a,
+          ),
+          emails: remainingEmails,
+          calendarEvents: syncCalendarFromEmails(
+            connectedEmails,
+            state.emailAttachments,
+            SEED_CALENDAR,
+          ),
+          activeAccountId:
+            state.activeAccountId === accountId ? null : state.activeAccountId,
+        })
+      },
+
       sidebarOpen: false,
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       mobilePanel: 'list',
@@ -222,6 +301,9 @@ export const useEtherMailStore = create<EtherMailState>()(
       partialize: (s) => ({
         notes: s.notes,
         emails: s.emails,
+        accounts: s.accounts,
+        calendarEvents: s.calendarEvents,
+        oauthSettings: s.oauthSettings,
         theme: s.theme,
         aiSettings: {
           ...s.aiSettings,

@@ -11,7 +11,7 @@ import {
   Inbox,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
-import { providerColor, providerLabel } from '../lib/utils'
+import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 
 const NAV: { id: View; label: string; icon: typeof Mail }[] = [
@@ -32,7 +32,11 @@ export function Sidebar() {
   const emails = useEtherMailStore((s) => s.emails)
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
-  const unread = emails.filter((e) => !e.read).length
+  const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
+  const unread = emails.filter((e) => {
+    const acc = accounts.find((a) => a.id === e.accountId)
+    return acc?.connected && !e.read
+  }).length
 
   const navigate = (v: View) => {
     if (v === 'email') selectAccount(null)
@@ -40,8 +44,11 @@ export function Sidebar() {
     setSidebarOpen(false)
   }
 
-  const accountUnread = (accountId: string) =>
-    emails.filter((e) => e.accountId === accountId && !e.read).length
+  const accountUnread = (accountId: string) => {
+    const acc = accounts.find((a) => a.id === accountId)
+    if (!acc?.connected) return 0
+    return emails.filter((e) => e.accountId === accountId && !e.read).length
+  }
 
   return (
     <aside className="w-64 h-full glass-strong flex flex-col border-r border-[var(--glass-border)] shrink-0">
@@ -133,15 +140,15 @@ export function Sidebar() {
                   if (acc.connected) {
                     selectAccount(acc.id)
                     setSidebarOpen(false)
+                  } else {
+                    startConnectAccount(acc.id)
+                    setSidebarOpen(false)
                   }
                 }}
-                disabled={!acc.connected}
                 className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
                   isActive
                     ? 'nav-active'
-                    : acc.connected
-                      ? 'text-theme-muted hover-theme hover:text-theme'
-                      : 'text-theme-muted opacity-50 cursor-not-allowed'
+                    : 'text-theme-muted hover-theme hover:text-theme'
                 }`}
               >
                 <span
@@ -155,13 +162,13 @@ export function Sidebar() {
                   </span>
                 )}
                 {!acc.connected && (
-                  <span className="text-[10px] text-amber-500">Setup</span>
+                  <span className="text-[10px] text-amber-500">Connect</span>
                 )}
               </button>
             )
           })}
           <p className="px-3 mt-2 text-[10px] text-theme-muted opacity-70">
-            {providerLabel('gmail')}, Outlook, Yahoo — OAuth in Phase 2
+            Tap an account to filter inbox · tap disconnected to connect
           </p>
         </div>
       </nav>

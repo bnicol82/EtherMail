@@ -1,6 +1,7 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
+import { canUseRealOAuth } from '../lib/oauth/connect'
 import type { Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -16,6 +17,10 @@ export function SettingsView() {
   const aiSettings = useEtherMailStore((s) => s.aiSettings)
   const setAISettings = useEtherMailStore((s) => s.setAISettings)
   const accounts = useEtherMailStore((s) => s.accounts)
+  const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
+  const disconnectAccount = useEtherMailStore((s) => s.disconnectAccount)
+  const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
+  const setOAuthSettings = useEtherMailStore((s) => s.setOAuthSettings)
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
@@ -134,6 +139,47 @@ export function SettingsView() {
         </div>
       </section>
 
+      {/* OAuth client IDs */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Mail size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">OAuth Client IDs</h2>
+        </div>
+        <p className="text-sm text-theme-muted mb-4">
+          Optional — add client IDs to enable real OAuth on GitHub Pages (PKCE, no backend).
+          Leave blank to use demo connect with simulated data.
+        </p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs text-theme-muted mb-1">Google (Gmail)</label>
+            <input
+              value={oauthSettings.googleClientId}
+              onChange={(e) => setOAuthSettings({ googleClientId: e.target.value })}
+              placeholder="xxxx.apps.googleusercontent.com"
+              className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-theme-muted mb-1">Microsoft (Outlook)</label>
+            <input
+              value={oauthSettings.microsoftClientId}
+              onChange={(e) => setOAuthSettings({ microsoftClientId: e.target.value })}
+              placeholder="Application (client) ID"
+              className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-theme-muted mb-1">Yahoo</label>
+            <input
+              value={oauthSettings.yahooClientId}
+              onChange={(e) => setOAuthSettings({ yahooClientId: e.target.value })}
+              placeholder="Client ID"
+              className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
+            />
+          </div>
+        </div>
+      </section>
+
       {/* Email accounts */}
       <section className="glass rounded-xl p-5">
         <h2 className="font-semibold text-theme mb-4">Email Accounts</h2>
@@ -145,15 +191,30 @@ export function SettingsView() {
             >
               <div>
                 <p className="text-sm text-theme">{acc.email}</p>
-                <p className="text-xs text-theme-muted">{providerLabel(acc.provider)}</p>
+                <p className="text-xs text-theme-muted">
+                  {providerLabel(acc.provider)}
+                  {acc.syncMode === 'oauth' && ' · Live OAuth'}
+                  {acc.syncMode === 'demo' && acc.connected && ' · Demo sync'}
+                </p>
               </div>
               {acc.connected ? (
-                <span className="text-xs px-2 py-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
-                  Demo connected
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs px-2 py-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+                    Connected
+                  </span>
+                  <button
+                    onClick={() => disconnectAccount(acc.id)}
+                    className="text-xs px-2 py-1 rounded-lg glass text-theme-muted hover:text-red-400"
+                  >
+                    Disconnect
+                  </button>
+                </div>
               ) : (
-                <button className="text-xs px-3 py-1.5 rounded-lg btn-accent">
-                  Connect (Phase 2)
+                <button
+                  onClick={() => startConnectAccount(acc.id)}
+                  className="text-xs px-3 py-1.5 rounded-lg btn-accent"
+                >
+                  {canUseRealOAuth(acc.provider, oauthSettings) ? 'Connect' : 'Connect (demo)'}
                 </button>
               )}
             </div>

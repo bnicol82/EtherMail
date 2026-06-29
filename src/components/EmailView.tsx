@@ -64,6 +64,8 @@ export function EmailView() {
   const aiCtx = getAIContext('email', { activeEmail, emails, notes })
 
   const filtered = emails.filter((e) => {
+    const acc = accounts.find((a) => a.id === e.accountId)
+    if (!acc?.connected) return false
     if (activeAccountId && e.accountId !== activeAccountId) return false
     if (!filter) return true
     const q = filter.toLowerCase()
