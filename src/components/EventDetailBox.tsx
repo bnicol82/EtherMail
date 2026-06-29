@@ -14,18 +14,18 @@ export function EventDetailBox({ event, color, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4 pt-6 pb-28 sm:pb-6 bg-black/40 backdrop-blur-sm overflow-y-auto"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-labelledby="event-detail-title"
     >
       <div
-        className="glass-frost rounded-xl w-full max-w-md shadow-2xl border border-[var(--glass-border)] overflow-hidden"
+        className="glass-frost rounded-xl w-full max-w-md max-h-[min(85vh,32rem)] shadow-2xl border border-[var(--glass-border)] overflow-hidden flex flex-col my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="h-1.5" style={{ background: color }} />
-        <div className="p-5">
+        <div className="p-5 overflow-y-auto min-h-0">
           <div className="flex items-start justify-between gap-3 mb-4">
             <h2 id="event-detail-title" className="text-lg font-semibold text-theme">
               {event.title}
