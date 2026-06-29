@@ -2,8 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   SEED_ACCOUNTS,
+  SEED_AI_CONTEXT_RESPONSE,
   SEED_ATTACHMENTS,
   SEED_CALENDAR,
+  SEED_CHAT_MESSAGES,
   SEED_EMAILS,
   SEED_FOLDERS,
   SEED_EMAIL_LABELS,
@@ -302,7 +304,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       setAiAssistantOpen: (aiAssistantOpen) => set({ aiAssistantOpen }),
 
       aiLoading: false,
-      aiContextResponse: null,
+      aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
       submitAiQuery: async (query, contextPrefix = '', opts) => {
         const state = get()
         const mode = state.aiMode
@@ -373,7 +375,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       setWeatherSettings: (settings) =>
         set((s) => ({ weatherSettings: { ...s.weatherSettings, ...settings } })),
 
-      chatMessages: [],
+      chatMessages: SEED_CHAT_MESSAGES,
       addChatMessage: (msg) =>
         set((s) => ({
           chatMessages: [
@@ -1163,6 +1165,13 @@ export const useEtherMailStore = create<EtherMailState>()(
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
+        if (version < 2) {
+          next = {
+            ...next,
+            chatMessages: SEED_CHAT_MESSAGES,
+            emails: SEED_EMAILS,
+          }
+        }
         if (version < 3) {
           next = {
             ...next,
@@ -1184,12 +1193,14 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (version < 4) {
           const existing = (next.emails as Email[]) ?? []
           const ids = new Set(existing.map((e) => e.id))
-          const newJunk = SEED_EMAILS.filter(
-            (e) => e.id.startsWith('email-junk-') && !ids.has(e.id),
+          const newEmails = SEED_EMAILS.filter(
+            (e) =>
+              (e.id.startsWith('email-junk-') || e.id === 'email-6' || e.id === 'email-7') &&
+              !ids.has(e.id),
           )
           next = {
             ...next,
-            emails: [...existing, ...newJunk],
+            emails: [...existing, ...newEmails],
             aiInboxEnabled: false,
             inboxTraining: DEFAULT_INBOX_TRAINING,
             emailInboxOverrides: {},
@@ -1210,6 +1221,19 @@ export const useEtherMailStore = create<EtherMailState>()(
           }
         }
         return next
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        const hasSeedThread = state.chatMessages.some((m) => m.id === 'msg-seed-quick-1')
+        const last = state.chatMessages[state.chatMessages.length - 1]
+        if (state.chatMessages.length === 0) {
+          useEtherMailStore.setState({
+            chatMessages: SEED_CHAT_MESSAGES,
+            aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
+          })
+        } else if (hasSeedThread && last?.role === 'assistant') {
+          useEtherMailStore.setState({ aiContextResponse: SEED_AI_CONTEXT_RESPONSE })
+        }
       },
       partialize: (s) => ({
         notes: s.notes,
