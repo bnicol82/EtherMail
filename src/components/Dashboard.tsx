@@ -7,13 +7,15 @@ import { WeekCalendarGrid, EVENT_COLORS } from './WeekCalendarGrid'
 import { formatDate, addDays, startOfWeek } from '../lib/utils'
 import { extractTodos } from '../lib/todos'
 import type { CalendarEvent } from '../types'
-import { Sparkles, Tag, Link2, CheckSquare, Mail, FileText } from 'lucide-react'
+import { Sparkles, Tag, Link2, CheckSquare, Mail, FileText, Calendar } from 'lucide-react'
 
 export function Dashboard() {
   const notes = useEtherMailStore((s) => s.notes)
   const emails = useEtherMailStore((s) => s.emails)
   const accounts = useEtherMailStore((s) => s.accounts)
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
+  const completedTodos = useEtherMailStore((s) => s.completedTodos)
+  const completeTodo = useEtherMailStore((s) => s.completeTodo)
   const selectNote = useEtherMailStore((s) => s.selectNote)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
   const chatMessages = useEtherMailStore((s) => s.chatMessages)
@@ -26,7 +28,10 @@ export function Dashboard() {
 
   const recentEmails = [...emails].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4)
   const unread = emails.filter((e) => !e.read)
-  const todos = useMemo(() => extractTodos(notes, emails), [notes, emails])
+  const todos = useMemo(
+    () => extractTodos(notes, emails, calendarEvents, completedTodos),
+    [notes, emails, calendarEvents, completedTodos],
+  )
 
   const weekStart = useMemo(() => startOfWeek(new Date()), [])
   const weekDays = useMemo(
@@ -91,33 +96,47 @@ export function Dashboard() {
                 <p className="text-sm text-theme-muted">No open items from notes or email.</p>
               ) : (
                 todos.map((item) => (
-                  <button
+                  <div
                     key={item.id}
-                    type="button"
-                    onClick={() => {
-                      if (item.source === 'note') {
-                        setView('notes')
-                        selectNote(item.sourceId, { view: 'notes' })
-                      } else {
-                        setView('email')
-                        selectEmail(item.sourceId)
-                      }
-                    }}
-                    className="w-full flex items-start gap-2.5 p-2.5 rounded-lg hover-theme text-left transition-colors"
+                    className="w-full flex items-start gap-2.5 p-2.5 rounded-lg hover-theme transition-colors group"
                   >
-                    <span className="mt-0.5 w-4 h-4 rounded border border-[var(--accent-border)] shrink-0" />
-                    <div className="flex-1 min-w-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        completeTodo(item.id)
+                      }}
+                      className="mt-0.5 w-4 h-4 rounded border border-[var(--accent-border)] shrink-0 hover:bg-[var(--accent)]/20 transition-colors"
+                      aria-label="Mark complete"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (item.source === 'note') {
+                          setView('notes')
+                          selectNote(item.sourceId, { view: 'notes' })
+                        } else if (item.source === 'calendar') {
+                          setView('calendar')
+                        } else {
+                          setView('email')
+                          selectEmail(item.sourceId)
+                        }
+                      }}
+                      className="flex-1 min-w-0 text-left"
+                    >
                       <p className="text-sm text-theme truncate">{item.text}</p>
                       <p className="text-[10px] text-theme-muted flex items-center gap-1 mt-0.5">
                         {item.source === 'note' ? (
                           <FileText size={10} />
+                        ) : item.source === 'calendar' ? (
+                          <Calendar size={10} />
                         ) : (
                           <Mail size={10} />
                         )}
                         {item.sourceLabel}
                       </p>
-                    </div>
-                  </button>
+                    </button>
+                  </div>
                 ))
               )}
             </div>

@@ -153,6 +153,77 @@ Sarah J., Team leads
 - [ ] Schedule client meeting for next week
 `,
   },
+  {
+    id: 'note-tpl-followup',
+    title: 'Follow-up Template',
+    folderId: 'templates',
+    tags: ['#template', '#email'],
+    createdAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+    content: `# Re: Follow-up on our conversation
+
+Hi [Name],
+
+Thanks again for taking the time to meet. I wanted to follow up on the points we discussed:
+
+- [Key point 1]
+- [Key point 2]
+
+Please let me know if you have any questions. Happy to jump on a quick call this week.
+
+Best regards,
+[Your name]`,
+  },
+  {
+    id: 'note-tpl-meeting',
+    title: 'Meeting Request Template',
+    folderId: 'templates',
+    tags: ['#template', '#email'],
+    createdAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+    content: `# Meeting request — [Topic]
+
+Hi [Name],
+
+I'd like to schedule a brief meeting to discuss [topic]. Would any of these times work for you?
+
+- [Option 1]
+- [Option 2]
+
+Looking forward to connecting.
+
+Thanks,
+[Your name]`,
+  },
+  {
+    id: 'note-tpl-status',
+    title: 'Project Status Update',
+    folderId: 'templates',
+    tags: ['#template', '#email'],
+    createdAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+    content: `# Project Update — [Project Name]
+
+Hi team,
+
+Quick status update on [Project Name]:
+
+**Progress**
+- [Completed item]
+- [In progress item]
+
+**Next steps**
+- [Action 1]
+- [Action 2]
+
+**Blockers**
+- None / [Describe blocker]
+
+Let me know if you have questions before our next sync.
+
+Best,
+[Your name]`,
+  },
 ]
 
 export const SEED_ACCOUNTS: EmailAccount[] = [
@@ -405,6 +476,100 @@ Finance will process reimbursement by Friday. Let me know if anything is missing
         timestamp: '2026-06-28T08:06:00Z',
       },
     ],
+  },
+  {
+    id: 'email-junk-spam',
+    accountId: 'acc-gmail',
+    from: 'prizes@lottery-winner.biz',
+    fromName: 'International Lottery',
+    to: 'name@gmail.com',
+    subject: 'CONGRATULATIONS! You won $2,500,000 — Claim now',
+    preview: 'You have been selected as our grand prize winner. Wire transfer details inside...',
+    body: `CONGRATULATIONS!
+
+You have WON $2,500,000 in the International Email Lottery!
+
+Click here immediately to claim your prize. Send us your bank details and a small processing fee.
+
+Act now — offer expires in 24 hours!`,
+    date: '2026-06-28T05:00:00Z',
+    read: false,
+    starred: false,
+    linkedNoteId: null,
+  },
+  {
+    id: 'email-junk-marketing',
+    accountId: 'acc-gmail',
+    from: 'deals@megastore.com',
+    fromName: 'MegaStore Deals',
+    to: 'name@gmail.com',
+    subject: 'FLASH SALE — 70% OFF everything (limited time!)',
+    preview: 'Shop now and save big. Free shipping on orders over $25. Act now...',
+    body: `FLASH SALE — 70% OFF EVERYTHING!
+
+Limited time only. Shop now and save big on electronics, home goods, and more.
+
+Unsubscribe | View in browser`,
+    date: '2026-06-28T04:30:00Z',
+    read: false,
+    starred: false,
+    linkedNoteId: null,
+  },
+  {
+    id: 'email-junk-phishing',
+    accountId: 'acc-outlook',
+    from: 'security-alert@paypa1-verify.net',
+    fromName: 'Account Security',
+    to: 'work@corp.com',
+    subject: 'URGENT: Verify your account — unusual sign-in detected',
+    preview: 'We noticed unusual activity. Click here immediately to verify your password...',
+    body: `Security Alert
+
+We detected unusual sign-in activity on your account.
+
+Click here immediately to verify your password and download the attached invoice.exe to restore access.
+
+If you do not act within 12 hours your account will be suspended.`,
+    date: '2026-06-28T03:00:00Z',
+    read: false,
+    starred: false,
+    linkedNoteId: null,
+  },
+  {
+    id: 'email-junk-social',
+    accountId: 'acc-gmail',
+    from: 'notifications@linkedin.com',
+    fromName: 'LinkedIn',
+    to: 'name@gmail.com',
+    subject: 'Someone viewed your profile this week',
+    preview: '5 people viewed your profile. See who and grow your network...',
+    body: `Your weekly LinkedIn notification
+
+5 people viewed your profile this week.
+
+Grow your network — connect with suggested colleagues.`,
+    date: '2026-06-27T18:00:00Z',
+    read: true,
+    starred: false,
+    linkedNoteId: null,
+  },
+  {
+    id: 'email-junk-promo',
+    accountId: 'acc-gmail',
+    from: 'promo@fitness-app.io',
+    fromName: 'FitLife Pro',
+    to: 'name@gmail.com',
+    subject: 'Your free trial ends tomorrow — 50% off annual plan',
+    preview: "Don't miss out! Exclusive offer for loyal users. Upgrade today...",
+    body: `Your free trial ends tomorrow!
+
+Upgrade now and get 50% off our annual plan. Exclusive promotional offer just for you.
+
+Unsubscribe from promotional emails.`,
+    date: '2026-06-27T12:00:00Z',
+    read: true,
+    starred: false,
+    linkedNoteId: null,
   },
   {
     id: 'email-sent-1',

@@ -103,7 +103,7 @@ export function computeAIAlerts(
     })
   }
 
-  const todos = extractTodos(notes, emails, 5)
+  const todos = extractTodos(notes, emails, calendarEvents, [], 5)
   if (todos.length > 0) {
     alerts.push({
       id: 'alert-todos-open',

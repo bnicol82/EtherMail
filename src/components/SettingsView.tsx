@@ -1,14 +1,23 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
 import { canUseRealOAuth } from '../lib/oauth/connect'
 import { clearWeatherCache } from '../lib/weather'
-import type { Theme } from '../types'
+import { getAvailableVoices, speakText, isListeningSupported, isSpeechSupported } from '../lib/voice'
+import type { AssistantPersonality, Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
   { id: 'glass', label: 'Clear Glass', description: 'Luminous frosted glass with sky and violet tones' },
   { id: 'dark', label: 'Dark Frost', description: 'Dark mode with deep frosted panels' },
   { id: 'blue', label: 'Blue Frost', description: 'Shades of blue with frosted glass layers' },
+]
+
+const PERSONALITIES: { id: AssistantPersonality; label: string }[] = [
+  { id: 'friendly', label: 'Friendly — warm and conversational' },
+  { id: 'professional', label: 'Professional — clear and businesslike' },
+  { id: 'concise', label: 'Concise — brief and to the point' },
+  { id: 'warm', label: 'Warm — supportive and encouraging' },
 ]
 
 export function SettingsView() {
@@ -24,6 +33,35 @@ export function SettingsView() {
   const setOAuthSettings = useEtherMailStore((s) => s.setOAuthSettings)
   const weatherSettings = useEtherMailStore((s) => s.weatherSettings)
   const setWeatherSettings = useEtherMailStore((s) => s.setWeatherSettings)
+  const assistantSettings = useEtherMailStore((s) => s.assistantSettings)
+  const setAssistantSettings = useEtherMailStore((s) => s.setAssistantSettings)
+  const inboxTraining = useEtherMailStore((s) => s.inboxTraining)
+  const clearInboxTraining = useEtherMailStore((s) => s.clearInboxTraining)
+  const aiInboxEnabled = useEtherMailStore((s) => s.aiInboxEnabled)
+  const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
+
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
+
+  useEffect(() => {
+    const load = () => setVoices(getAvailableVoices())
+    load()
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = load
+    }
+    return () => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.onvoiceschanged = null
+      }
+    }
+  }, [])
+
+  const testVoice = () => {
+    const name = assistantSettings.userName || 'there'
+    speakText(
+      `Hey ${name}, I'm your EtherMail assistant. I'll let you know about new emails and upcoming meetings.`,
+      assistantSettings,
+    ).catch(() => {})
+  }
 
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
@@ -90,6 +128,186 @@ export function SettingsView() {
           placeholder="e.g. San Francisco"
           className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
         />
+      </section>
+
+      {/* AI Assistant voice & personality */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Mic size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">AI Assistant</h2>
+        </div>
+        <p className="text-sm text-theme-muted mb-4">
+          Configure how your assistant speaks — proactive email alerts, meeting reminders, and voice chat.
+        </p>
+
+        {!isSpeechSupported() && (
+          <p className="text-xs text-amber-400 mb-3">Voice output is not supported in this browser.</p>
+        )}
+        {!isListeningSupported() && (
+          <p className="text-xs text-amber-400 mb-3">Voice input requires Chrome or Edge.</p>
+        )}
+
+        <label className="block text-sm text-theme-muted mb-2">Your name (for greetings)</label>
+        <input
+          value={assistantSettings.userName}
+          onChange={(e) => setAssistantSettings({ userName: e.target.value })}
+          placeholder="Billy"
+          className="w-full mb-4 px-3 py-2 rounded-lg input-theme text-sm outline-none"
+        />
+
+        <label className="block text-sm text-theme-muted mb-2">Personality</label>
+        <select
+          value={assistantSettings.personality}
+          onChange={(e) => setAssistantSettings({ personality: e.target.value as AssistantPersonality })}
+          className="w-full mb-4 px-3 py-2 rounded-lg input-theme text-sm outline-none"
+        >
+          {PERSONALITIES.map((p) => (
+            <option key={p.id} value={p.id}>{p.label}</option>
+          ))}
+        </select>
+
+        <label className="block text-sm text-theme-muted mb-2">Voice</label>
+        <select
+          value={assistantSettings.voiceURI}
+          onChange={(e) => setAssistantSettings({ voiceURI: e.target.value })}
+          className="w-full mb-4 px-3 py-2 rounded-lg input-theme text-sm outline-none"
+        >
+          <option value="">System default</option>
+          {voices.map((v) => (
+            <option key={v.voiceURI} value={v.voiceURI}>
+              {v.name} ({v.lang})
+            </option>
+          ))}
+        </select>
+
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-xs text-theme-muted mb-1">Speed ({assistantSettings.voiceRate.toFixed(1)}×)</label>
+            <input
+              type="range"
+              min="0.5"
+              max="1.5"
+              step="0.1"
+              value={assistantSettings.voiceRate}
+              onChange={(e) => setAssistantSettings({ voiceRate: parseFloat(e.target.value) })}
+              className="w-full accent-[var(--accent)]"
+            />
+          </div>
+          <div>
+            <label className="block text-xs text-theme-muted mb-1">Pitch ({assistantSettings.voicePitch.toFixed(1)})</label>
+            <input
+              type="range"
+              min="0.5"
+              max="1.5"
+              step="0.1"
+              value={assistantSettings.voicePitch}
+              onChange={(e) => setAssistantSettings({ voicePitch: parseFloat(e.target.value) })}
+              className="w-full accent-[var(--accent)]"
+            />
+          </div>
+        </div>
+
+        <label className="block text-sm text-theme-muted mb-2">Meeting reminder (minutes before)</label>
+        <input
+          type="number"
+          min={1}
+          max={60}
+          value={assistantSettings.meetingReminderMinutes}
+          onChange={(e) =>
+            setAssistantSettings({ meetingReminderMinutes: Math.max(1, parseInt(e.target.value, 10) || 10) })
+          }
+          className="w-full mb-4 px-3 py-2 rounded-lg input-theme text-sm outline-none"
+        />
+
+        <div className="space-y-3 mb-4">
+          <label className="flex items-center gap-2 text-sm text-theme-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={assistantSettings.proactiveEnabled}
+              onChange={(e) => setAssistantSettings({ proactiveEnabled: e.target.checked })}
+              className="rounded border-[var(--glass-border)]"
+            />
+            Proactive voice announcements
+          </label>
+          <label className="flex items-center gap-2 text-sm text-theme-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={assistantSettings.announceNewEmails}
+              onChange={(e) => setAssistantSettings({ announceNewEmails: e.target.checked })}
+              className="rounded border-[var(--glass-border)]"
+            />
+            Announce new emails
+          </label>
+          <label className="flex items-center gap-2 text-sm text-theme-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={assistantSettings.voiceChatEnabled}
+              onChange={(e) => setAssistantSettings({ voiceChatEnabled: e.target.checked })}
+              className="rounded border-[var(--glass-border)]"
+            />
+            Voice chat in AI Assistant
+          </label>
+        </div>
+
+        <button
+          type="button"
+          onClick={testVoice}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl btn-accent text-sm"
+        >
+          <Volume2 size={16} />
+          Test voice
+        </button>
+      </section>
+
+      {/* AI Inbox */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bot size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">AI Inbox</h2>
+        </div>
+        <p className="text-sm text-theme-muted mb-4">
+          Filters spam, marketing, newsletters, and suspicious mail so you only see what matters.
+          Train the AI from any email with <strong className="text-theme-secondary">Always important</strong> or <strong className="text-theme-secondary">Not important</strong>.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-theme-secondary mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={aiInboxEnabled}
+            onChange={(e) => setAiInboxEnabled(e.target.checked)}
+            className="rounded border-[var(--glass-border)]"
+          />
+          Enable AI Inbox by default when opening Email
+        </label>
+        <div className="grid sm:grid-cols-2 gap-4 text-xs mb-4">
+          <div>
+            <p className="text-theme-muted mb-1 font-medium">Trusted senders ({inboxTraining.importantSenders.length})</p>
+            <ul className="space-y-0.5 text-theme-secondary max-h-24 overflow-y-auto">
+              {inboxTraining.importantSenders.length === 0 ? (
+                <li className="text-theme-muted">None yet</li>
+              ) : (
+                inboxTraining.importantSenders.map((s) => <li key={s} className="truncate">{s}</li>)
+              )}
+            </ul>
+          </div>
+          <div>
+            <p className="text-theme-muted mb-1 font-medium">Blocked senders ({inboxTraining.junkSenders.length})</p>
+            <ul className="space-y-0.5 text-theme-secondary max-h-24 overflow-y-auto">
+              {inboxTraining.junkSenders.length === 0 ? (
+                <li className="text-theme-muted">None yet — train from inbox</li>
+              ) : (
+                inboxTraining.junkSenders.map((s) => <li key={s} className="truncate">{s}</li>)
+              )}
+            </ul>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={clearInboxTraining}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl glass text-xs text-theme-muted hover:text-red-400"
+        >
+          <Trash2 size={14} />
+          Reset AI Inbox training
+        </button>
       </section>
 
       {/* AI Settings */}

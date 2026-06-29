@@ -16,6 +16,7 @@ import type {
   AISettings,
   AckStatus,
   AlertMeta,
+  AssistantSettings,
   CalendarEvent,
   ChatMessage,
   ComposeDraft,
@@ -23,6 +24,9 @@ import type {
   EmailAcknowledgement,
   EmailAttachment,
   EmailFolder,
+  EmailInboxOverride,
+  EmailInboxTraining,
+  EmailJunkCategory,
   Note,
   OAuthSettings,
   Theme,
@@ -33,6 +37,20 @@ import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/cal
 import { computeAIAlerts } from '../lib/aiAlerts'
 import { generateVaultAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
+import { completeNoteTodo } from '../lib/todos'
+import { snoozeUntilFromPreset } from '../lib/snooze'
+import { DEFAULT_INBOX_TRAINING } from '../lib/aiInbox'
+
+function uniquePush(arr: string[], value: string): string[] {
+  const v = value.toLowerCase()
+  if (arr.some((x) => x.toLowerCase() === v)) return arr
+  return [...arr, value]
+}
+
+function domainFromAddress(email: string): string {
+  const at = email.lastIndexOf('@')
+  return at >= 0 ? email.slice(at + 1) : email
+}
 
 interface EtherMailState {
   view: View
@@ -60,6 +78,17 @@ interface EtherMailState {
 
   searchQuery: string
   setSearchQuery: (q: string) => void
+
+  commandPaletteOpen: boolean
+  setCommandPaletteOpen: (open: boolean) => void
+
+  assistantSettings: AssistantSettings
+  setAssistantSettings: (settings: Partial<AssistantSettings>) => void
+  announcedProactive: Record<string, string>
+  markProactiveAnnounced: (key: string) => void
+
+  completedTodos: string[]
+  completeTodo: (todoId: string) => void
 
   aiAssistantOpen: boolean
   setAiAssistantOpen: (open: boolean) => void
@@ -115,7 +144,17 @@ interface EtherMailState {
   alertMeta: Record<string, AlertMeta>
   markAlertRead: (id: string) => void
   dismissAlert: (id: string) => void
+  snoozeAlert: (id: string, presetId: string) => void
   markAllAlertsRead: () => void
+  snoozeEmail: (emailId: string, presetId: string) => void
+
+  aiInboxEnabled: boolean
+  setAiInboxEnabled: (enabled: boolean) => void
+  inboxTraining: EmailInboxTraining
+  emailInboxOverrides: Record<string, EmailInboxOverride>
+  trainEmailImportant: (emailId: string) => void
+  trainEmailJunk: (emailId: string, category: EmailJunkCategory) => void
+  clearInboxTraining: () => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -163,6 +202,49 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       searchQuery: '',
       setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+      commandPaletteOpen: false,
+      setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
+
+      assistantSettings: {
+        userName: 'Billy',
+        voiceURI: '',
+        voiceRate: 1,
+        voicePitch: 1,
+        personality: 'friendly',
+        proactiveEnabled: true,
+        voiceChatEnabled: true,
+        meetingReminderMinutes: 10,
+        announceNewEmails: true,
+      },
+      setAssistantSettings: (settings) =>
+        set((s) => ({ assistantSettings: { ...s.assistantSettings, ...settings } })),
+      announcedProactive: {},
+      markProactiveAnnounced: (key) =>
+        set((s) => ({
+          announcedProactive: { ...s.announcedProactive, [key]: new Date().toISOString() },
+        })),
+
+      completedTodos: [],
+      completeTodo: (todoId) => {
+        const state = get()
+        if (state.completedTodos.includes(todoId)) return
+
+        if (todoId.startsWith('note:')) {
+          const [, noteId, lineStr] = todoId.split(':')
+          const lineIndex = parseInt(lineStr, 10)
+          const note = state.notes.find((n) => n.id === noteId)
+          if (note && !Number.isNaN(lineIndex)) {
+            const content = completeNoteTodo(note, lineIndex)
+            get().updateNote(noteId, { content })
+          }
+        } else if (todoId.startsWith('email-')) {
+          const emailId = todoId.replace('email-', '')
+          get().markEmailRead(emailId)
+        }
+
+        set((s) => ({ completedTodos: [...s.completedTodos, todoId] }))
+      },
 
       aiAssistantOpen: false,
       setAiAssistantOpen: (aiAssistantOpen) => set({ aiAssistantOpen }),
@@ -555,6 +637,13 @@ export const useEtherMailStore = create<EtherMailState>()(
         set((s) => ({
           alertMeta: { ...s.alertMeta, [id]: { ...s.alertMeta[id], dismissed: true, read: true } },
         })),
+      snoozeAlert: (id, presetId) =>
+        set((s) => ({
+          alertMeta: {
+            ...s.alertMeta,
+            [id]: { ...s.alertMeta[id], snoozedUntil: snoozeUntilFromPreset(presetId), read: true },
+          },
+        })),
       markAllAlertsRead: () => {
         const state = get()
         const computed = computeAIAlerts(
@@ -571,6 +660,72 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
         set({ alertMeta: next })
       },
+
+      snoozeEmail: (emailId, presetId) =>
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId
+              ? { ...e, snoozedUntil: snoozeUntilFromPreset(presetId), read: true }
+              : e,
+          ),
+        })),
+
+      aiInboxEnabled: false,
+      setAiInboxEnabled: (aiInboxEnabled) => set({ aiInboxEnabled }),
+
+      inboxTraining: DEFAULT_INBOX_TRAINING,
+      emailInboxOverrides: {},
+
+      trainEmailImportant: (emailId) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+        const domain = domainFromAddress(email.from)
+        set({
+          inboxTraining: {
+            ...state.inboxTraining,
+            importantSenders: uniquePush(state.inboxTraining.importantSenders, email.from),
+            importantDomains: uniquePush(state.inboxTraining.importantDomains, domain),
+            junkSenders: state.inboxTraining.junkSenders.filter(
+              (s) => s.toLowerCase() !== email.from.toLowerCase(),
+            ),
+            junkDomains: state.inboxTraining.junkDomains.filter(
+              (d) => d.toLowerCase() !== domain.toLowerCase(),
+            ),
+          },
+          emailInboxOverrides: {
+            ...state.emailInboxOverrides,
+            [emailId]: { verdict: 'important', trainedAt: new Date().toISOString() },
+          },
+        })
+      },
+
+      trainEmailJunk: (emailId, category) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+        const domain = domainFromAddress(email.from)
+        set({
+          inboxTraining: {
+            ...state.inboxTraining,
+            junkSenders: uniquePush(state.inboxTraining.junkSenders, email.from),
+            junkDomains: uniquePush(state.inboxTraining.junkDomains, domain),
+            importantSenders: state.inboxTraining.importantSenders.filter(
+              (s) => s.toLowerCase() !== email.from.toLowerCase(),
+            ),
+            importantDomains: state.inboxTraining.importantDomains.filter(
+              (d) => d.toLowerCase() !== domain.toLowerCase(),
+            ),
+          },
+          emailInboxOverrides: {
+            ...state.emailInboxOverrides,
+            [emailId]: { verdict: 'junk', category, trainedAt: new Date().toISOString() },
+          },
+        })
+      },
+
+      clearInboxTraining: () =>
+        set({ inboxTraining: DEFAULT_INBOX_TRAINING, emailInboxOverrides: {} }),
 
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
@@ -655,16 +810,52 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 2,
+      version: 4,
       migrate: (persisted, version) => {
+        const s = persisted as Record<string, unknown>
+        let next = { ...s }
         if (version < 2) {
-          return {
-            ...(persisted as object),
+          next = {
+            ...next,
             chatMessages: SEED_CHAT_MESSAGES,
             emails: SEED_EMAILS,
           }
         }
-        return persisted as object
+        if (version < 3) {
+          next = {
+            ...next,
+            assistantSettings: {
+              userName: 'Billy',
+              voiceURI: '',
+              voiceRate: 1,
+              voicePitch: 1,
+              personality: 'friendly',
+              proactiveEnabled: true,
+              voiceChatEnabled: true,
+              meetingReminderMinutes: 10,
+              announceNewEmails: true,
+            },
+            completedTodos: [],
+            announcedProactive: {},
+          }
+        }
+        if (version < 4) {
+          const existing = (next.emails as Email[]) ?? []
+          const ids = new Set(existing.map((e) => e.id))
+          const newEmails = SEED_EMAILS.filter(
+            (e) =>
+              (e.id.startsWith('email-junk-') || e.id === 'email-6' || e.id === 'email-7') &&
+              !ids.has(e.id),
+          )
+          next = {
+            ...next,
+            emails: [...existing, ...newEmails],
+            aiInboxEnabled: false,
+            inboxTraining: DEFAULT_INBOX_TRAINING,
+            emailInboxOverrides: {},
+          }
+        }
+        return next
       },
       onRehydrateStorage: () => (state) => {
         if (!state) return
@@ -698,6 +889,12 @@ export const useEtherMailStore = create<EtherMailState>()(
         hiddenPanels: s.hiddenPanels,
         alertMeta: s.alertMeta,
         weatherSettings: s.weatherSettings,
+        assistantSettings: s.assistantSettings,
+        completedTodos: s.completedTodos,
+        announcedProactive: s.announcedProactive,
+        aiInboxEnabled: s.aiInboxEnabled,
+        inboxTraining: s.inboxTraining,
+        emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,
       }),
     },
@@ -753,8 +950,14 @@ export function useAIAlerts() {
   const alertMeta = useEtherMailStore((s) => s.alertMeta)
 
   const computed = computeAIAlerts(notes, emails, calendarEvents, accounts)
+  const now = Date.now()
   return computed
-    .filter((a) => !alertMeta[a.id]?.dismissed)
+    .filter((a) => {
+      if (alertMeta[a.id]?.dismissed) return false
+      const snoozed = alertMeta[a.id]?.snoozedUntil
+      if (snoozed && new Date(snoozed).getTime() > now) return false
+      return true
+    })
     .map((a) => ({ ...a, read: alertMeta[a.id]?.read ?? false }))
 }
 
