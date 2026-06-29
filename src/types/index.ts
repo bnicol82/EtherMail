@@ -1,4 +1,6 @@
-export type View = 'dashboard' | 'vault' | 'email' | 'graph' | 'calendar' | 'ai' | 'settings'
+export type View = 'dashboard' | 'email' | 'vault' | 'calendar' | 'notes' | 'graph' | 'ai' | 'settings'
+
+export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'archive' | 'trash'
 
 export type Theme = 'glass' | 'dark' | 'blue'
 
@@ -72,6 +74,7 @@ export interface Email {
   starred: boolean
   linkedNoteId: string | null
   attachmentIds?: string[]
+  folder?: EmailFolder
 }
 
 export interface GraphNode {

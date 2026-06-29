@@ -36,6 +36,17 @@ export function getAIContext(
     }
   }
 
+  if (view === 'notes') {
+    return {
+      label: activeNote ? `Notes · ${activeNote.title}` : 'Notes',
+      placeholder: 'Ask about your notes...',
+      suggestions: ['Summarize this note', 'Suggest tags', 'Find related emails'],
+      contextPrefix: activeNote
+        ? `User is editing note "${activeNote.title}". `
+        : 'User is browsing notes. ',
+    }
+  }
+
   if (view === 'calendar') {
     return {
       label: 'Calendar',

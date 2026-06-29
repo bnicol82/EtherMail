@@ -15,6 +15,7 @@ import type {
   ChatMessage,
   Email,
   EmailAttachment,
+  EmailFolder,
   Note,
   OAuthSettings,
   Theme,
@@ -42,6 +43,7 @@ interface EtherMailState {
   activeAttachmentId: string | null
   activeFolderId: string
   activeAccountId: string | null
+  activeEmailFolder: EmailFolder
 
   editorMode: 'edit' | 'preview' | 'split'
   setEditorMode: (mode: 'edit' | 'preview' | 'split') => void
@@ -67,7 +69,7 @@ interface EtherMailState {
   aiMode: 'vault' | 'external'
   setAiMode: (mode: 'vault' | 'external') => void
 
-  selectNote: (id: string | null) => void
+  selectNote: (id: string | null, opts?: { view?: 'vault' | 'notes' }) => void
   selectEmail: (id: string | null) => void
   selectAttachment: (id: string | null) => void
   selectFolder: (id: string) => void
@@ -76,6 +78,13 @@ interface EtherMailState {
   createNote: (folderId?: string) => string
   linkEmailToNote: (emailId: string, noteId: string | null) => void
   markEmailRead: (emailId: string) => void
+  setActiveEmailFolder: (folder: EmailFolder) => void
+  deleteEmail: (emailId: string) => void
+  archiveEmail: (emailId: string) => void
+  toggleEmailStar: (emailId: string) => void
+
+  hiddenPanels: Record<string, boolean>
+  togglePanelHidden: (panelId: string) => void
 
   oauthSettings: OAuthSettings
   setOAuthSettings: (settings: Partial<OAuthSettings>) => void
@@ -113,6 +122,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       activeAttachmentId: null,
       activeFolderId: 'athena',
       activeAccountId: null,
+      activeEmailFolder: 'inbox',
 
       editorMode: 'split',
       setEditorMode: (editorMode) => set({ editorMode }),
@@ -161,8 +171,11 @@ export const useEtherMailStore = create<EtherMailState>()(
       aiMode: 'vault',
       setAiMode: (aiMode) => set({ aiMode }),
 
-      selectNote: (id) =>
-        set({ activeNoteId: id, activeAttachmentId: null, view: 'vault', mobilePanel: 'detail' }),
+      selectNote: (id, opts) => {
+        const current = get().view
+        const nextView = opts?.view ?? (current === 'notes' ? 'notes' : 'vault')
+        set({ activeNoteId: id, activeAttachmentId: null, view: nextView, mobilePanel: 'detail' })
+      },
       selectEmail: (id) =>
         set({ activeEmailId: id, view: 'email', mobilePanel: 'detail' }),
       selectAttachment: (id) =>
@@ -203,10 +216,11 @@ export const useEtherMailStore = create<EtherMailState>()(
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }
+        const view = get().view === 'notes' ? 'notes' : 'vault'
         set((s) => ({
           notes: [...s.notes, note],
           activeNoteId: id,
-          view: 'vault',
+          view,
           mobilePanel: 'detail',
         }))
         return id
@@ -222,6 +236,52 @@ export const useEtherMailStore = create<EtherMailState>()(
           emails: s.emails.map((e) =>
             e.id === emailId ? { ...e, read: true } : e,
           ),
+        })),
+
+      setActiveEmailFolder: (activeEmailFolder) =>
+        set({ activeEmailFolder, mobilePanel: 'list' }),
+
+      deleteEmail: (emailId) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+        const folder = email.folder ?? 'inbox'
+        if (folder === 'trash') {
+          set({
+            emails: state.emails.filter((e) => e.id !== emailId),
+            activeEmailId: state.activeEmailId === emailId ? null : state.activeEmailId,
+          })
+        } else {
+          set({
+            emails: state.emails.map((e) =>
+              e.id === emailId ? { ...e, folder: 'trash' as EmailFolder } : e,
+            ),
+            activeEmailId: state.activeEmailId === emailId ? null : state.activeEmailId,
+          })
+        }
+      },
+
+      archiveEmail: (emailId) =>
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId ? { ...e, folder: 'archive' as EmailFolder } : e,
+          ),
+        })),
+
+      toggleEmailStar: (emailId) =>
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId ? { ...e, starred: !e.starred } : e,
+          ),
+        })),
+
+      hiddenPanels: {},
+      togglePanelHidden: (panelId) =>
+        set((s) => ({
+          hiddenPanels: {
+            ...s.hiddenPanels,
+            [panelId]: !s.hiddenPanels[panelId],
+          },
         })),
 
       oauthSettings: {
@@ -313,6 +373,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         activeNoteId: s.activeNoteId,
         activeEmailId: s.activeEmailId,
         activeAccountId: s.activeAccountId,
+        activeEmailFolder: s.activeEmailFolder,
+        hiddenPanels: s.hiddenPanels,
         view: s.view,
       }),
     },

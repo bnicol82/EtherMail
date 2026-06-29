@@ -8,6 +8,7 @@ import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
 import { GraphView } from './components/GraphView'
 import { AIView } from './components/AIView'
+import { NotesView } from './components/NotesView'
 import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
 import { ConnectAccountModal } from './components/ConnectAccountModal'
@@ -28,6 +29,8 @@ function MainContent() {
       return <GraphView />
     case 'calendar':
       return <CalendarView />
+    case 'notes':
+      return <NotesView />
     case 'ai':
       return <AIView />
     case 'settings':

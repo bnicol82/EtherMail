@@ -120,6 +120,29 @@ export function isSameDay(a: Date, b: Date): boolean {
   )
 }
 
+export function startOfMonth(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), 1)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+export function addMonths(date: Date, months: number): Date {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return startOfMonth(d)
+}
+
+/** Monday-start month grid cells (42 days = 6 weeks) */
+export function getMonthGridDays(month: Date): Date[] {
+  const first = startOfMonth(month)
+  const gridStart = startOfWeek(first)
+  return Array.from({ length: 42 }, (_, i) => addDays(gridStart, i))
+}
+
+export function isSameMonth(a: Date, b: Date): boolean {
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()
+}
+
 export function formatEventTimeRange(start: string, end: string): string {
   const s = new Date(start)
   const e = new Date(end)
