@@ -5,6 +5,7 @@ import type { EmailLabel } from '../types'
 const LABEL_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899']
 
 interface Props {
+  compact?: boolean
   labels: EmailLabel[]
   activeLabelId: string | null
   onFilter: (labelId: string | null) => void
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function EmailLabelsBar({
+  compact = false,
   labels,
   activeLabelId,
   onFilter,
@@ -34,12 +36,14 @@ export function EmailLabelsBar({
   }
 
   return (
-    <div className="mb-2 space-y-2">
-      <div className="flex items-center gap-1.5 flex-wrap">
+    <div className={compact ? 'space-y-1' : 'mb-2 space-y-2'}>
+      <div className="flex items-center gap-1 flex-wrap">
+        {!compact && (
         <span className="text-[10px] text-theme-muted flex items-center gap-1 mr-0.5">
           <Tag size={11} />
           Labels
         </span>
+        )}
         <button
           type="button"
           onClick={() => onFilter(null)}

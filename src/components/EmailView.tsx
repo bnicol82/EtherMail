@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react'
 import {
-  Search,
   Star,
   Link2,
   Unlink,
@@ -10,18 +9,10 @@ import {
   Sparkles,
   Paperclip,
   ChevronDown,
-  X,
   Bot,
   Trash2,
   Archive,
-  Inbox,
   Send,
-  FileEdit,
-  CheckSquare,
-  Square,
-  MailWarning,
-  MessagesSquare,
-  List,
   Clock,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
@@ -31,29 +22,20 @@ import { SwipeableEmailRow } from './SwipeableEmailRow'
 import { EmailThreadRow } from './EmailThreadRow'
 import { EmailThreadConversation } from './EmailThreadConversation'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
-import { formatFileSize, fileIcon, providerColor, providerLabel } from '../lib/utils'
+import { formatFileSize, fileIcon } from '../lib/utils'
 import { EMAIL_FOLDERS } from '../lib/emailFolders'
 import { summarizeEmail } from '../lib/emailSummary'
 import { getAIContext } from '../lib/aiContext'
 import { EmailQuickAck } from './EmailQuickAck'
 import { SnoozeMenu } from './SnoozeMenu'
-import { AIInboxBar } from './AIInboxBar'
+import { EmailInboxPanelHeader } from './EmailInboxPanelHeader'
+import { EmailLabelPicker } from './EmailLabelsBar'
 import { EmailInboxTraining } from './EmailInboxTraining'
-import { EmailLabelsBar, EmailLabelPicker } from './EmailLabelsBar'
 import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
 import type { ComposeAttachment, EmailFolder } from '../types'
-
-const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
-  inbox: Inbox,
-  sent: Send,
-  drafts: FileEdit,
-  scheduled: Clock,
-  archive: Archive,
-  trash: Trash2,
-}
 
 export function EmailView() {
   const emails = useEtherMailStore((s) => s.emails)
@@ -298,7 +280,7 @@ export function EmailView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+      <div className="shrink-0 flex flex-wrap gap-1 px-2 py-1 border-b border-[var(--glass-border)] glass">
         <PanelRestoreTab panelId="email-list" label="Inbox" />
         <PanelRestoreTab panelId="email-detail" label="Email" />
         <PanelRestoreTab panelId="email-ai" label="AI Summary" />
@@ -310,222 +292,56 @@ export function EmailView() {
         <div
           className={`
             ${mobilePanel === 'detail' ? 'hidden lg:flex' : 'flex'}
-            w-full lg:w-72 xl:w-80 flex-col glass border-r border-[var(--glass-border)] shrink-0
+            w-full lg:w-72 xl:w-80 flex-col glass border-r border-[var(--glass-border)] shrink-0 min-h-0
           `}
         >
-          <div className="p-2.5 sm:p-3 border-b border-[var(--glass-border)]">
-            <div className="flex items-center justify-between mb-2 gap-2">
-              <h2 className="font-semibold text-theme truncate text-sm flex-1 min-w-0">{inboxTitle}</h2>
-              <div className="flex items-center gap-1 shrink-0">
-                {activeAccountId && (
-                  <button
-                    onClick={() => selectAccount(null)}
-                    className="p-1 rounded-lg hover-theme text-theme-muted"
-                    title="Show all inboxes"
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-                <PanelHideButton panelId="email-list" label="inbox" />
-              </div>
-            </div>
-            {activeAccount && (
-              <p className="text-[10px] text-theme-muted mb-2 flex items-center gap-1">
-                <span
-                  className="w-1.5 h-1.5 rounded-full"
-                  style={{ background: providerColor(activeAccount.provider) }}
-                />
-                {providerLabel(activeAccount.provider)}
-              </p>
-            )}
-            <p className="text-[10px] text-theme-muted mb-2">
-              Mail folders live here — attachments sync to <strong className="text-theme-secondary">Vault → Email Files</strong>
-            </p>
-            {activeEmailFolder === 'inbox' && (
-              <AIInboxBar
-                inboxEnabled={aiInboxEnabled}
-                outboxEnabled={aiOutboxEnabled}
-                onToggleInbox={() => setAiInboxEnabled(!aiInboxEnabled)}
-                onToggleOutbox={() => setAiOutboxEnabled(!aiOutboxEnabled)}
-                stats={inboxStats}
-                onDeleteAllOutbox={deleteAllOutboxEmails}
-              />
-            )}
-            <EmailLabelsBar
-              labels={emailLabels}
-              activeLabelId={activeLabelFilter}
-              onFilter={setActiveLabelFilter}
-              onCreateLabel={(name, color) => createEmailLabel(name, color)}
-              onDeleteLabel={deleteEmailLabel}
-              emailCounts={labelCounts}
-            />
-            {activeEmailFolder === 'inbox' && (
-              <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-                <button
-                  type="button"
-                  onClick={() => setFollowUpFilterEnabled(!followUpFilterEnabled)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-                    followUpFilterEnabled
-                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      : 'glass text-theme-muted hover-theme'
-                  }`}
-                >
-                  <MailWarning size={12} />
-                  Needs follow-up
-                  {followUpIds.size > 0 && (
-                    <span className="px-1 rounded-full bg-black/20">{followUpIds.size}</span>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (emailSelectionMode) clearEmailSelection()
-                    else setEmailSelectionMode(true)
-                  }}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-                    emailSelectionMode
-                      ? 'bg-[var(--accent)] text-white'
-                      : 'glass text-theme-muted hover-theme'
-                  }`}
-                >
-                  {emailSelectionMode ? <CheckSquare size={12} /> : <Square size={12} />}
-                  Select
-                </button>
-              </div>
-            )}
-            {emailSelectionMode && selectedEmailIds.length > 0 && (
-              <div className="mb-2 space-y-1.5">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-[10px] text-theme-muted">
-                    {selectedEmailIds.length} selected
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => selectAllVisibleEmails(visibleListIds)}
-                    className="text-[10px] text-accent hover:underline"
-                  >
-                    Select all ({visibleListIds.length})
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  <button
-                    type="button"
-                    onClick={() => batchMarkEmailsRead(selectedEmailIds, true)}
-                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-                  >
-                    Mark read
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => batchStarEmails(selectedEmailIds, true)}
-                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-                  >
-                    Star
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => batchArchiveEmails(selectedEmailIds)}
-                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-                  >
-                    Archive
-                  </button>
-                  {emailLabels.length > 0 && (
-                    <select
-                      value={batchLabelId}
-                      onChange={(e) => {
-                        const id = e.target.value
-                        setBatchLabelId(id)
-                        if (id) batchApplyEmailLabel(selectedEmailIds, id)
-                      }}
-                      className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary outline-none max-w-[7rem]"
-                    >
-                      <option value="">Add label…</option>
-                      {emailLabels.map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.name}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                  {!batchConfirmDelete ? (
-                    <button
-                      type="button"
-                      onClick={() => setBatchConfirmDelete(true)}
-                      className="px-2 py-1 rounded-lg glass text-[10px] text-red-400 hover-theme border border-red-500/30"
-                    >
-                      Delete
-                    </button>
-                  ) : (
-                    <div className="flex gap-1 w-full">
-                      <button
-                        type="button"
-                        onClick={() => setBatchConfirmDelete(false)}
-                        className="flex-1 px-2 py-1 rounded-lg glass text-[10px] text-theme-muted"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          batchDeleteEmails(selectedEmailIds)
-                          setBatchConfirmDelete(false)
-                        }}
-                        className="flex-1 px-2 py-1 rounded-lg bg-red-500/90 text-white text-[10px]"
-                      >
-                        Confirm delete
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            <div className="flex items-center gap-1.5 mb-2 flex-wrap">
-              <button
-                type="button"
-                onClick={() => setThreadViewEnabled(!threadViewEnabled)}
-                className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-medium transition-colors ${
-                  threadViewEnabled
-                    ? 'bg-accent-soft text-accent border border-[var(--accent)]/30'
-                    : 'glass text-theme-muted hover-theme'
-                }`}
-                title={threadViewEnabled ? 'Switch to flat list view' : 'Group messages into conversations'}
-              >
-                {threadViewEnabled ? <MessagesSquare size={12} /> : <List size={12} />}
-                {threadViewEnabled ? 'Thread view' : 'List view'}
-              </button>
-            </div>
-            <div className="relative mb-3">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-muted" />
-              <input
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                placeholder={`Search ${currentFolder?.label.toLowerCase() ?? 'mail'}...`}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg input-theme text-sm outline-none"
-              />
-            </div>
-            <nav className="flex flex-wrap gap-1">
-              {EMAIL_FOLDERS.map(({ id, label }) => {
-                const Icon = FOLDER_ICONS[id]
-                return (
-                  <button
-                    key={id}
-                    onClick={() => setActiveEmailFolder(id)}
-                    className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] transition-colors ${
-                      activeEmailFolder === id
-                        ? 'bg-accent-soft text-accent font-medium'
-                        : 'text-theme-muted hover-theme'
-                    }`}
-                  >
-                    <Icon size={11} />
-                    {label}
-                    {folderCounts[id] > 0 && (
-                      <span className="opacity-70">({folderCounts[id]})</span>
-                    )}
-                  </button>
-                )
-              })}
-            </nav>
-          </div>
+          <EmailInboxPanelHeader
+            inboxTitle={inboxTitle}
+            activeAccount={activeAccount ?? null}
+            activeAccountId={activeAccountId}
+            activeEmailFolder={activeEmailFolder}
+            currentFolderLabel={currentFolder?.label ?? 'mail'}
+            folderCounts={folderCounts}
+            filter={filter}
+            onFilterChange={setFilter}
+            onFolderChange={setActiveEmailFolder}
+            onClearAccount={() => selectAccount(null)}
+            aiInboxEnabled={aiInboxEnabled}
+            aiOutboxEnabled={aiOutboxEnabled}
+            inboxStats={inboxStats}
+            onToggleAiInbox={() => setAiInboxEnabled(!aiInboxEnabled)}
+            onToggleAiOutbox={() => setAiOutboxEnabled(!aiOutboxEnabled)}
+            onDeleteAllOutbox={deleteAllOutboxEmails}
+            emailLabels={emailLabels}
+            activeLabelFilter={activeLabelFilter}
+            labelCounts={labelCounts}
+            onLabelFilter={setActiveLabelFilter}
+            onCreateLabel={(name, color) => createEmailLabel(name, color)}
+            onDeleteLabel={deleteEmailLabel}
+            threadViewEnabled={threadViewEnabled}
+            onToggleThreadView={() => setThreadViewEnabled(!threadViewEnabled)}
+            followUpFilterEnabled={followUpFilterEnabled}
+            followUpCount={followUpIds.size}
+            onToggleFollowUp={() => setFollowUpFilterEnabled(!followUpFilterEnabled)}
+            emailSelectionMode={emailSelectionMode}
+            onToggleSelectionMode={() => setEmailSelectionMode(true)}
+            onClearSelection={clearEmailSelection}
+            selectedCount={selectedEmailIds.length}
+            visibleListCount={visibleListIds.length}
+            onSelectAllVisible={() => selectAllVisibleEmails(visibleListIds)}
+            onBatchMarkRead={() => batchMarkEmailsRead(selectedEmailIds, true)}
+            onBatchStar={() => batchStarEmails(selectedEmailIds, true)}
+            onBatchArchive={() => batchArchiveEmails(selectedEmailIds)}
+            onBatchDelete={() => {
+              batchDeleteEmails(selectedEmailIds)
+              setBatchConfirmDelete(false)
+            }}
+            onBatchApplyLabel={(labelId) => batchApplyEmailLabel(selectedEmailIds, labelId)}
+            batchConfirmDelete={batchConfirmDelete}
+            onBatchConfirmDelete={setBatchConfirmDelete}
+            batchLabelId={batchLabelId}
+            onBatchLabelIdChange={setBatchLabelId}
+          />
           <div className="flex-1 overflow-y-auto">
             {(threadViewEnabled ? threadedList.length : filtered.length) === 0 ? (
               <p className="p-4 text-sm text-theme-muted text-center">

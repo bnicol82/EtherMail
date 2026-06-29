@@ -19,6 +19,7 @@ const CATEGORY_STYLES: Record<
 }
 
 interface Props {
+  compact?: boolean
   inboxEnabled: boolean
   outboxEnabled: boolean
   onToggleInbox: () => void
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export function AIInboxBar({
+  compact = false,
   inboxEnabled,
   outboxEnabled,
   onToggleInbox,
@@ -47,7 +49,8 @@ export function AIInboxBar({
   }
 
   return (
-    <div className="mb-3 space-y-2">
+    <div className={compact ? 'space-y-1.5' : 'mb-3 space-y-2'}>
+      {!compact && (
       <div className="flex items-center gap-1.5 flex-wrap">
         <button
           type="button"
@@ -90,6 +93,17 @@ export function AIInboxBar({
           </span>
         )}
       </div>
+      )}
+
+      {compact && (
+        <p className="text-[10px] text-theme-muted px-0.5">
+          {outboxEnabled
+            ? `${stats.hidden} filtered in outbox`
+            : inboxEnabled
+              ? `${stats.shown} important · ${stats.hidden} hidden`
+              : null}
+        </p>
+      )}
 
       {inboxEnabled && !outboxEnabled && stats.hidden > 0 && (
         <div className="flex flex-wrap gap-1">

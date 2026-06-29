@@ -97,7 +97,7 @@ export function SwipeableEmailRow({
         <button
           type="button"
           onClick={selectionMode ? onToggleSelect : onSelect}
-          className="w-full text-left p-3"
+          className="w-full text-left p-2.5"
         >
           <div className="flex items-center gap-2 mb-1">
             {selectionMode && (
