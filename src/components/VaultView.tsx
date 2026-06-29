@@ -21,6 +21,8 @@ import { MarkdownContent } from './MarkdownContent'
 import { MiniGraph } from './MiniGraph'
 import { AccountDot } from './AccountDot'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
+import { ShareNoteButton } from './ShareNoteButton'
+import { VaultAddMenu } from './VaultAddMenu'
 import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 
@@ -30,11 +32,14 @@ export function VaultView() {
   const emails = useNexusStore((s) => s.emails)
   const accounts = useNexusStore((s) => s.accounts)
   const emailAttachments = useNexusStore((s) => s.emailAttachments)
+  const vaultFiles = useNexusStore((s) => s.vaultFiles)
   const activeNoteId = useNexusStore((s) => s.activeNoteId)
   const activeAttachmentId = useNexusStore((s) => s.activeAttachmentId)
+  const activeVaultFileId = useNexusStore((s) => s.activeVaultFileId)
   const activeFolderId = useNexusStore((s) => s.activeFolderId)
   const selectNote = useNexusStore((s) => s.selectNote)
   const selectAttachment = useNexusStore((s) => s.selectAttachment)
+  const selectVaultFile = useNexusStore((s) => s.selectVaultFile)
   const selectEmail = useNexusStore((s) => s.selectEmail)
   const selectFolder = useNexusStore((s) => s.selectFolder)
   const updateNote = useNexusStore((s) => s.updateNote)
@@ -57,6 +62,7 @@ export function VaultView() {
   )
   const activeNote = notes.find((n) => n.id === activeNoteId)
   const activeAttachment = emailAttachments.find((a) => a.id === activeAttachmentId)
+  const activeVaultFile = vaultFiles.find((f) => f.id === activeVaultFileId)
   const isEmailFiles = activeFolderId === EMAIL_FILES_FOLDER_ID
   const { nodes, edges } = useGraph()
 
@@ -84,6 +90,28 @@ export function VaultView() {
       )
     })
     .sort((a, b) => b.date.localeCompare(a.date))
+
+  const folderVaultFiles = vaultFiles
+    .filter((f) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        return f.filename.toLowerCase().includes(q)
+      }
+      return f.folderId === activeFolderId
+    })
+    .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+
+  const expandFolderChain = (folderId: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      let fid: string | null = folderId
+      while (fid) {
+        next.add(fid)
+        fid = folders.find((x) => x.id === fid)?.parentId ?? null
+      }
+      return next
+    })
+  }
 
   const toggleFolder = (id: string) => {
     setExpanded((prev) => {
@@ -186,6 +214,13 @@ export function VaultView() {
               className="w-full pl-8 pr-3 py-1.5 rounded-lg input-theme text-sm outline-none focus:border-[var(--accent-border)]"
             />
           </div>
+          <VaultAddMenu
+            folderId={activeFolderId}
+            onFolderCreated={(id) => {
+              expandFolderChain(id)
+              selectFolder(id)
+            }}
+          />
           <PanelHideButton panelId="vault-tree" label="folders" />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
@@ -193,7 +228,7 @@ export function VaultView() {
         </div>
         <div className="p-2 border-t border-[var(--glass-border)] max-h-48 overflow-y-auto">
           <p className="text-xs text-theme-muted px-2 mb-1">
-            {isEmailFiles ? 'Email attachments' : 'Notes'}
+            {isEmailFiles ? 'Email attachments' : 'Notes & files'}
           </p>
           {isEmailFiles ? (
             folderAttachments.length === 0 ? (
@@ -217,18 +252,32 @@ export function VaultView() {
               })
             )
           ) : (
-            folderNotes.map((n) => (
-              <button
-                key={n.id}
-                onClick={() => selectNote(n.id)}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
-                  activeNoteId === n.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
-                }`}
-              >
-                <FileText size={14} />
-                <span className="truncate">{n.title}</span>
-              </button>
-            ))
+            <>
+              {folderNotes.map((n) => (
+                <button
+                  key={n.id}
+                  onClick={() => selectNote(n.id)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
+                    activeNoteId === n.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
+                  }`}
+                >
+                  <FileText size={14} />
+                  <span className="truncate">{n.title}</span>
+                </button>
+              ))}
+              {folderVaultFiles.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => selectVaultFile(f.id)}
+                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm ${
+                    activeVaultFileId === f.id ? 'bg-accent-soft text-theme' : 'text-theme-secondary hover-theme'
+                  }`}
+                >
+                  <span className="text-sm shrink-0">{fileIcon(f.mimeType)}</span>
+                  <span className="truncate">{f.filename}</span>
+                </button>
+              ))}
+            </>
           )}
         </div>
       </div>
@@ -322,6 +371,66 @@ export function VaultView() {
             </p>
             <p className="text-xs mt-3 text-accent">{folderAttachments.length} files</p>
           </div>
+        ) : activeVaultFile ? (
+          <>
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
+              <button
+                className="md:hidden text-theme-secondary hover:text-theme text-sm"
+                onClick={() => setMobilePanel('list')}
+              >
+                ← Back
+              </button>
+              <div className="flex items-center gap-1 text-xs text-theme-muted flex-1 min-w-0">
+                {breadcrumbs().map((c, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    {i > 0 && <ChevronRight size={12} />}
+                    <span className="truncate">{c}</span>
+                  </span>
+                ))}
+                <ChevronRight size={12} />
+                <span className="text-theme truncate">{activeVaultFile.filename}</span>
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="max-w-xl">
+                <div className="flex items-start gap-4 mb-6">
+                  <div className="text-4xl">{fileIcon(activeVaultFile.mimeType)}</div>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="text-lg font-semibold text-theme break-all">{activeVaultFile.filename}</h2>
+                    <p className="text-sm text-theme-muted mt-1">
+                      {formatFileSize(activeVaultFile.sizeBytes)} · {activeVaultFile.mimeType}
+                    </p>
+                    <p className="text-xs text-theme-muted mt-1">
+                      {new Date(activeVaultFile.uploadedAt).toLocaleString()}
+                    </p>
+                    {activeVaultFile.dataUrl && (
+                      <a
+                        href={activeVaultFile.dataUrl}
+                        download={activeVaultFile.filename}
+                        className="inline-flex mt-3 items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"
+                      >
+                        <ExternalLink size={12} /> Download
+                      </a>
+                    )}
+                  </div>
+                </div>
+                {activeVaultFile.dataUrl && activeVaultFile.mimeType.startsWith('image/') && (
+                  <img
+                    src={activeVaultFile.dataUrl}
+                    alt={activeVaultFile.filename}
+                    className="max-w-full rounded-xl border border-[var(--glass-border)]"
+                  />
+                )}
+                {activeVaultFile.dataUrl && activeVaultFile.mimeType === 'application/pdf' && (
+                  <iframe
+                    src={activeVaultFile.dataUrl}
+                    title={activeVaultFile.filename}
+                    className="w-full h-[min(60vh,480px)] rounded-xl border border-[var(--glass-border)]"
+                  />
+                )}
+              </div>
+            </div>
+          </>
         ) : activeNote ? (
           <>
             <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
@@ -342,6 +451,9 @@ export function VaultView() {
                 <span className="text-theme truncate">{activeNote.title}</span>
               </div>
               <div className="flex gap-1">
+                {(editorMode === 'preview' || editorMode === 'split') && (
+                  <ShareNoteButton note={activeNote} />
+                )}
                 {(['edit', 'split', 'preview'] as const).map((mode) => (
                   <button
                     key={mode}

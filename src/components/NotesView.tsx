@@ -13,6 +13,7 @@ import { getBacklinks } from '../lib/utils'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
+import { ShareNoteButton } from './ShareNoteButton'
 
 export function NotesView() {
   const notes = useEtherMailStore((s) => s.notes)
@@ -116,6 +117,9 @@ export function NotesView() {
                 </button>
                 <span className="text-theme font-semibold truncate flex-1">{activeNote.title}</span>
                 <div className="flex gap-1">
+                  {(editorMode === 'preview' || editorMode === 'split') && (
+                    <ShareNoteButton note={activeNote} />
+                  )}
                   {(['edit', 'split', 'preview'] as const).map((mode) => (
                     <button
                       key={mode}
