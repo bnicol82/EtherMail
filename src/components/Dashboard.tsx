@@ -38,7 +38,12 @@ export function Dashboard() {
           <div className="glass rounded-xl p-4">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-theme">This Week</h2>
-              <span className="text-xs text-accent">Phase 2 preview</span>
+              <button
+                onClick={() => setView('calendar')}
+                className="text-xs text-accent hover:text-accent"
+              >
+                Open calendar →
+              </button>
             </div>
             <div className="grid grid-cols-6 gap-2">
               {weekDays.map((d, i) => (
@@ -65,7 +70,15 @@ export function Dashboard() {
 
           {/* Mini calendar */}
           <div className="glass rounded-xl p-4">
-            <h2 className="font-semibold text-theme mb-4">Mini View</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-semibold text-theme">Mini View</h2>
+              <button
+                onClick={() => setView('calendar')}
+                className="text-xs text-accent hover:text-accent"
+              >
+                Full view →
+              </button>
+            </div>
             <div className="flex gap-2 justify-between">
               {weekDays.map((d, i) => (
                 <div
@@ -77,7 +90,6 @@ export function Dashboard() {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-theme-muted mt-3">Full calendar sync in Phase 2</p>
           </div>
 
           {/* Graph */}

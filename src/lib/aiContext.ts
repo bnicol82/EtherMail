@@ -36,6 +36,15 @@ export function getAIContext(
     }
   }
 
+  if (view === 'calendar') {
+    return {
+      label: 'Calendar',
+      placeholder: 'Ask about your schedule...',
+      suggestions: ['What meetings do I have this week?', 'Prep for my next meeting', 'Any conflicts today?'],
+      contextPrefix: 'User is viewing the calendar. ',
+    }
+  }
+
   if (view === 'graph') {
     return {
       label: 'Knowledge Graph',

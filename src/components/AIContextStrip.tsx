@@ -1,6 +1,6 @@
 import { useEtherMailStore } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
-import { Sparkles, Bot } from 'lucide-react'
+import { Sparkles, Bot, MessageSquare } from 'lucide-react'
 import { MarkdownContent } from './MarkdownContent'
 
 /** Always-on contextual AI lane — sits above the bottom dock on every page */
@@ -13,6 +13,8 @@ export function AIContextStrip() {
   const aiLoading = useEtherMailStore((s) => s.aiLoading)
   const aiContextResponse = useEtherMailStore((s) => s.aiContextResponse)
   const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
+  const setView = useEtherMailStore((s) => s.setView)
+  const clearAiContextResponse = useEtherMailStore((s) => s.clearAiContextResponse)
 
   const activeEmail = emails.find((e) => e.id === activeEmailId) ?? null
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
@@ -20,13 +22,31 @@ export function AIContextStrip() {
 
   const hasResponse = aiLoading || aiContextResponse
 
+  const openFullChat = () => {
+    clearAiContextResponse()
+    setView('ai')
+  }
+
   return (
     <div className="fixed inset-x-0 z-20 bottom-[3.5rem] sm:bottom-[3.25rem] pointer-events-none">
-      <div className="mx-2 sm:mx-3 pointer-events-auto">
+      <div className="mx-2 sm:mx-3 pointer-events-auto max-h-[40vh] flex flex-col justify-end">
         {/* Response area — expands inline, no overlay */}
         {hasResponse && (
-          <div className="glass-frost rounded-t-xl border border-b-0 border-[var(--glass-border)] overflow-hidden max-h-[min(35vh,240px)] flex flex-col mb-0">
-            <div className="flex-1 overflow-y-auto px-3 py-2">
+          <div className="glass-frost rounded-t-xl border border-b-0 border-[var(--glass-border)] overflow-hidden max-h-[min(28vh,200px)] flex flex-col mb-0 shrink-0">
+            <div className="flex items-center justify-between px-3 py-1.5 border-b border-[var(--glass-border)] shrink-0">
+              <span className="text-[10px] text-theme-muted flex items-center gap-1">
+                <Sparkles size={10} className="text-accent" />
+                Quick reply
+              </span>
+              <button
+                onClick={openFullChat}
+                className="text-[10px] text-accent hover:underline flex items-center gap-1"
+              >
+                <MessageSquare size={10} />
+                Open chat
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-2 min-h-0">
               {aiLoading ? (
                 <p className="text-sm text-theme-muted animate-pulse flex items-center gap-2">
                   <Sparkles size={14} className="text-accent" />
@@ -42,7 +62,7 @@ export function AIContextStrip() {
         )}
 
         {/* Always-visible contextual suggestion bar */}
-        <div className="glass-frost rounded-xl border border-[var(--glass-border)] px-3 py-2 flex items-center gap-2 flex-wrap shadow-md">
+        <div className="glass-frost rounded-xl border border-[var(--glass-border)] px-3 py-2 flex items-center gap-2 flex-wrap shadow-md shrink-0">
           <div className="flex items-center gap-1.5 shrink-0">
             <Bot size={13} className="text-accent" />
             <span className="text-[11px] font-semibold text-theme max-w-[120px] sm:max-w-[200px] truncate">
@@ -61,6 +81,13 @@ export function AIContextStrip() {
               </button>
             ))}
           </div>
+          <button
+            onClick={openFullChat}
+            className="text-[10px] px-2 py-1 rounded-full btn-accent shrink-0 flex items-center gap-1"
+          >
+            <MessageSquare size={10} />
+            Chat
+          </button>
         </div>
       </div>
     </div>

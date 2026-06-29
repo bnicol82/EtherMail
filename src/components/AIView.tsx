@@ -24,10 +24,12 @@ export function AIView() {
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const bottomRef = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' })
   }, [chatMessages, loading])
 
   // Auto-respond to pending user messages
@@ -65,7 +67,7 @@ export function AIView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       <div className="p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
@@ -116,7 +118,7 @@ export function AIView() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overscroll-contain p-4 md:p-6 space-y-4 min-h-0">
         {chatMessages.length === 0 && (
           <div className="text-center py-12">
             <Sparkles size={40} className="mx-auto text-accent mb-4 opacity-60" />
@@ -175,7 +177,6 @@ export function AIView() {
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       <div className="p-4 border-t border-[var(--glass-border)] glass shrink-0">
@@ -189,7 +190,7 @@ export function AIView() {
                 ? 'Ask about your vault...'
                 : 'Ask a general question (no vault context)...'
             }
-            className="flex-1 px-4 py-3 rounded-xl input-theme text-sm"
+            className="flex-1 px-4 py-3 rounded-xl input-theme text-base"
           />
           <button
             onClick={send}

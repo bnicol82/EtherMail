@@ -19,6 +19,7 @@ const NAV: { id: View; label: string; icon: typeof Mail }[] = [
   { id: 'graph', label: 'Knowledge Graph', icon: Network },
   { id: 'vault', label: 'Vaults', icon: FolderOpen },
   { id: 'email', label: 'Email', icon: Mail },
+  { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'ai', label: 'AI Assistant', icon: Bot },
 ]
 
@@ -96,14 +97,6 @@ export function Sidebar() {
             )}
           </button>
         ))}
-
-        <div className="pt-4 pb-2">
-          <div className="flex items-center gap-2 px-3 text-xs font-medium text-theme-muted uppercase tracking-wider">
-            <Calendar size={12} />
-            Calendar
-            <span className="ml-auto text-accent text-[10px] normal-case">Phase 2</span>
-          </div>
-        </div>
 
         <div className="pt-2">
           <p className="px-3 text-xs font-medium text-theme-muted uppercase tracking-wider mb-2">

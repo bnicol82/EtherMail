@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'vault' | 'email' | 'graph' | 'ai' | 'settings'
+export type View = 'dashboard' | 'vault' | 'email' | 'graph' | 'calendar' | 'ai' | 'settings'
 
 export type Theme = 'glass' | 'dark' | 'blue'
 
