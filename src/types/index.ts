@@ -17,6 +17,15 @@ export interface EmailAccount {
   email: string
   provider: EmailProvider
   connected: boolean
+  connectedAt?: string
+  /** demo = simulated OAuth; oauth = real token stored locally */
+  syncMode?: 'demo' | 'oauth'
+}
+
+export interface OAuthSettings {
+  googleClientId: string
+  microsoftClientId: string
+  yahooClientId: string
 }
 
 export interface Note {

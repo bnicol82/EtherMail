@@ -48,8 +48,8 @@ The site will be live at **https://bnicol82.github.io/EtherMail/** after a succe
 | Phase | Features |
 |-------|----------|
 | **1** (current) | Vault, demo email, RAG AI, graph, command bar |
-| **2** | Real OAuth (Gmail, Outlook, Yahoo), calendar sync |
-| **3** | AI Bridge mode, teams, enterprise Outlook |
+| **2** (in progress) | OAuth connect, calendar sync from emails, Email Files vault |
+| **3** | AI Bridge mode, teams, enterprise Outlook, live API sync |
 | **4** | Plugins, web clipper, OCR |
 
 ## Tech Stack

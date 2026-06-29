@@ -10,6 +10,8 @@ import { GraphView } from './components/GraphView'
 import { AIView } from './components/AIView'
 import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
+import { ConnectAccountModal } from './components/ConnectAccountModal'
+import { handleOAuthCallback } from './lib/oauth/connect'
 import { Menu } from 'lucide-react'
 
 function MainContent() {
@@ -40,12 +42,25 @@ export default function App() {
   const view = useEtherMailStore((s) => s.view)
   const sidebarOpen = useEtherMailStore((s) => s.sidebarOpen)
   const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
+  const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
+  const completeOAuthConnect = useEtherMailStore((s) => s.completeOAuthConnect)
 
   const showDock = view !== 'ai'
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const code = params.get('code')
+    const state = params.get('state')
+    if (!code || !state) return
+
+    handleOAuthCallback(code, state, oauthSettings).then((result) => {
+      if (result) completeOAuthConnect(result.accountId)
+    })
+  }, [oauthSettings, completeOAuthConnect])
 
   return (
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
@@ -99,6 +114,7 @@ export default function App() {
       {/* Fixed UI layers — hidden on full AI chat to avoid stacked inputs */}
       {showDock && <AIContextStrip />}
       {showDock && <BottomBar />}
+      <ConnectAccountModal />
     </div>
   )
 }

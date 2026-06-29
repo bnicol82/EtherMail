@@ -146,8 +146,8 @@ Sarah J., Team leads
 ]
 
 export const SEED_ACCOUNTS: EmailAccount[] = [
-  { id: 'acc-gmail', email: 'name@gmail.com', provider: 'gmail', connected: true },
-  { id: 'acc-outlook', email: 'work@corp.com', provider: 'enterprise', connected: true },
+  { id: 'acc-gmail', email: 'name@gmail.com', provider: 'gmail', connected: true, connectedAt: '2026-06-01T00:00:00Z', syncMode: 'demo' },
+  { id: 'acc-outlook', email: 'work@corp.com', provider: 'enterprise', connected: true, connectedAt: '2026-06-01T00:00:00Z', syncMode: 'demo' },
   { id: 'acc-yahoo', email: 'user@yahoo.com', provider: 'yahoo', connected: false },
 ]
 
@@ -333,6 +333,72 @@ This event relates to your Budget Q4 planning notes.`,
     attachmentIds: ['att-6', 'att-7'],
   },
 ]
+
+/** Imported when Yahoo account is connected via OAuth */
+export const SEED_YAHOO_EMAILS: Email[] = [
+  {
+    id: 'email-yahoo-1',
+    accountId: 'acc-yahoo',
+    from: 'friends@group.com',
+    fromName: 'Weekend Plans',
+    to: 'user@yahoo.com',
+    subject: 'Re: Hiking trip this Saturday',
+    preview: 'Count me in! What time are we meeting at the trailhead?',
+    body: `Count me in for Saturday!
+
+What time are we meeting at the trailhead? I'll bring snacks.
+
+See you there!`,
+    date: '2026-06-28T07:30:00Z',
+    read: false,
+    starred: false,
+    linkedNoteId: null,
+  },
+  {
+    id: 'email-yahoo-2',
+    accountId: 'acc-yahoo',
+    from: 'store@retailer.com',
+    fromName: 'Outdoor Gear Co',
+    to: 'user@yahoo.com',
+    subject: 'Your order has shipped',
+    preview: 'Track your hiking gear — arriving by July 2...',
+    body: `Your order #48291 has shipped.
+
+Estimated delivery: July 2, 2026
+
+Items: Trail boots, day pack
+
+Track at retailer.com/orders`,
+    date: '2026-06-27T16:00:00Z',
+    read: true,
+    starred: false,
+    linkedNoteId: null,
+  },
+  {
+    id: 'email-yahoo-3',
+    accountId: 'acc-yahoo',
+    from: 'calendar@yahoo.com',
+    fromName: 'Yahoo Calendar',
+    to: 'user@yahoo.com',
+    subject: 'Invitation: Family BBQ — Sun 29th 1pm',
+    preview: 'You have been invited to Family BBQ...',
+    body: `You have been invited to Family BBQ.
+
+When: Sunday, June 29th, 1:00 PM
+Attendees: Family group
+
+Bring a side dish!`,
+    date: '2026-06-26T12:00:00Z',
+    read: false,
+    starred: true,
+    linkedNoteId: null,
+  },
+]
+
+export function getDemoEmailsForAccount(accountId: string): Email[] {
+  if (accountId === 'acc-yahoo') return SEED_YAHOO_EMAILS
+  return []
+}
 
 export const SEED_CALENDAR: CalendarEvent[] = [
   {
