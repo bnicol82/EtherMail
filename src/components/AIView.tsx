@@ -66,11 +66,11 @@ export function AIView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden pb-20">
-      <div className="p-4 md:p-6 border-b border-white/10 glass shrink-0">
+      <div className="p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">AI Assistant</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <h1 className="text-2xl font-bold text-theme">AI Assistant</h1>
+            <p className="text-sm text-theme-muted mt-0.5">
               Private vault AI with optional external models
             </p>
           </div>
@@ -79,8 +79,8 @@ export function AIView() {
               onClick={() => setAiMode('vault')}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                 aiMode === 'vault'
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white/5 text-slate-400 hover:text-white'
+                  ? 'bg-[var(--accent)] text-white'
+                  : 'glass text-theme-secondary hover-theme hover:text-theme'
               }`}
             >
               <Shield size={16} />
@@ -91,7 +91,7 @@ export function AIView() {
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
                 aiMode === 'external'
                   ? 'bg-purple-600 text-white'
-                  : 'bg-white/5 text-slate-400 hover:text-white'
+                  : 'glass text-theme-secondary hover-theme hover:text-theme'
               }`}
             >
               <Globe size={16} />
@@ -111,7 +111,7 @@ export function AIView() {
             </span>
           )}
           {aiSettings.bridgeEnabled && (
-            <span className="text-indigo-400">· Bridge enabled (Phase 3)</span>
+            <span className="text-accent">· Bridge enabled (Phase 3)</span>
           )}
         </div>
       </div>
@@ -119,8 +119,8 @@ export function AIView() {
       <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
         {chatMessages.length === 0 && (
           <div className="text-center py-12">
-            <Sparkles size={40} className="mx-auto text-indigo-400 mb-4 opacity-60" />
-            <p className="text-slate-400 mb-6">
+            <Sparkles size={40} className="mx-auto text-accent mb-4 opacity-60" />
+            <p className="text-theme-secondary mb-6">
               {aiMode === 'vault'
                 ? 'Ask anything about your notes, emails, and projects.'
                 : 'Ask general questions. Your vault data stays private.'}
@@ -133,7 +133,7 @@ export function AIView() {
                     setAiMode('vault')
                     addChatMessage({ role: 'user', content: s, mode: 'vault' })
                   }}
-                  className="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs text-slate-400 hover:text-white hover:bg-white/10"
+                  className="px-3 py-1.5 rounded-full glass text-xs text-theme-secondary hover-theme hover:text-theme"
                 >
                   {s}
                 </button>
@@ -150,19 +150,19 @@ export function AIView() {
             <div
               className={`max-w-[85%] md:max-w-[70%] rounded-xl px-4 py-3 ${
                 m.role === 'user'
-                  ? 'bg-indigo-600/40 border border-indigo-500/30'
-                  : 'glass border border-white/10'
+                  ? 'bg-accent-soft border border-accent'
+                  : 'glass border border-[var(--glass-border)]'
               }`}
             >
-              <p className="text-[10px] uppercase tracking-wider mb-1 text-slate-500">
+              <p className="text-[10px] uppercase tracking-wider mb-1 text-theme-muted">
                 {m.role === 'user' ? 'You' : m.mode === 'vault' ? 'Vault AI' : 'External AI'}
               </p>
               {m.role === 'assistant' ? (
-                <div className="text-sm text-slate-300 prose-sm">
+                <div className="text-sm text-theme-secondary prose-sm">
                   <MarkdownContent content={m.content} />
                 </div>
               ) : (
-                <p className="text-sm text-white">{m.content}</p>
+                <p className="text-sm text-theme">{m.content}</p>
               )}
             </div>
           </div>
@@ -170,7 +170,7 @@ export function AIView() {
 
         {loading && (
           <div className="flex justify-start">
-            <div className="glass rounded-xl px-4 py-3 text-sm text-slate-400 animate-pulse">
+            <div className="glass rounded-xl px-4 py-3 text-sm text-theme-secondary animate-pulse">
               Thinking...
             </div>
           </div>
@@ -178,7 +178,7 @@ export function AIView() {
         <div ref={bottomRef} />
       </div>
 
-      <div className="p-4 border-t border-white/10 glass shrink-0">
+      <div className="p-4 border-t border-[var(--glass-border)] glass shrink-0">
         <div className="flex gap-2 max-w-3xl mx-auto">
           <input
             value={input}
@@ -189,19 +189,19 @@ export function AIView() {
                 ? 'Ask about your vault...'
                 : 'Ask a general question (no vault context)...'
             }
-            className="flex-1 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-slate-500 outline-none focus:border-indigo-500/50 text-sm"
+            className="flex-1 px-4 py-3 rounded-xl input-theme text-sm"
           />
           <button
             onClick={send}
             disabled={loading || !input.trim()}
-            className="px-4 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white transition-colors"
+            className="px-4 py-3 rounded-xl bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 text-theme transition-colors"
           >
             <Send size={18} />
           </button>
           {chatMessages.length > 0 && (
             <button
               onClick={clearChat}
-              className="px-3 py-3 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400"
+              className="px-3 py-3 rounded-xl glass hover-theme text-theme-secondary"
               title="Clear chat"
             >
               <Trash2 size={18} />

@@ -190,7 +190,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           ),
         })),
 
-      sidebarOpen: true,
+      sidebarOpen: false,
       setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
       mobilePanel: 'list',
       setMobilePanel: (mobilePanel) => set({ mobilePanel }),
