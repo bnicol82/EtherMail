@@ -2,6 +2,7 @@ export const EMAIL_FOLDERS = [
   { id: 'inbox' as const, label: 'Inbox' },
   { id: 'sent' as const, label: 'Sent' },
   { id: 'drafts' as const, label: 'Drafts' },
+  { id: 'scheduled' as const, label: 'Scheduled' },
   { id: 'archive' as const, label: 'Archive' },
   { id: 'trash' as const, label: 'Trash' },
 ]

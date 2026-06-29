@@ -26,6 +26,13 @@ import {
 } from '../lib/composeAttachments'
 import { countWords, insertAtCursor, isDraftWorthy } from '../lib/composeUtils'
 import { assistComposeBody, type ComposeAssistAction } from '../lib/composeAssist'
+import {
+  SCHEDULE_PRESETS,
+  formatScheduledAt,
+  fromDatetimeLocalValue,
+  scheduledAtFromPreset,
+  toDatetimeLocalValue,
+} from '../lib/scheduledSend'
 
 type ComposePanel = 'none' | 'templates' | 'ai'
 
@@ -37,6 +44,7 @@ export function ComposeEmailModal() {
   const closeCompose = useEtherMailStore((s) => s.closeCompose)
   const sendComposedEmail = useEtherMailStore((s) => s.sendComposedEmail)
   const saveComposeDraft = useEtherMailStore((s) => s.saveComposeDraft)
+  const scheduleComposedEmail = useEtherMailStore((s) => s.scheduleComposedEmail)
 
   const [to, setTo] = useState('')
   const [cc, setCc] = useState('')
@@ -53,6 +61,7 @@ export function ComposeEmailModal() {
   const [attachError, setAttachError] = useState<string | null>(null)
   const [savedHint, setSavedHint] = useState<string | null>(null)
   const [scheduleLater, setScheduleLater] = useState(false)
+  const [scheduledAt, setScheduledAt] = useState(() => scheduledAtFromPreset('tomorrow9'))
 
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
@@ -73,6 +82,8 @@ export function ComposeEmailModal() {
     setSavedHint(null)
     setPanel('none')
     setReplyToEmail(undefined)
+    setScheduleLater(!!composeDraft.scheduledAt)
+    setScheduledAt(composeDraft.scheduledAt ?? scheduledAtFromPreset('tomorrow9'))
   }, [composeDraft])
 
   const buildDraft = useCallback((): ComposeDraft => {
@@ -198,12 +209,13 @@ export function ComposeEmailModal() {
 
   const handleSend = () => {
     if (scheduleLater) {
-      saveComposeDraft({
-        ...draft,
-        subject: draft.subject || '(scheduled)',
-        body: `${draft.body}\n\n---\n[Scheduled send — demo] Will send tomorrow morning.`,
-      })
-      setSavedHint('Scheduled draft saved')
+      const at = scheduledAt
+      if (!at || new Date(at).getTime() <= Date.now()) {
+        setSavedHint('Pick a future send time')
+        return
+      }
+      scheduleComposedEmail({ ...draft, scheduledAt: at }, at)
+      setSavedHint(`Scheduled for ${formatScheduledAt(at)}`)
       return
     }
     sendComposedEmail(draft)
@@ -530,7 +542,34 @@ export function ComposeEmailModal() {
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-t border-[var(--glass-border)] bg-[var(--glass-bg)]/60">
+        <div className="shrink-0 border-t border-[var(--glass-border)] bg-[var(--glass-bg)]/60">
+          {scheduleLater && (
+            <div className="px-4 pt-3 pb-2 border-b border-[var(--glass-border)]/60 space-y-2">
+              <p className="text-[10px] text-theme-muted flex items-center gap-1">
+                <Clock size={12} />
+                Send later — {formatScheduledAt(scheduledAt)}
+              </p>
+              <div className="flex flex-wrap gap-1">
+                {SCHEDULE_PRESETS.map((preset) => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => setScheduledAt(scheduledAtFromPreset(preset.id))}
+                    className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="datetime-local"
+                value={toDatetimeLocalValue(scheduledAt)}
+                onChange={(e) => setScheduledAt(fromDatetimeLocalValue(e.target.value))}
+                className="w-full px-2 py-1.5 rounded-lg input-theme text-xs outline-none"
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-2 px-4 py-3">
           <label className="flex items-center gap-1.5 text-[10px] text-theme-muted cursor-pointer shrink-0">
             <input
               type="checkbox"
@@ -575,6 +614,7 @@ export function ComposeEmailModal() {
             {scheduleLater ? 'Schedule' : 'Send'}
             <ChevronDown size={14} className="opacity-60 hidden sm:block" />
           </button>
+          </div>
         </div>
       </div>
 

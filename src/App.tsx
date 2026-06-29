@@ -15,6 +15,7 @@ import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { EventEditModal } from './components/EventEditModal'
 import { CommandPalette } from './components/CommandPalette'
 import { ProactiveAssistant } from './components/ProactiveAssistant'
+import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { Menu, SquarePen } from 'lucide-react'
 
@@ -51,6 +52,8 @@ export default function App() {
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const completeOAuthConnect = useEtherMailStore((s) => s.completeOAuthConnect)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+
+  useScheduledSend()
 
   const showDock = view !== 'ai'
 

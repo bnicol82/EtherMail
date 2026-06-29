@@ -38,6 +38,7 @@ import type {
 } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
+import { mergeImportedEvents } from '../lib/ics'
 import {
   buildForwardDraft,
   buildReplyAllDraft,
@@ -156,8 +157,13 @@ interface EtherMailState {
   closeCompose: () => void
   sendComposedEmail: (draft: ComposeDraft) => void
   saveComposeDraft: (draft: ComposeDraft) => void
+  scheduleComposedEmail: (draft: ComposeDraft, scheduledAt: string) => void
+  processScheduledEmails: () => void
+  cancelScheduledEmail: (emailId: string) => void
+  sendScheduledEmailNow: (emailId: string) => void
 
   updateCalendarEvent: (id: string, updates: Partial<CalendarEvent>) => void
+  importCalendarEvents: (events: CalendarEvent[]) => number
   forwardCalendarInvite: (eventId: string) => void
   editingEventId: string | null
   setEditingEventId: (id: string | null) => void
@@ -618,6 +624,7 @@ export const useEtherMailStore = create<EtherMailState>()(
             body,
             accountId: initial?.accountId ?? defaultAccount,
             attachments: initial?.attachments,
+            scheduledAt: initial?.scheduledAt,
           },
           view: 'email',
           mobilePanel: 'list',
@@ -656,6 +663,7 @@ export const useEtherMailStore = create<EtherMailState>()(
                     date: now,
                     folder: 'sent' as EmailFolder,
                     read: true,
+                    scheduledAt: undefined,
                     attachmentIds,
                   }
                 : e,
@@ -693,6 +701,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           linkedNoteId: null,
           attachmentIds: ids.length > 0 ? ids : undefined,
           folder: 'sent',
+          scheduledAt: undefined,
         }
         set({
           emails: [...state.emails, email],
@@ -733,6 +742,7 @@ export const useEtherMailStore = create<EtherMailState>()(
                     preview,
                     date: now,
                     folder: 'drafts' as EmailFolder,
+                    scheduledAt: undefined,
                     attachmentIds,
                   }
                 : e,
@@ -781,6 +791,135 @@ export const useEtherMailStore = create<EtherMailState>()(
         })
       },
 
+      scheduleComposedEmail: (draft, scheduledAt) => {
+        const state = get()
+        const account = state.accounts.find((a) => a.id === draft.accountId)
+        const now = new Date().toISOString()
+        const preview = draft.body.trim().slice(0, 120) || '(scheduled)'
+
+        const upsertScheduled = (id: string, attachmentIds?: string[]) => {
+          const existing = state.emails.find((e) => e.id === id)
+          const email: Email = {
+            id,
+            accountId: draft.accountId,
+            from: account?.email ?? 'you@example.com',
+            fromName: 'Me',
+            to: draft.to,
+            cc: draft.cc,
+            bcc: draft.bcc,
+            subject: draft.subject || '(no subject)',
+            body: draft.body,
+            preview,
+            date: now,
+            read: true,
+            starred: existing?.starred ?? false,
+            linkedNoteId: existing?.linkedNoteId ?? null,
+            attachmentIds,
+            labelIds: existing?.labelIds,
+            folder: 'scheduled',
+            scheduledAt,
+          }
+          return email
+        }
+
+        if (draft.id) {
+          const { records, ids } = materializeEmailAttachments(
+            draft.attachments,
+            draft.id,
+            draft.accountId,
+          )
+          const attachmentIds = draft.attachments?.length
+            ? ids
+            : state.emails.find((e) => e.id === draft.id)?.attachmentIds
+
+          set({
+            emails: state.emails.map((e) =>
+              e.id === draft.id ? upsertScheduled(draft.id!, attachmentIds) : e,
+            ),
+            emailAttachments: draft.attachments?.length
+              ? [
+                  ...state.emailAttachments.filter((a) => a.emailId !== draft.id),
+                  ...records,
+                ]
+              : state.emailAttachments,
+            activeEmailId: draft.id,
+            activeEmailFolder: 'scheduled',
+            composeDraft: null,
+            mobilePanel: 'detail',
+          })
+          return
+        }
+
+        const id = `scheduled-${Date.now()}`
+        const { records, ids } = materializeEmailAttachments(draft.attachments, id, draft.accountId)
+        set({
+          emails: [...state.emails, upsertScheduled(id, ids.length > 0 ? ids : undefined)],
+          emailAttachments: [...state.emailAttachments, ...records],
+          activeEmailId: id,
+          activeEmailFolder: 'scheduled',
+          composeDraft: null,
+          mobilePanel: 'detail',
+        })
+      },
+
+      processScheduledEmails: () => {
+        const state = get()
+        const now = Date.now()
+        const due = state.emails.filter(
+          (e) => e.folder === 'scheduled' && e.scheduledAt && new Date(e.scheduledAt).getTime() <= now,
+        )
+        if (due.length === 0) return
+
+        const dueIds = new Set(due.map((e) => e.id))
+        const sentAt = new Date().toISOString()
+        set({
+          emails: state.emails.map((e) =>
+            dueIds.has(e.id)
+              ? {
+                  ...e,
+                  folder: 'sent' as EmailFolder,
+                  date: sentAt,
+                  scheduledAt: undefined,
+                  preview: e.body.trim().slice(0, 120) || e.preview,
+                }
+              : e,
+          ),
+        })
+      },
+
+      cancelScheduledEmail: (emailId) => {
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId
+              ? { ...e, folder: 'drafts' as EmailFolder, scheduledAt: undefined }
+              : e,
+          ),
+          activeEmailFolder:
+            s.activeEmailId === emailId ? ('drafts' as EmailFolder) : s.activeEmailFolder,
+        }))
+      },
+
+      sendScheduledEmailNow: (emailId) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email || email.folder !== 'scheduled') return
+        const sentAt = new Date().toISOString()
+        set({
+          emails: state.emails.map((e) =>
+            e.id === emailId
+              ? {
+                  ...e,
+                  folder: 'sent' as EmailFolder,
+                  date: sentAt,
+                  scheduledAt: undefined,
+                  preview: e.body.trim().slice(0, 120) || e.preview,
+                }
+              : e,
+          ),
+          activeEmailFolder: 'sent',
+        })
+      },
+
       editingEventId: null,
       setEditingEventId: (editingEventId) => set({ editingEventId }),
 
@@ -790,6 +929,15 @@ export const useEtherMailStore = create<EtherMailState>()(
             e.id === id ? { ...e, ...updates } : e,
           ),
         })),
+
+      importCalendarEvents: (events) => {
+        if (events.length === 0) return 0
+        const state = get()
+        const before = state.calendarEvents.length
+        const merged = mergeImportedEvents(state.calendarEvents, events)
+        set({ calendarEvents: merged })
+        return merged.length - before
+      },
 
       forwardCalendarInvite: (eventId) => {
         const event = get().calendarEvents.find((e) => e.id === eventId)
@@ -1167,7 +1315,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 7,
+      version: 8,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1242,6 +1390,19 @@ export const useEtherMailStore = create<EtherMailState>()(
               ),
               ...(threadReply && !ids.has(threadReply.id) ? [threadReply] : []),
             ],
+          }
+        }
+        if (version < 8) {
+          next = {
+            ...next,
+            emails: ((next.emails as Email[]) ?? []).map((e) => ({
+              ...e,
+              scheduledAt: e.scheduledAt,
+            })),
+            calendarEvents: ((next.calendarEvents as CalendarEvent[]) ?? []).map((e) => ({
+              ...e,
+              uid: e.uid ?? `${e.id}@ethermail`,
+            })),
           }
         }
         return next

@@ -1,6 +1,6 @@
 export type View = 'dashboard' | 'email' | 'vault' | 'calendar' | 'notes' | 'graph' | 'ai' | 'settings'
 
-export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'archive' | 'trash'
+export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'scheduled' | 'archive' | 'trash'
 
 export type Theme = 'glass' | 'dark' | 'blue'
 
@@ -12,6 +12,8 @@ export interface CalendarEvent {
   attendees?: string[]
   location?: string
   room?: string
+  description?: string
+  uid?: string
   sourceEmailId?: string
 }
 
@@ -122,6 +124,7 @@ export interface Email {
   folder?: EmailFolder
   acknowledgements?: EmailAcknowledgement[]
   snoozedUntil?: string
+  scheduledAt?: string
 }
 
 /** AI Inbox classification for non-important mail */
@@ -170,6 +173,7 @@ export interface ComposeDraft {
   body: string
   accountId: string
   attachments?: ComposeAttachment[]
+  scheduledAt?: string
 }
 
 export interface GraphNode {
