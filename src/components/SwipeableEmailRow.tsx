@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react'
 import type { Email, EmailAccount } from '../types'
 import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
-import { Star, Link2, Paperclip } from 'lucide-react'
+import { Star, Link2, Paperclip, CheckCircle2 } from 'lucide-react'
 
 interface Props {
   email: Email
@@ -85,6 +85,9 @@ export function SwipeableEmailRow({ email, account, active, onSelect, onDelete }
             {email.linkedNoteId && <Link2 size={12} className="text-accent shrink-0" />}
             {email.attachmentIds && email.attachmentIds.length > 0 && (
               <Paperclip size={12} className="text-theme-muted shrink-0" />
+            )}
+            {(email.acknowledgements?.length ?? 0) > 0 && (
+              <CheckCircle2 size={12} className="text-emerald-400 shrink-0" aria-label="Acknowledged" />
             )}
             <span className="text-xs text-theme-muted shrink-0">{formatDate(email.date)}</span>
           </div>

@@ -5,6 +5,7 @@ import {
   Link2,
   Unlink,
   Reply,
+  Forward,
   Sparkles,
   Paperclip,
   ChevronDown,
@@ -15,7 +16,6 @@ import {
   Inbox,
   Send,
   FileEdit,
-  SquarePen,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
@@ -26,6 +26,7 @@ import { formatFileSize, fileIcon, providerColor, providerLabel } from '../lib/u
 import { EMAIL_FOLDERS } from '../lib/emailFolders'
 import { summarizeEmail } from '../lib/emailSummary'
 import { getAIContext } from '../lib/aiContext'
+import { EmailQuickAck } from './EmailQuickAck'
 import type { EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
@@ -168,14 +169,6 @@ export function EmailView() {
             <div className="flex items-center justify-between mb-2 gap-2">
               <h2 className="font-semibold text-theme truncate text-sm flex-1 min-w-0">{inboxTitle}</h2>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => openCompose()}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg btn-accent text-[10px] sm:text-xs font-medium"
-                  title="Compose email"
-                >
-                  <SquarePen size={12} />
-                  <span className="hidden xs:inline sm:inline">Compose</span>
-                </button>
                 {activeAccountId && (
                   <button
                     onClick={() => selectAccount(null)}
@@ -300,6 +293,12 @@ export function EmailView() {
                     <Reply size={14} /> Reply
                   </button>
                   <button
+                    onClick={() => openCompose({ forwardEmail: activeEmail })}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                  >
+                    <Forward size={14} /> Forward
+                  </button>
+                  <button
                     onClick={() => runAiAction('Draft a reply to this email')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
@@ -392,6 +391,7 @@ export function EmailView() {
                     </div>
                   </div>
                 )}
+                <EmailQuickAck email={activeEmail} />
               </div>
             </div>
 

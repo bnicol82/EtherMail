@@ -3,17 +3,11 @@ import { useEtherMailStore, useGraph } from '../store/useStore'
 import { MiniGraph } from './MiniGraph'
 import { AccountDot } from './AccountDot'
 import { EventDetailBox } from './EventDetailBox'
-import { formatDate, addDays, isSameDay, startOfWeek } from '../lib/utils'
+import { WeekCalendarGrid, EVENT_COLORS } from './WeekCalendarGrid'
+import { formatDate, addDays, startOfWeek } from '../lib/utils'
 import { extractTodos } from '../lib/todos'
 import type { CalendarEvent } from '../types'
 import { Sparkles, Tag, Link2, CheckSquare, Mail, FileText } from 'lucide-react'
-
-const EVENT_COLORS = ['#6366f1', '#22d3ee', '#f472b6', '#a78bfa', '#34d399']
-const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
-  return events.filter((e) => isSameDay(new Date(e.start), day))
-}
 
 export function Dashboard() {
   const notes = useEtherMailStore((s) => s.notes)
@@ -50,6 +44,8 @@ export function Dashboard() {
     return EVENT_COLORS[(idx >= 0 ? idx : 0) % EVENT_COLORS.length]
   }
 
+  const monthTitle = weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })
+
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6 pb-24">
       <div className="max-w-7xl mx-auto">
@@ -57,45 +53,28 @@ export function Dashboard() {
         <p className="text-theme-muted text-xs md:text-sm mb-4 md:mb-6">Your unified workspace at a glance</p>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Calendar week view */}
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold text-theme">This Week</h2>
+          {/* Calendar week view — matches Calendar page */}
+          <div className="glass rounded-xl p-4 lg:col-span-2">
+            <div className="flex items-center justify-between mb-1">
+              <div>
+                <h2 className="font-semibold text-theme">This Week</h2>
+                <p className="text-[10px] text-theme-muted mt-0.5">
+                  {monthTitle} · Week of {weekDays[0].toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                </p>
+              </div>
               <button
                 onClick={() => setView('calendar')}
-                className="text-xs text-accent hover:text-accent"
+                className="text-xs text-accent hover:text-accent shrink-0"
               >
                 Open calendar →
               </button>
             </div>
-            <div className="grid grid-cols-7 gap-1 sm:gap-2">
-              {weekDays.map((day, i) => (
-                <div key={day.toISOString()} className="text-center min-w-0">
-                  <p className="text-xs text-theme-muted mb-2">{WEEKDAY_LABELS[i]}</p>
-                  <p className="text-sm font-medium text-theme mb-2">{day.getDate()}</p>
-                  <div className="space-y-1 min-h-[80px]">
-                    {eventsForDay(sortedEvents, day).map((event) => {
-                      const color = eventColor(event)
-                      return (
-                        <button
-                          key={event.id}
-                          type="button"
-                          onClick={() => setSelectedEvent(event)}
-                          className="w-full text-left text-[10px] p-1.5 rounded text-theme truncate hover:opacity-90"
-                          style={{
-                            background: `${color}33`,
-                            borderLeft: `2px solid ${color}`,
-                          }}
-                          title={event.title}
-                        >
-                          {event.title}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <p className="text-[10px] text-theme-muted mb-3">Tap an event for details</p>
+            <WeekCalendarGrid
+              weekDays={weekDays}
+              events={sortedEvents}
+              onSelectEvent={setSelectedEvent}
+            />
           </div>
 
           {/* To Do list */}

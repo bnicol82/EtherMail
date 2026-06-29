@@ -12,9 +12,12 @@ import {
 } from '../data/seed'
 import type {
   AISettings,
+  AckStatus,
+  CalendarEvent,
   ChatMessage,
   ComposeDraft,
   Email,
+  EmailAcknowledgement,
   EmailAttachment,
   EmailFolder,
   Note,
@@ -22,6 +25,7 @@ import type {
   Theme,
   View,
 } from '../types'
+import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
 import { generateVaultAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
 
@@ -85,10 +89,20 @@ interface EtherMailState {
   toggleEmailStar: (emailId: string) => void
 
   composeDraft: ComposeDraft | null
-  openCompose: (initial?: Partial<ComposeDraft> & { replyTo?: Email }) => void
+  openCompose: (initial?: Partial<ComposeDraft> & { replyTo?: Email; forwardEmail?: Email }) => void
   closeCompose: () => void
   sendComposedEmail: (draft: ComposeDraft) => void
   saveComposeDraft: (draft: ComposeDraft) => void
+
+  updateCalendarEvent: (id: string, updates: Partial<CalendarEvent>) => void
+  forwardCalendarInvite: (eventId: string) => void
+  editingEventId: string | null
+  setEditingEventId: (id: string | null) => void
+
+  sendQuickAck: (
+    emailId: string,
+    ack: { status: AckStatus; label: string; message?: string; emoji?: string },
+  ) => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -307,6 +321,12 @@ export const useEtherMailStore = create<EtherMailState>()(
             .join('\n')}`
         }
 
+        if (initial?.forwardEmail) {
+          const e = initial.forwardEmail
+          subject = e.subject.startsWith('Fwd:') ? e.subject : `Fwd: ${e.subject}`
+          body = `\n\n---------- Forwarded message ----------\nFrom: ${e.fromName} <${e.from}>\nDate: ${new Date(e.date).toLocaleString()}\nSubject: ${e.subject}\n\n${e.body}`
+        }
+
         set({
           composeDraft: {
             id: initial?.id,
@@ -428,6 +448,81 @@ export const useEtherMailStore = create<EtherMailState>()(
           activeEmailFolder: 'drafts',
           composeDraft: null,
           mobilePanel: 'detail',
+        })
+      },
+
+      editingEventId: null,
+      setEditingEventId: (editingEventId) => set({ editingEventId }),
+
+      updateCalendarEvent: (id, updates) =>
+        set((s) => ({
+          calendarEvents: s.calendarEvents.map((e) =>
+            e.id === id ? { ...e, ...updates } : e,
+          ),
+        })),
+
+      forwardCalendarInvite: (eventId) => {
+        const event = get().calendarEvents.find((e) => e.id === eventId)
+        if (!event) return
+        get().openCompose({
+          subject: formatForwardInviteSubject(event),
+          body: formatCalendarInviteBody(event),
+        })
+      },
+
+      sendQuickAck: (emailId, ack) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+
+        const account =
+          state.accounts.find((a) => a.connected && a.id === email.accountId) ||
+          state.accounts.find((a) => a.connected)
+        if (!account) return
+
+        const acknowledgement: EmailAcknowledgement = {
+          id: `ack-${Date.now()}`,
+          fromName: 'Me',
+          status: ack.status,
+          label: ack.emoji ?? ack.label,
+          emoji: ack.emoji,
+          timestamp: new Date().toISOString(),
+        }
+
+        const replyBody =
+          ack.message ??
+          (ack.emoji ? ack.emoji : ack.label)
+
+        const now = new Date().toISOString()
+        const sentId = `email-${Date.now()}`
+        const sentEmail: Email = {
+          id: sentId,
+          accountId: account.id,
+          from: account.email,
+          fromName: 'Me',
+          to: email.from,
+          subject: email.subject.startsWith('Re:') ? email.subject : `Re: ${email.subject}`,
+          body: replyBody,
+          preview: replyBody.slice(0, 120),
+          date: now,
+          read: true,
+          starred: false,
+          linkedNoteId: null,
+          folder: 'sent',
+        }
+
+        set({
+          emails: state.emails
+            .map((e) =>
+              e.id === emailId
+                ? {
+                    ...e,
+                    acknowledgements: [...(e.acknowledgements ?? []), acknowledgement],
+                    read: true,
+                  }
+                : e,
+            )
+            .concat(sentEmail),
         })
       },
 

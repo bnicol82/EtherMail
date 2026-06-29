@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { useEtherMailStore } from './store/useStore'
 import { Sidebar } from './components/Sidebar'
 import { BottomBar } from './components/BottomBar'
-import { AIContextStrip } from './components/AIContextStrip'
 import { Dashboard } from './components/Dashboard'
 import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
@@ -13,6 +12,7 @@ import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
 import { ConnectAccountModal } from './components/ConnectAccountModal'
 import { ComposeEmailModal } from './components/ComposeEmailModal'
+import { EventEditModal } from './components/EventEditModal'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { Menu, SquarePen } from 'lucide-react'
 
@@ -85,15 +85,13 @@ export default function App() {
             </div>
             <span className="font-semibold text-theme text-sm truncate">EtherMail</span>
           </div>
-          {view === 'email' && (
-            <button
-              onClick={() => openCompose()}
-              className="p-1.5 rounded-lg btn-accent shrink-0"
-              aria-label="Compose email"
-            >
-              <SquarePen size={16} />
-            </button>
-          )}
+          <button
+            onClick={() => openCompose()}
+            className="p-1.5 rounded-lg btn-accent shrink-0"
+            aria-label="Compose email"
+          >
+            <SquarePen size={16} />
+          </button>
         </header>
 
         {sidebarOpen && (
@@ -118,7 +116,7 @@ export default function App() {
 
         <main
           className={`flex-1 w-full min-w-0 min-h-0 flex flex-col overflow-hidden pt-0 ${
-            showDock ? 'pb-[7.5rem] sm:pb-[6.5rem]' : 'pb-0'
+            showDock ? 'pb-[9.5rem] sm:pb-[8.5rem]' : 'pb-0'
           }`}
         >
           <MainContent />
@@ -126,10 +124,10 @@ export default function App() {
       </div>
 
       {/* Fixed UI layers — hidden on full AI chat to avoid stacked inputs */}
-      {showDock && <AIContextStrip />}
       {showDock && <BottomBar />}
       <ConnectAccountModal />
       <ComposeEmailModal />
+      <EventEditModal />
     </div>
   )
 }

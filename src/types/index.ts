@@ -10,6 +10,20 @@ export interface CalendarEvent {
   start: string
   end: string
   attendees?: string[]
+  location?: string
+  room?: string
+  sourceEmailId?: string
+}
+
+export type AckStatus = 'received' | 'working' | 'thanks' | 'emoji'
+
+export interface EmailAcknowledgement {
+  id: string
+  fromName: string
+  status: AckStatus
+  label: string
+  emoji?: string
+  timestamp: string
 }
 
 export type EmailProvider = 'gmail' | 'outlook' | 'yahoo' | 'enterprise'
@@ -75,6 +89,7 @@ export interface Email {
   linkedNoteId: string | null
   attachmentIds?: string[]
   folder?: EmailFolder
+  acknowledgements?: EmailAcknowledgement[]
 }
 
 export interface ComposeDraft {

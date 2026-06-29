@@ -317,7 +317,9 @@ Read more at techweekly.com`,
     preview: 'You have been invited to Budget Review. Attendees: Sarah J., Finance team...',
     body: `You have been invited to Budget Review.
 
-When: Thursday, June 17th, 2:00 PM
+When: Thursday, June 30th, 2:00 PM
+Location: Finance Building
+Room: 201
 Attendees: Sarah J., Finance team
 
 Agenda:
@@ -353,6 +355,15 @@ Best`,
     starred: false,
     linkedNoteId: 'note-q3-marketing',
     folder: 'sent',
+    acknowledgements: [
+      {
+        id: 'ack-seed-1',
+        fromName: 'Sarah J.',
+        status: 'received',
+        label: 'Received it',
+        timestamp: '2026-06-27T15:12:00Z',
+      },
+    ],
   },
 ]
 
@@ -429,6 +440,8 @@ export const SEED_CALENDAR: CalendarEvent[] = [
     start: '2026-06-30T10:00:00',
     end: '2026-06-30T11:00:00',
     attendees: ['Sarah J.', 'Team leads'],
+    location: 'HQ — East Wing',
+    room: '4B',
   },
   {
     id: 'cal-2',
@@ -436,6 +449,9 @@ export const SEED_CALENDAR: CalendarEvent[] = [
     start: '2026-06-30T14:00:00',
     end: '2026-06-30T15:00:00',
     attendees: ['Sarah J.', 'Finance team'],
+    location: 'Finance Building',
+    room: '201',
+    sourceEmailId: 'email-5',
   },
   {
     id: 'cal-3',
@@ -443,12 +459,16 @@ export const SEED_CALENDAR: CalendarEvent[] = [
     start: '2026-07-01T11:00:00',
     end: '2026-07-01T12:00:00',
     attendees: ['Acme Corp'],
+    location: 'Virtual — Teams',
+    room: 'Bridge A',
   },
   {
     id: 'cal-4',
     title: 'Team Standup',
     start: '2026-07-02T09:00:00',
     end: '2026-07-02T09:30:00',
+    location: 'HQ — East Wing',
+    room: '2A',
   },
 ]
 

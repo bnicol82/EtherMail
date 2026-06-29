@@ -15,43 +15,9 @@ import {
 import { useSwipe } from '../hooks/useSwipe'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { EventDetailBox } from './EventDetailBox'
+import { EventChip, WeekCalendarGrid, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
 
-const EVENT_COLORS = ['#6366f1', '#22d3ee', '#f472b6', '#a78bfa', '#34d399']
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
-  return events.filter((e) => isSameDay(new Date(e.start), day))
-}
-
-function EventChip({
-  event,
-  color,
-  className = '',
-  onSelect,
-}: {
-  event: CalendarEvent
-  color: string
-  className?: string
-  onSelect: (event: CalendarEvent) => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation()
-        onSelect(event)
-      }}
-      className={`text-left rounded truncate text-theme hover:opacity-90 ${className}`}
-      style={{
-        background: `${color}33`,
-        borderLeft: `2px solid ${color}`,
-      }}
-      title={event.title}
-    >
-      {event.title}
-    </button>
-  )
-}
 
 function MonthGrid({
   month,
@@ -266,51 +232,22 @@ export function CalendarView() {
                 ))}
               </div>
             ) : (
-              <div
-                className="overflow-hidden select-none cursor-grab active:cursor-grabbing"
-                style={{ touchAction: 'pan-y pinch-zoom' }}
-                {...weekSwipe.handlers}
-              >
-                <div
-                  className="grid grid-cols-7 gap-2 min-w-0"
-                  style={{
-                    transform: `translateX(${weekSwipe.offset}px)`,
-                    transition: weekSwipe.isDragging ? 'none' : 'transform 0.25s ease-out',
-                    opacity: weekSwipe.isDragging ? 0.92 : 1,
-                  }}
-                >
-                  {weekDays.map((day) => {
-                    const dayEvents = eventsForDay(sortedEvents, day)
-                    const isToday = isSameDay(day, today)
-                    return (
-                      <div
-                        key={day.toISOString()}
-                        className={`min-h-[120px] rounded-lg p-2 ${
-                          isToday ? 'bg-accent-soft border border-accent' : 'glass'
-                        }`}
-                      >
-                        <p className="text-[10px] text-theme-muted uppercase mb-1">
-                          {day.toLocaleDateString([], { weekday: 'short' })}
-                        </p>
-                        <p className={`text-sm font-semibold mb-2 ${isToday ? 'text-accent' : 'text-theme'}`}>
-                          {day.getDate()}
-                        </p>
-                        <div className="space-y-1">
-                          {dayEvents.map((e, idx) => (
-                            <EventChip
-                              key={e.id}
-                              event={e}
-                              color={EVENT_COLORS[idx % EVENT_COLORS.length]}
-                              className="text-[10px] p-1 block w-full"
-                              onSelect={setSelectedEvent}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              <WeekCalendarGrid
+                weekDays={weekDays}
+                events={sortedEvents}
+                onSelectEvent={setSelectedEvent}
+                today={today}
+                className="select-none cursor-grab active:cursor-grabbing"
+                swipeProps={{
+                  style: { touchAction: 'pan-y pinch-zoom' },
+                  ...weekSwipe.handlers,
+                }}
+                swipeStyle={{
+                  transform: `translateX(${weekSwipe.offset}px)`,
+                  transition: weekSwipe.isDragging ? 'none' : 'transform 0.25s ease-out',
+                  opacity: weekSwipe.isDragging ? 0.92 : 1,
+                }}
+              />
             )}
           </div>
         )}
