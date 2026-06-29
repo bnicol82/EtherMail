@@ -176,15 +176,15 @@ export function CalendarView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 pb-4">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-3 md:p-6 pb-4">
       <div className="max-w-5xl mx-auto flex flex-col flex-1 min-h-0 w-full">
-        <div className="shrink-0 flex items-center justify-between flex-wrap gap-3 mb-4">
+        <div className="shrink-0 flex items-center justify-between flex-wrap gap-2 mb-3 md:mb-4">
           <div>
-            <h1 className="text-2xl font-bold text-theme flex items-center gap-2">
-              <Calendar size={24} className="text-accent" />
+            <h1 className="text-xl md:text-2xl font-bold text-theme flex items-center gap-2">
+              <Calendar size={22} className="text-accent" />
               Calendar
             </h1>
-            <p className="text-sm text-theme-muted mt-1">
+            <p className="text-xs md:text-sm text-theme-muted mt-0.5">
               Synced from your connected accounts and email invitations
             </p>
           </div>

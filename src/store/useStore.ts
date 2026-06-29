@@ -13,6 +13,7 @@ import {
 import type {
   AISettings,
   ChatMessage,
+  ComposeDraft,
   Email,
   EmailAttachment,
   EmailFolder,
@@ -82,6 +83,12 @@ interface EtherMailState {
   deleteEmail: (emailId: string) => void
   archiveEmail: (emailId: string) => void
   toggleEmailStar: (emailId: string) => void
+
+  composeDraft: ComposeDraft | null
+  openCompose: (initial?: Partial<ComposeDraft> & { replyTo?: Email }) => void
+  closeCompose: () => void
+  sendComposedEmail: (draft: ComposeDraft) => void
+  saveComposeDraft: (draft: ComposeDraft) => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -274,6 +281,155 @@ export const useEtherMailStore = create<EtherMailState>()(
             e.id === emailId ? { ...e, starred: !e.starred } : e,
           ),
         })),
+
+      composeDraft: null,
+
+      openCompose: (initial) => {
+        const state = get()
+        const connected = state.accounts.filter((a) => a.connected)
+        const defaultAccount =
+          (state.activeAccountId && connected.find((a) => a.id === state.activeAccountId)?.id) ||
+          connected[0]?.id ||
+          state.accounts[0]?.id ||
+          ''
+
+        let to = initial?.to ?? ''
+        let subject = initial?.subject ?? ''
+        let body = initial?.body ?? ''
+
+        if (initial?.replyTo) {
+          const e = initial.replyTo
+          to = e.from
+          subject = e.subject.startsWith('Re:') ? e.subject : `Re: ${e.subject}`
+          body = `\n\n---\nOn ${new Date(e.date).toLocaleString()}, ${e.fromName} wrote:\n\n${e.body
+            .split('\n')
+            .map((line) => `> ${line}`)
+            .join('\n')}`
+        }
+
+        set({
+          composeDraft: {
+            id: initial?.id,
+            to,
+            subject,
+            body,
+            accountId: initial?.accountId ?? defaultAccount,
+          },
+          view: 'email',
+          mobilePanel: 'list',
+        })
+      },
+
+      closeCompose: () => set({ composeDraft: null }),
+
+      sendComposedEmail: (draft) => {
+        const state = get()
+        const account = state.accounts.find((a) => a.id === draft.accountId)
+        const now = new Date().toISOString()
+        const preview = draft.body.trim().slice(0, 120) || '(no content)'
+
+        if (draft.id) {
+          set({
+            emails: state.emails.map((e) =>
+              e.id === draft.id
+                ? {
+                    ...e,
+                    to: draft.to,
+                    subject: draft.subject,
+                    body: draft.body,
+                    preview,
+                    date: now,
+                    folder: 'sent' as EmailFolder,
+                    read: true,
+                  }
+                : e,
+            ),
+            activeEmailId: draft.id,
+            activeEmailFolder: 'sent',
+            composeDraft: null,
+            mobilePanel: 'detail',
+          })
+          return
+        }
+
+        const id = `email-${Date.now()}`
+        const email: Email = {
+          id,
+          accountId: draft.accountId,
+          from: account?.email ?? 'you@example.com',
+          fromName: 'Me',
+          to: draft.to,
+          subject: draft.subject || '(no subject)',
+          body: draft.body,
+          preview,
+          date: now,
+          read: true,
+          starred: false,
+          linkedNoteId: null,
+          folder: 'sent',
+        }
+        set({
+          emails: [...state.emails, email],
+          activeEmailId: id,
+          activeEmailFolder: 'sent',
+          composeDraft: null,
+          mobilePanel: 'detail',
+        })
+      },
+
+      saveComposeDraft: (draft) => {
+        const state = get()
+        const account = state.accounts.find((a) => a.id === draft.accountId)
+        const now = new Date().toISOString()
+        const preview = draft.body.trim().slice(0, 120) || '(draft)'
+
+        if (draft.id) {
+          set({
+            emails: state.emails.map((e) =>
+              e.id === draft.id
+                ? {
+                    ...e,
+                    to: draft.to,
+                    subject: draft.subject,
+                    body: draft.body,
+                    preview,
+                    date: now,
+                    folder: 'drafts' as EmailFolder,
+                  }
+                : e,
+            ),
+            activeEmailId: draft.id,
+            activeEmailFolder: 'drafts',
+            composeDraft: null,
+            mobilePanel: 'detail',
+          })
+          return
+        }
+
+        const id = `draft-${Date.now()}`
+        const email: Email = {
+          id,
+          accountId: draft.accountId,
+          from: account?.email ?? 'you@example.com',
+          fromName: 'Me',
+          to: draft.to,
+          subject: draft.subject || '(no subject)',
+          body: draft.body,
+          preview,
+          date: now,
+          read: true,
+          starred: false,
+          linkedNoteId: null,
+          folder: 'drafts',
+        }
+        set({
+          emails: [...state.emails, email],
+          activeEmailId: id,
+          activeEmailFolder: 'drafts',
+          composeDraft: null,
+          mobilePanel: 'detail',
+        })
+      },
 
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>

@@ -77,6 +77,14 @@ export interface Email {
   folder?: EmailFolder
 }
 
+export interface ComposeDraft {
+  id?: string
+  to: string
+  subject: string
+  body: string
+  accountId: string
+}
+
 export interface GraphNode {
   id: string
   label: string

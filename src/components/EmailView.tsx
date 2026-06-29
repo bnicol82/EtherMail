@@ -15,6 +15,7 @@ import {
   Inbox,
   Send,
   FileEdit,
+  SquarePen,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
@@ -57,6 +58,7 @@ export function EmailView() {
   const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
+  const openCompose = useEtherMailStore((s) => s.openCompose)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
@@ -121,6 +123,17 @@ export function EmailView() {
   })
 
   const handleSelectEmail = (id: string) => {
+    const email = emails.find((e) => e.id === id)
+    if (email && (email.folder ?? 'inbox') === 'drafts') {
+      openCompose({
+        id: email.id,
+        to: email.to,
+        subject: email.subject,
+        body: email.body,
+        accountId: email.accountId,
+      })
+      return
+    }
     selectEmail(id)
     markEmailRead(id)
     setMobilePanel('detail')
@@ -151,10 +164,18 @@ export function EmailView() {
             w-full lg:w-72 xl:w-80 flex-col glass border-r border-[var(--glass-border)] shrink-0
           `}
         >
-          <div className="p-3 border-b border-[var(--glass-border)]">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="font-semibold text-theme truncate text-sm">{inboxTitle}</h2>
-              <div className="flex items-center gap-1">
+          <div className="p-2.5 sm:p-3 border-b border-[var(--glass-border)]">
+            <div className="flex items-center justify-between mb-2 gap-2">
+              <h2 className="font-semibold text-theme truncate text-sm flex-1 min-w-0">{inboxTitle}</h2>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => openCompose()}
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg btn-accent text-[10px] sm:text-xs font-medium"
+                  title="Compose email"
+                >
+                  <SquarePen size={12} />
+                  <span className="hidden xs:inline sm:inline">Compose</span>
+                </button>
                 {activeAccountId && (
                   <button
                     onClick={() => selectAccount(null)}
@@ -271,12 +292,18 @@ export function EmailView() {
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-3 flex-wrap relative">
+                <div className="flex gap-2 mt-2.5 flex-wrap relative">
                   <button
-                    onClick={() => runAiAction('Draft a reply to this email')}
+                    onClick={() => openCompose({ replyTo: activeEmail })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"
                   >
-                    <Reply size={14} /> Draft Reply
+                    <Reply size={14} /> Reply
+                  </button>
+                  <button
+                    onClick={() => runAiAction('Draft a reply to this email')}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                  >
+                    <Sparkles size={14} /> AI Draft
                   </button>
                   <button
                     onClick={() => toggleEmailStar(activeEmail.id)}

@@ -10,6 +10,7 @@ import {
   X,
   Inbox,
   FileText,
+  SquarePen,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerColor } from '../lib/utils'
@@ -35,6 +36,7 @@ export function Sidebar() {
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
   const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
   const setSearchQuery = useEtherMailStore((s) => s.setSearchQuery)
+  const openCompose = useEtherMailStore((s) => s.openCompose)
   const unread = emails.filter((e) => {
     const acc = accounts.find((a) => a.id === e.accountId)
     return acc?.connected && !e.read
@@ -55,8 +57,8 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 h-full glass-strong flex flex-col border-r border-[var(--glass-border)] shrink-0">
-      <div className="p-4 border-b border-[var(--glass-border)]">
-        <div className="hidden md:flex items-center gap-2 mb-4">
+      <div className="p-3 md:p-4 border-b border-[var(--glass-border)]">
+        <div className="hidden md:flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-sm font-bold text-white shadow-lg">
             E
           </div>
@@ -65,21 +67,31 @@ export function Sidebar() {
         <div className="flex gap-2">
           <button
             onClick={() => createNote()}
-            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-sm font-medium transition-colors shadow-md"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs md:text-sm font-medium transition-colors shadow-md"
           >
-            <Plus size={16} />
+            <Plus size={15} />
             New Note
           </button>
           <button
+            onClick={() => {
+              openCompose()
+              setSidebarOpen(false)
+            }}
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl glass hover-theme text-theme text-xs md:text-sm font-medium transition-colors border border-[var(--glass-border)]"
+          >
+            <SquarePen size={15} />
+            Compose
+          </button>
+          <button
             onClick={() => navigate('settings')}
-            className="p-2 rounded-xl hover-theme text-theme-muted"
+            className="p-1.5 md:p-2 rounded-xl hover-theme text-theme-muted shrink-0"
             aria-label="Settings"
           >
             <Settings size={18} />
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-2 rounded-xl hover-theme text-theme-muted"
+            className="md:hidden p-1.5 rounded-xl hover-theme text-theme-muted shrink-0"
             aria-label="Close sidebar"
           >
             <X size={18} />
