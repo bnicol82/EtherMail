@@ -21,7 +21,7 @@ export function AIContextStrip() {
   const hasResponse = aiLoading || aiContextResponse
 
   return (
-    <div className="fixed left-0 right-0 z-20 bottom-[56px] sm:bottom-[52px] pointer-events-none">
+    <div className="fixed inset-x-0 z-20 bottom-[3.5rem] sm:bottom-[3.25rem] pointer-events-none">
       <div className="mx-2 sm:mx-3 pointer-events-auto">
         {/* Response area — expands inline, no overlay */}
         {hasResponse && (
