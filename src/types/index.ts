@@ -93,6 +93,43 @@ export interface Email {
   snoozedUntil?: string
 }
 
+/** AI Inbox classification for non-important mail */
+export type EmailJunkCategory =
+  | 'important'
+  | 'marketing'
+  | 'newsletter'
+  | 'spam'
+  | 'phishing'
+  | 'promotional'
+  | 'social'
+  | 'automated'
+
+export interface EmailInboxClassification {
+  category: EmailJunkCategory
+  important: boolean
+  confidence: number
+  reason: string
+}
+
+export interface EmailInboxTraining {
+  /** Senders always treated as important (email or from address) */
+  importantSenders: string[]
+  /** Senders always hidden */
+  junkSenders: string[]
+  importantDomains: string[]
+  junkDomains: string[]
+  /** Subject/body keywords that boost importance */
+  importantKeywords: string[]
+  /** Subject/body keywords that signal junk */
+  junkKeywords: string[]
+}
+
+export interface EmailInboxOverride {
+  verdict: 'important' | 'junk'
+  category?: EmailJunkCategory
+  trainedAt: string
+}
+
 export interface ComposeDraft {
   id?: string
   to: string

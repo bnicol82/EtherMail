@@ -22,6 +22,9 @@ import type {
   EmailAcknowledgement,
   EmailAttachment,
   EmailFolder,
+  EmailInboxOverride,
+  EmailInboxTraining,
+  EmailJunkCategory,
   Note,
   OAuthSettings,
   Theme,
@@ -34,6 +37,18 @@ import { generateVaultAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
 import { completeNoteTodo } from '../lib/todos'
 import { snoozeUntilFromPreset } from '../lib/snooze'
+import { DEFAULT_INBOX_TRAINING } from '../lib/aiInbox'
+
+function uniquePush(arr: string[], value: string): string[] {
+  const v = value.toLowerCase()
+  if (arr.some((x) => x.toLowerCase() === v)) return arr
+  return [...arr, value]
+}
+
+function domainFromAddress(email: string): string {
+  const at = email.lastIndexOf('@')
+  return at >= 0 ? email.slice(at + 1) : email
+}
 
 interface EtherMailState {
   view: View
@@ -130,6 +145,14 @@ interface EtherMailState {
   snoozeAlert: (id: string, presetId: string) => void
   markAllAlertsRead: () => void
   snoozeEmail: (emailId: string, presetId: string) => void
+
+  aiInboxEnabled: boolean
+  setAiInboxEnabled: (enabled: boolean) => void
+  inboxTraining: EmailInboxTraining
+  emailInboxOverrides: Record<string, EmailInboxOverride>
+  trainEmailImportant: (emailId: string) => void
+  trainEmailJunk: (emailId: string, category: EmailJunkCategory) => void
+  clearInboxTraining: () => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -645,6 +668,63 @@ export const useEtherMailStore = create<EtherMailState>()(
           ),
         })),
 
+      aiInboxEnabled: false,
+      setAiInboxEnabled: (aiInboxEnabled) => set({ aiInboxEnabled }),
+
+      inboxTraining: DEFAULT_INBOX_TRAINING,
+      emailInboxOverrides: {},
+
+      trainEmailImportant: (emailId) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+        const domain = domainFromAddress(email.from)
+        set({
+          inboxTraining: {
+            ...state.inboxTraining,
+            importantSenders: uniquePush(state.inboxTraining.importantSenders, email.from),
+            importantDomains: uniquePush(state.inboxTraining.importantDomains, domain),
+            junkSenders: state.inboxTraining.junkSenders.filter(
+              (s) => s.toLowerCase() !== email.from.toLowerCase(),
+            ),
+            junkDomains: state.inboxTraining.junkDomains.filter(
+              (d) => d.toLowerCase() !== domain.toLowerCase(),
+            ),
+          },
+          emailInboxOverrides: {
+            ...state.emailInboxOverrides,
+            [emailId]: { verdict: 'important', trainedAt: new Date().toISOString() },
+          },
+        })
+      },
+
+      trainEmailJunk: (emailId, category) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+        const domain = domainFromAddress(email.from)
+        set({
+          inboxTraining: {
+            ...state.inboxTraining,
+            junkSenders: uniquePush(state.inboxTraining.junkSenders, email.from),
+            junkDomains: uniquePush(state.inboxTraining.junkDomains, domain),
+            importantSenders: state.inboxTraining.importantSenders.filter(
+              (s) => s.toLowerCase() !== email.from.toLowerCase(),
+            ),
+            importantDomains: state.inboxTraining.importantDomains.filter(
+              (d) => d.toLowerCase() !== domain.toLowerCase(),
+            ),
+          },
+          emailInboxOverrides: {
+            ...state.emailInboxOverrides,
+            [emailId]: { verdict: 'junk', category, trainedAt: new Date().toISOString() },
+          },
+        })
+      },
+
+      clearInboxTraining: () =>
+        set({ inboxTraining: DEFAULT_INBOX_TRAINING, emailInboxOverrides: {} }),
+
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
         set((s) => ({
@@ -728,12 +808,13 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 3,
+      version: 4,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
+        let next = { ...s }
         if (version < 3) {
-          return {
-            ...s,
+          next = {
+            ...next,
             assistantSettings: {
               userName: 'Billy',
               voiceURI: '',
@@ -749,7 +830,21 @@ export const useEtherMailStore = create<EtherMailState>()(
             announcedProactive: {},
           }
         }
-        return persisted as object
+        if (version < 4) {
+          const existing = (next.emails as Email[]) ?? []
+          const ids = new Set(existing.map((e) => e.id))
+          const newJunk = SEED_EMAILS.filter(
+            (e) => e.id.startsWith('email-junk-') && !ids.has(e.id),
+          )
+          next = {
+            ...next,
+            emails: [...existing, ...newJunk],
+            aiInboxEnabled: false,
+            inboxTraining: DEFAULT_INBOX_TRAINING,
+            emailInboxOverrides: {},
+          }
+        }
+        return next
       },
       partialize: (s) => ({
         notes: s.notes,
@@ -773,6 +868,9 @@ export const useEtherMailStore = create<EtherMailState>()(
         assistantSettings: s.assistantSettings,
         completedTodos: s.completedTodos,
         announcedProactive: s.announcedProactive,
+        aiInboxEnabled: s.aiInboxEnabled,
+        inboxTraining: s.inboxTraining,
+        emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,
       }),
     },

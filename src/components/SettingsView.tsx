@@ -1,4 +1,4 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2 } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
@@ -35,6 +35,10 @@ export function SettingsView() {
   const setWeatherSettings = useEtherMailStore((s) => s.setWeatherSettings)
   const assistantSettings = useEtherMailStore((s) => s.assistantSettings)
   const setAssistantSettings = useEtherMailStore((s) => s.setAssistantSettings)
+  const inboxTraining = useEtherMailStore((s) => s.inboxTraining)
+  const clearInboxTraining = useEtherMailStore((s) => s.clearInboxTraining)
+  const aiInboxEnabled = useEtherMailStore((s) => s.aiInboxEnabled)
+  const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
@@ -252,6 +256,57 @@ export function SettingsView() {
         >
           <Volume2 size={16} />
           Test voice
+        </button>
+      </section>
+
+      {/* AI Inbox */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Bot size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">AI Inbox</h2>
+        </div>
+        <p className="text-sm text-theme-muted mb-4">
+          Filters spam, marketing, newsletters, and suspicious mail so you only see what matters.
+          Train the AI from any email with <strong className="text-theme-secondary">Always important</strong> or <strong className="text-theme-secondary">Not important</strong>.
+        </p>
+        <label className="flex items-center gap-2 text-sm text-theme-secondary mb-4 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={aiInboxEnabled}
+            onChange={(e) => setAiInboxEnabled(e.target.checked)}
+            className="rounded border-[var(--glass-border)]"
+          />
+          Enable AI Inbox by default when opening Email
+        </label>
+        <div className="grid sm:grid-cols-2 gap-4 text-xs mb-4">
+          <div>
+            <p className="text-theme-muted mb-1 font-medium">Trusted senders ({inboxTraining.importantSenders.length})</p>
+            <ul className="space-y-0.5 text-theme-secondary max-h-24 overflow-y-auto">
+              {inboxTraining.importantSenders.length === 0 ? (
+                <li className="text-theme-muted">None yet</li>
+              ) : (
+                inboxTraining.importantSenders.map((s) => <li key={s} className="truncate">{s}</li>)
+              )}
+            </ul>
+          </div>
+          <div>
+            <p className="text-theme-muted mb-1 font-medium">Blocked senders ({inboxTraining.junkSenders.length})</p>
+            <ul className="space-y-0.5 text-theme-secondary max-h-24 overflow-y-auto">
+              {inboxTraining.junkSenders.length === 0 ? (
+                <li className="text-theme-muted">None yet — train from inbox</li>
+              ) : (
+                inboxTraining.junkSenders.map((s) => <li key={s} className="truncate">{s}</li>)
+              )}
+            </ul>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={clearInboxTraining}
+          className="flex items-center gap-2 px-3 py-2 rounded-xl glass text-xs text-theme-muted hover:text-red-400"
+        >
+          <Trash2 size={14} />
+          Reset AI Inbox training
         </button>
       </section>
 
