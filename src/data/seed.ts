@@ -1,4 +1,14 @@
-import type { Email, EmailAccount, EmailAttachment, Folder, GraphEdge, GraphNode, Note, CalendarEvent } from '../types'
+import type {
+  CalendarEvent,
+  ChatMessage,
+  Email,
+  EmailAccount,
+  EmailAttachment,
+  Folder,
+  GraphEdge,
+  GraphNode,
+  Note,
+} from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 
 export const SEED_FOLDERS: Folder[] = [
@@ -336,6 +346,67 @@ This event relates to your Budget Q4 planning notes.`,
     folder: 'inbox',
   },
   {
+    id: 'email-6',
+    accountId: 'acc-outlook',
+    from: 'sarah.j@corp.com',
+    fromName: 'Sarah J.',
+    to: 'work@corp.com',
+    subject: 'Quick question — deck for Monday sync?',
+    preview: 'Can you pull the latest Q3 slides into one deck before our Project Sync on Monday?',
+    body: `Hey,
+
+Can you pull the latest Q3 slides into one deck before our Project Sync on Monday?
+
+Ideally combine:
+- The marketing strategy highlights from last week's email
+- Competitive positioning from Research Notes
+- Budget snapshot from Finance
+
+No need for a novel — just something we can walk through in 30 minutes.
+
+Thanks!
+Sarah`,
+    date: '2026-06-28T09:15:00Z',
+    read: false,
+    starred: false,
+    linkedNoteId: 'note-q3-marketing',
+  },
+  {
+    id: 'email-7',
+    accountId: 'acc-gmail',
+    from: 'alex.k@corp.com',
+    fromName: 'Alex Kim',
+    to: 'name@gmail.com',
+    subject: 'Re: Expense report — looks good',
+    preview: 'Approved your Q2 expenses. Finance will process by Friday.',
+    body: `Approved your Q2 expenses — looks good.
+
+Finance will process reimbursement by Friday. Let me know if anything is missing.
+
+— Alex`,
+    date: '2026-06-28T08:00:00Z',
+    read: true,
+    starred: false,
+    linkedNoteId: 'note-budget',
+    acknowledgements: [
+      {
+        id: 'ack-seed-2',
+        fromName: 'You',
+        status: 'emoji',
+        label: '👍',
+        emoji: '👍',
+        timestamp: '2026-06-28T08:05:00Z',
+      },
+      {
+        id: 'ack-seed-3',
+        fromName: 'Alex Kim',
+        status: 'received',
+        label: 'Got it',
+        timestamp: '2026-06-28T08:06:00Z',
+      },
+    ],
+  },
+  {
     id: 'email-sent-1',
     accountId: 'acc-gmail',
     from: 'name@gmail.com',
@@ -432,6 +503,37 @@ export function getDemoEmailsForAccount(accountId: string): Email[] {
   if (accountId === 'acc-yahoo') return SEED_YAHOO_EMAILS
   return []
 }
+
+/** Sample chat thread shown after using bottom-dock quick reply on Sarah's email */
+export const SEED_CHAT_MESSAGES: ChatMessage[] = [
+  {
+    id: 'msg-seed-quick-1',
+    role: 'user',
+    content: 'Draft a short reply to Sarah about the deck',
+    mode: 'vault',
+    timestamp: '2026-06-28T09:20:00Z',
+  },
+  {
+    id: 'msg-seed-quick-2',
+    role: 'assistant',
+    content: `Here's a concise reply you can send to **Sarah J.** about the Monday deck:
+
+---
+
+Hi Sarah,
+
+I'll pull together a single deck for Monday's Project Sync — marketing highlights, competitive positioning from Research Notes, and the budget snapshot from Finance.
+
+I'll share a draft by Sunday evening so you have time to skim before the meeting.
+
+Best`,
+    mode: 'vault',
+    timestamp: '2026-06-28T09:20:02Z',
+  },
+]
+
+/** Shown in the bottom dock quick-reply panel on first load */
+export const SEED_AI_CONTEXT_RESPONSE = SEED_CHAT_MESSAGES[1].content
 
 export const SEED_CALENDAR: CalendarEvent[] = [
   {

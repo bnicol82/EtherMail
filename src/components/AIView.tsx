@@ -70,48 +70,50 @@ export function AIView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-theme flex items-center gap-2">
-              AI Assistant
+      <div className="px-3 py-2 sm:p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-2xl font-bold text-theme flex items-center gap-1.5 sm:gap-2 truncate">
+              <span className="truncate">AI Assistant</span>
               {unreadAlertCount > 0 && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium">
-                  {unreadAlertCount} alert{unreadAlertCount === 1 ? '' : 's'}
+                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium shrink-0">
+                  {unreadAlertCount}
                 </span>
               )}
             </h1>
-            <p className="text-sm text-theme-muted mt-0.5">
+            <p className="hidden sm:block text-sm text-theme-muted mt-0.5">
               Private vault AI with optional external models
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2 shrink-0">
             <button
               onClick={() => setAiMode('vault')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+              title="Vault AI (RAG)"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors ${
                 aiMode === 'vault'
                   ? 'bg-[var(--accent)] text-white'
                   : 'glass text-theme-secondary hover-theme hover:text-theme'
               }`}
             >
-              <Shield size={16} />
-              Vault AI (RAG)
+              <Shield size={15} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Vault AI (RAG)</span>
             </button>
             <button
               onClick={() => setAiMode('external')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+              title="External AI"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors ${
                 aiMode === 'external'
                   ? 'bg-purple-600 text-white'
                   : 'glass text-theme-secondary hover-theme hover:text-theme'
               }`}
             >
-              <Globe size={16} />
-              External AI
+              <Globe size={15} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">External AI</span>
             </button>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 text-xs">
+        <div className="hidden sm:flex mt-2 sm:mt-3 items-center gap-2 text-xs">
           {aiMode === 'vault' ? (
             <span className="flex items-center gap-1.5 text-emerald-400">
               <Sparkles size={12} /> Has access to your vault, emails, and links

@@ -2,8 +2,10 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   SEED_ACCOUNTS,
+  SEED_AI_CONTEXT_RESPONSE,
   SEED_ATTACHMENTS,
   SEED_CALENDAR,
+  SEED_CHAT_MESSAGES,
   SEED_EMAILS,
   SEED_FOLDERS,
   SEED_NOTES,
@@ -166,7 +168,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       setAiAssistantOpen: (aiAssistantOpen) => set({ aiAssistantOpen }),
 
       aiLoading: false,
-      aiContextResponse: null,
+      aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
       submitAiQuery: async (query, contextPrefix = '') => {
         const state = get()
         set({ aiLoading: true })
@@ -193,7 +195,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       setWeatherSettings: (settings) =>
         set((s) => ({ weatherSettings: { ...s.weatherSettings, ...settings } })),
 
-      chatMessages: [],
+      chatMessages: SEED_CHAT_MESSAGES,
       addChatMessage: (msg) =>
         set((s) => ({
           chatMessages: [
@@ -653,6 +655,30 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
+      version: 2,
+      migrate: (persisted, version) => {
+        if (version < 2) {
+          return {
+            ...(persisted as object),
+            chatMessages: SEED_CHAT_MESSAGES,
+            emails: SEED_EMAILS,
+          }
+        }
+        return persisted as object
+      },
+      onRehydrateStorage: () => (state) => {
+        if (!state) return
+        const hasSeedThread = state.chatMessages.some((m) => m.id === 'msg-seed-quick-1')
+        const last = state.chatMessages[state.chatMessages.length - 1]
+        if (state.chatMessages.length === 0) {
+          useEtherMailStore.setState({
+            chatMessages: SEED_CHAT_MESSAGES,
+            aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
+          })
+        } else if (hasSeedThread && last?.role === 'assistant') {
+          useEtherMailStore.setState({ aiContextResponse: SEED_AI_CONTEXT_RESPONSE })
+        }
+      },
       partialize: (s) => ({
         notes: s.notes,
         emails: s.emails,
