@@ -92,6 +92,8 @@ export interface Email {
   from: string
   fromName: string
   to: string
+  cc?: string
+  bcc?: string
   subject: string
   body: string
   preview: string
@@ -145,6 +147,8 @@ export interface EmailInboxOverride {
 export interface ComposeDraft {
   id?: string
   to: string
+  cc?: string
+  bcc?: string
   subject: string
   body: string
   accountId: string
