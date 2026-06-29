@@ -21,6 +21,7 @@ html,
 body,
 #root {
   height: 100%;
+  min-height: 100dvh;
   margin: 0;
 }
 
@@ -108,6 +109,7 @@ body {
 .ethermail-bg {
   background: var(--app-bg-image), var(--app-bg);
   position: relative;
+  isolation: isolate;
 }
 
 [data-theme="glass"] .ethermail-bg::before {
@@ -121,7 +123,7 @@ body {
   z-index: 0;
 }
 
-.ethermail-bg > * {
+.app-shell {
   position: relative;
   z-index: 1;
 }

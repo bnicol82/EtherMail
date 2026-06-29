@@ -42,46 +42,51 @@ export default function App() {
   }, [theme])
 
   return (
-    <div className="ethermail-bg h-full flex flex-col md:flex-row overflow-hidden">
-      <header className="md:hidden flex items-center gap-3 px-4 py-3 glass border-b border-[var(--glass-border)] shrink-0">
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-2 rounded-lg hover-theme"
-          aria-label="Toggle menu"
-        >
-          <Menu size={20} className="text-theme" />
-        </button>
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
-            E
+    <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
+      {/* App shell — sidebar + main only (fixed bars live outside this flex tree) */}
+      <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
+        <header className="md:hidden flex items-center gap-3 px-4 py-3 glass border-b border-[var(--glass-border)] shrink-0">
+          <button
+            onClick={() => setSidebarOpen(!sidebarOpen)}
+            className="p-2 rounded-lg hover-theme"
+            aria-label="Toggle menu"
+          >
+            <Menu size={20} className="text-theme" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md">
+              E
+            </div>
+            <span className="font-semibold text-theme">EtherMail</span>
           </div>
-          <span className="font-semibold text-theme">EtherMail</span>
-        </div>
-      </header>
+        </header>
 
-      {sidebarOpen && (
+        {sidebarOpen && (
+          <div
+            className="md:hidden fixed inset-0 bg-black/30 z-40 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         <div
-          className="md:hidden fixed inset-0 bg-black/30 z-40 backdrop-blur-sm"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
+          className={`
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            md:translate-x-0
+            fixed md:static inset-y-0 left-0 z-50 md:z-auto
+            h-full shrink-0
+            transition-transform duration-200 ease-out
+          `}
+        >
+          <Sidebar />
+        </div>
 
-      <div
-        className={`
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-          md:translate-x-0
-          fixed md:relative z-50 md:z-auto
-          h-full md:h-auto shrink-0
-          transition-transform duration-200
-        `}
-      >
-        <Sidebar />
+        <main className="flex-1 w-full min-w-0 min-h-0 flex flex-col overflow-hidden pt-0 pb-[7.5rem] sm:pb-[6.5rem]">
+          <MainContent />
+        </main>
       </div>
 
-      <main className="flex-1 w-full min-w-0 flex flex-col min-h-0 overflow-hidden pb-[108px] sm:pb-[100px]">
-        <MainContent />
-      </main>
-
+      {/* Fixed UI layers — must NOT be flex children of app-shell */}
       <AIContextStrip />
       <BottomBar />
     </div>
