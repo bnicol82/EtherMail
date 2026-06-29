@@ -22,6 +22,7 @@ import {
   MailWarning,
   MessagesSquare,
   List,
+  Clock,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
@@ -42,12 +43,14 @@ import { EmailLabelsBar, EmailLabelPicker } from './EmailLabelsBar'
 import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
+import { formatScheduledAt } from '../lib/scheduledSend'
 import type { ComposeAttachment, EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
   inbox: Inbox,
   sent: Send,
   drafts: FileEdit,
+  scheduled: Clock,
   archive: Archive,
   trash: Trash2,
 }
@@ -76,6 +79,8 @@ export function EmailView() {
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+  const cancelScheduledEmail = useEtherMailStore((s) => s.cancelScheduledEmail)
+  const sendScheduledEmailNow = useEtherMailStore((s) => s.sendScheduledEmailNow)
   const snoozeEmail = useEtherMailStore((s) => s.snoozeEmail)
   const aiInboxEnabled = useEtherMailStore((s) => s.aiInboxEnabled)
   const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
@@ -177,6 +182,7 @@ export function EmailView() {
       inbox: 0,
       sent: 0,
       drafts: 0,
+      scheduled: 0,
       archive: 0,
       trash: 0,
     }
@@ -249,7 +255,7 @@ export function EmailView() {
 
   const handleSelectEmail = (id: string, threadEmailIds?: string[]) => {
     const email = emails.find((e) => e.id === id)
-    if (email && (email.folder ?? 'inbox') === 'drafts') {
+    if (email && ((email.folder ?? 'inbox') === 'drafts' || email.folder === 'scheduled')) {
       const draftAttachments: ComposeAttachment[] = (email.attachmentIds ?? [])
         .map((id) => emailAttachments.find((a) => a.id === id))
         .filter((a): a is NonNullable<typeof a> => !!a && !!a.dataUrl)
@@ -268,6 +274,7 @@ export function EmailView() {
         subject: email.subject,
         body: email.body,
         accountId: email.accountId,
+        scheduledAt: email.scheduledAt,
         attachments: draftAttachments.length > 0 ? draftAttachments : undefined,
       })
       return
@@ -624,6 +631,12 @@ export function EmailView() {
                       {activeEmail.cc && <span className="ml-2">Cc {activeEmail.cc}</span>}
                     </p>
                     <p className="text-xs text-theme-muted mt-0.5">{new Date(activeEmail.date).toLocaleString()}</p>
+                    {activeEmail.scheduledAt && (
+                      <p className="text-xs text-accent mt-1 flex items-center gap-1">
+                        <Clock size={12} />
+                        Scheduled to send {formatScheduledAt(activeEmail.scheduledAt)}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <PanelHideButton panelId="email-detail" label="email" />
@@ -633,6 +646,22 @@ export function EmailView() {
                   </div>
                 </div>
                 <div className="flex gap-2 mt-2.5 flex-wrap relative">
+                  {activeEmail.folder === 'scheduled' && activeEmail.scheduledAt && (
+                    <>
+                      <button
+                        onClick={() => sendScheduledEmailNow(activeEmail.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"
+                      >
+                        <Send size={14} /> Send now
+                      </button>
+                      <button
+                        onClick={() => cancelScheduledEmail(activeEmail.id)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                      >
+                        <Clock size={14} /> Cancel schedule
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => openCompose({ replyTo: activeEmail })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"

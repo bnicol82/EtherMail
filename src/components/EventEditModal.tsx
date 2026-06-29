@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { X, Lightbulb } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
+import { suggestRooms } from '../lib/roomHints'
 
 export function EventEditModal() {
   const editingEventId = useEtherMailStore((s) => s.editingEventId)
@@ -27,6 +28,19 @@ export function EventEditModal() {
     setRoom(event.room ?? '')
     setAttendees(event.attendees?.join(', ') ?? '')
   }, [event])
+
+  const roomSuggestions = useMemo(
+    () =>
+      event
+        ? suggestRooms(calendarEvents, {
+            location,
+            start: new Date(start).toISOString(),
+            end: new Date(end).toISOString(),
+            excludeEventId: event.id,
+          })
+        : [],
+    [calendarEvents, event, location, start, end],
+  )
 
   if (!event) return null
 
@@ -85,6 +99,31 @@ export function EventEditModal() {
           <div>
             <label className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">Room</label>
             <input value={room} onChange={(e) => setRoom(e.target.value)} placeholder="e.g. 4B, Conference Room A" className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none" />
+            {roomSuggestions.length > 0 && (
+              <div className="mt-2 space-y-1">
+                <p className="text-[10px] text-theme-muted flex items-center gap-1">
+                  <Lightbulb size={10} className="text-amber-400" />
+                  Suggested from your history
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {roomSuggestions.map((s) => (
+                    <button
+                      key={`${s.location}-${s.room}`}
+                      type="button"
+                      onClick={() => {
+                        setRoom(s.room)
+                        if (!location.trim()) setLocation(s.location)
+                      }}
+                      className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary hover-theme text-left"
+                      title={s.reason}
+                    >
+                      <span className="font-medium text-accent">{s.room}</span>
+                      <span className="text-theme-muted ml-1">· {s.reason}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <div>
             <label className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">Attendees</label>
