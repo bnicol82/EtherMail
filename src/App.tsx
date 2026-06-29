@@ -13,6 +13,8 @@ import { SettingsView } from './components/SettingsView'
 import { ConnectAccountModal } from './components/ConnectAccountModal'
 import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { EventEditModal } from './components/EventEditModal'
+import { CommandPalette } from './components/CommandPalette'
+import { ProactiveAssistant } from './components/ProactiveAssistant'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { Menu, SquarePen } from 'lucide-react'
 
@@ -125,6 +127,8 @@ export default function App() {
 
       {/* Fixed UI layers — hidden on full AI chat to avoid stacked inputs */}
       {showDock && <BottomBar />}
+      <CommandPalette />
+      <ProactiveAssistant />
       <ConnectAccountModal />
       <ComposeEmailModal />
       <EventEditModal />

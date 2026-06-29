@@ -27,6 +27,7 @@ import { EMAIL_FOLDERS } from '../lib/emailFolders'
 import { summarizeEmail } from '../lib/emailSummary'
 import { getAIContext } from '../lib/aiContext'
 import { EmailQuickAck } from './EmailQuickAck'
+import { SnoozeMenu } from './SnoozeMenu'
 import type { EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
@@ -60,6 +61,7 @@ export function EmailView() {
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+  const snoozeEmail = useEtherMailStore((s) => s.snoozeEmail)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
@@ -318,6 +320,9 @@ export function EmailView() {
                   >
                     <Archive size={14} /> Archive
                   </button>
+                  {(activeEmail.folder ?? 'inbox') === 'inbox' && (
+                    <SnoozeMenu onSnooze={(preset) => snoozeEmail(activeEmail.id, preset)} />
+                  )}
                   <button
                     onClick={() => deleteEmail(activeEmail.id)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-red-400 hover-theme"

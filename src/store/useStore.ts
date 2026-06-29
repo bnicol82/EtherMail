@@ -14,6 +14,7 @@ import type {
   AISettings,
   AckStatus,
   AlertMeta,
+  AssistantSettings,
   CalendarEvent,
   ChatMessage,
   ComposeDraft,
@@ -31,6 +32,8 @@ import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/cal
 import { computeAIAlerts } from '../lib/aiAlerts'
 import { generateVaultAIResponse } from '../lib/rag'
 import { syncCalendarFromEmails } from '../lib/calendarSync'
+import { completeNoteTodo } from '../lib/todos'
+import { snoozeUntilFromPreset } from '../lib/snooze'
 
 interface EtherMailState {
   view: View
@@ -58,6 +61,17 @@ interface EtherMailState {
 
   searchQuery: string
   setSearchQuery: (q: string) => void
+
+  commandPaletteOpen: boolean
+  setCommandPaletteOpen: (open: boolean) => void
+
+  assistantSettings: AssistantSettings
+  setAssistantSettings: (settings: Partial<AssistantSettings>) => void
+  announcedProactive: Record<string, string>
+  markProactiveAnnounced: (key: string) => void
+
+  completedTodos: string[]
+  completeTodo: (todoId: string) => void
 
   aiAssistantOpen: boolean
   setAiAssistantOpen: (open: boolean) => void
@@ -113,7 +127,9 @@ interface EtherMailState {
   alertMeta: Record<string, AlertMeta>
   markAlertRead: (id: string) => void
   dismissAlert: (id: string) => void
+  snoozeAlert: (id: string, presetId: string) => void
   markAllAlertsRead: () => void
+  snoozeEmail: (emailId: string, presetId: string) => void
 
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
@@ -161,6 +177,49 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       searchQuery: '',
       setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+      commandPaletteOpen: false,
+      setCommandPaletteOpen: (commandPaletteOpen) => set({ commandPaletteOpen }),
+
+      assistantSettings: {
+        userName: 'Billy',
+        voiceURI: '',
+        voiceRate: 1,
+        voicePitch: 1,
+        personality: 'friendly',
+        proactiveEnabled: true,
+        voiceChatEnabled: true,
+        meetingReminderMinutes: 10,
+        announceNewEmails: true,
+      },
+      setAssistantSettings: (settings) =>
+        set((s) => ({ assistantSettings: { ...s.assistantSettings, ...settings } })),
+      announcedProactive: {},
+      markProactiveAnnounced: (key) =>
+        set((s) => ({
+          announcedProactive: { ...s.announcedProactive, [key]: new Date().toISOString() },
+        })),
+
+      completedTodos: [],
+      completeTodo: (todoId) => {
+        const state = get()
+        if (state.completedTodos.includes(todoId)) return
+
+        if (todoId.startsWith('note:')) {
+          const [, noteId, lineStr] = todoId.split(':')
+          const lineIndex = parseInt(lineStr, 10)
+          const note = state.notes.find((n) => n.id === noteId)
+          if (note && !Number.isNaN(lineIndex)) {
+            const content = completeNoteTodo(note, lineIndex)
+            get().updateNote(noteId, { content })
+          }
+        } else if (todoId.startsWith('email-')) {
+          const emailId = todoId.replace('email-', '')
+          get().markEmailRead(emailId)
+        }
+
+        set((s) => ({ completedTodos: [...s.completedTodos, todoId] }))
+      },
 
       aiAssistantOpen: false,
       setAiAssistantOpen: (aiAssistantOpen) => set({ aiAssistantOpen }),
@@ -553,6 +612,13 @@ export const useEtherMailStore = create<EtherMailState>()(
         set((s) => ({
           alertMeta: { ...s.alertMeta, [id]: { ...s.alertMeta[id], dismissed: true, read: true } },
         })),
+      snoozeAlert: (id, presetId) =>
+        set((s) => ({
+          alertMeta: {
+            ...s.alertMeta,
+            [id]: { ...s.alertMeta[id], snoozedUntil: snoozeUntilFromPreset(presetId), read: true },
+          },
+        })),
       markAllAlertsRead: () => {
         const state = get()
         const computed = computeAIAlerts(
@@ -569,6 +635,15 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
         set({ alertMeta: next })
       },
+
+      snoozeEmail: (emailId, presetId) =>
+        set((s) => ({
+          emails: s.emails.map((e) =>
+            e.id === emailId
+              ? { ...e, snoozedUntil: snoozeUntilFromPreset(presetId), read: true }
+              : e,
+          ),
+        })),
 
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
@@ -653,6 +728,29 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
+      version: 3,
+      migrate: (persisted, version) => {
+        const s = persisted as Record<string, unknown>
+        if (version < 3) {
+          return {
+            ...s,
+            assistantSettings: {
+              userName: 'Billy',
+              voiceURI: '',
+              voiceRate: 1,
+              voicePitch: 1,
+              personality: 'friendly',
+              proactiveEnabled: true,
+              voiceChatEnabled: true,
+              meetingReminderMinutes: 10,
+              announceNewEmails: true,
+            },
+            completedTodos: [],
+            announcedProactive: {},
+          }
+        }
+        return persisted as object
+      },
       partialize: (s) => ({
         notes: s.notes,
         emails: s.emails,
@@ -672,6 +770,9 @@ export const useEtherMailStore = create<EtherMailState>()(
         hiddenPanels: s.hiddenPanels,
         alertMeta: s.alertMeta,
         weatherSettings: s.weatherSettings,
+        assistantSettings: s.assistantSettings,
+        completedTodos: s.completedTodos,
+        announcedProactive: s.announcedProactive,
         view: s.view,
       }),
     },
@@ -727,8 +828,14 @@ export function useAIAlerts() {
   const alertMeta = useEtherMailStore((s) => s.alertMeta)
 
   const computed = computeAIAlerts(notes, emails, calendarEvents, accounts)
+  const now = Date.now()
   return computed
-    .filter((a) => !alertMeta[a.id]?.dismissed)
+    .filter((a) => {
+      if (alertMeta[a.id]?.dismissed) return false
+      const snoozed = alertMeta[a.id]?.snoozedUntil
+      if (snoozed && new Date(snoozed).getTime() > now) return false
+      return true
+    })
     .map((a) => ({ ...a, read: alertMeta[a.id]?.read ?? false }))
 }
 

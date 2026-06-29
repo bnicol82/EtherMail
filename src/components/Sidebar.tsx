@@ -12,6 +12,7 @@ import {
   FileText,
   SquarePen,
   Bell,
+  Search,
 } from 'lucide-react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { providerColor } from '../lib/utils'
@@ -37,6 +38,7 @@ export function Sidebar() {
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
   const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
   const setSearchQuery = useEtherMailStore((s) => s.setSearchQuery)
+  const setCommandPaletteOpen = useEtherMailStore((s) => s.setCommandPaletteOpen)
   const openCompose = useEtherMailStore((s) => s.openCompose)
   const unreadAlertCount = useUnreadAlertCount()
   const unread = emails.filter((e) => {
@@ -99,6 +101,17 @@ export function Sidebar() {
             <X size={18} />
           </button>
         </div>
+        <button
+          onClick={() => {
+            setCommandPaletteOpen(true)
+            setSidebarOpen(false)
+          }}
+          className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl glass text-xs text-theme-muted hover-theme"
+        >
+          <Search size={14} />
+          <span className="flex-1 text-left">Search vault & inbox</span>
+          <kbd className="text-[10px] px-1 rounded bg-black/10">⌘K</kbd>
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">
