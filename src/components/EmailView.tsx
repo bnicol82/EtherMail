@@ -16,7 +16,6 @@ import {
   Inbox,
   Send,
   FileEdit,
-  SquarePen,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
@@ -170,14 +169,6 @@ export function EmailView() {
             <div className="flex items-center justify-between mb-2 gap-2">
               <h2 className="font-semibold text-theme truncate text-sm flex-1 min-w-0">{inboxTitle}</h2>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => openCompose()}
-                  className="flex items-center gap-1 px-2 py-1 rounded-lg btn-accent text-[10px] sm:text-xs font-medium"
-                  title="Compose email"
-                >
-                  <SquarePen size={12} />
-                  <span className="hidden xs:inline sm:inline">Compose</span>
-                </button>
                 {activeAccountId && (
                   <button
                     onClick={() => selectAccount(null)}

@@ -85,15 +85,13 @@ export default function App() {
             </div>
             <span className="font-semibold text-theme text-sm truncate">EtherMail</span>
           </div>
-          {view === 'email' && (
-            <button
-              onClick={() => openCompose()}
-              className="p-1.5 rounded-lg btn-accent shrink-0"
-              aria-label="Compose email"
-            >
-              <SquarePen size={16} />
-            </button>
-          )}
+          <button
+            onClick={() => openCompose()}
+            className="p-1.5 rounded-lg btn-accent shrink-0"
+            aria-label="Compose email"
+          >
+            <SquarePen size={16} />
+          </button>
         </header>
 
         {sidebarOpen && (
