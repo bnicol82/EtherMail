@@ -34,9 +34,10 @@ import { EmailQuickAck } from './EmailQuickAck'
 import { SnoozeMenu } from './SnoozeMenu'
 import { AIInboxBar } from './AIInboxBar'
 import { EmailInboxTraining } from './EmailInboxTraining'
+import { EmailLabelsBar, EmailLabelPicker } from './EmailLabelsBar'
 import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
-import type { EmailFolder } from '../types'
+import type { ComposeAttachment, EmailFolder } from '../types'
 
 const FOLDER_ICONS: Record<EmailFolder, typeof Inbox> = {
   inbox: Inbox,
@@ -92,10 +93,18 @@ export function EmailView() {
   const batchMarkEmailsRead = useEtherMailStore((s) => s.batchMarkEmailsRead)
   const followUpFilterEnabled = useEtherMailStore((s) => s.followUpFilterEnabled)
   const setFollowUpFilterEnabled = useEtherMailStore((s) => s.setFollowUpFilterEnabled)
+  const emailLabels = useEtherMailStore((s) => s.emailLabels)
+  const activeLabelFilter = useEtherMailStore((s) => s.activeLabelFilter)
+  const setActiveLabelFilter = useEtherMailStore((s) => s.setActiveLabelFilter)
+  const createEmailLabel = useEtherMailStore((s) => s.createEmailLabel)
+  const deleteEmailLabel = useEtherMailStore((s) => s.deleteEmailLabel)
+  const toggleEmailLabelOnEmail = useEtherMailStore((s) => s.toggleEmailLabelOnEmail)
+  const batchApplyEmailLabel = useEtherMailStore((s) => s.batchApplyEmailLabel)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const [batchConfirmDelete, setBatchConfirmDelete] = useState(false)
+  const [batchLabelId, setBatchLabelId] = useState('')
 
   const listHidden = hiddenPanels['email-list'] ?? false
   const detailHidden = hiddenPanels['email-detail'] ?? false
@@ -133,6 +142,18 @@ export function EmailView() {
     () => followUpEmailIds(emails),
     [emails],
   )
+
+  const labelCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const label of emailLabels) {
+      counts[label.id] = emails.filter(
+        (e) =>
+          (e.folder ?? 'inbox') === activeEmailFolder &&
+          e.labelIds?.includes(label.id),
+      ).length
+    }
+    return counts
+  }, [emails, emailLabels, activeEmailFolder])
 
   const getClassification = (emailId: string) => {
     const email = emails.find((e) => e.id === emailId)
@@ -175,6 +196,9 @@ export function EmailView() {
     if (followUpFilterEnabled && activeEmailFolder === 'inbox' && !followUpIds.has(e.id)) {
       return false
     }
+    if (activeLabelFilter && !e.labelIds?.includes(activeLabelFilter)) {
+      return false
+    }
     if (!filter) return true
     const q = filter.toLowerCase()
     return (
@@ -187,12 +211,25 @@ export function EmailView() {
   const handleSelectEmail = (id: string) => {
     const email = emails.find((e) => e.id === id)
     if (email && (email.folder ?? 'inbox') === 'drafts') {
+      const draftAttachments: ComposeAttachment[] = (email.attachmentIds ?? [])
+        .map((id) => emailAttachments.find((a) => a.id === id))
+        .filter((a): a is NonNullable<typeof a> => !!a && !!a.dataUrl)
+        .map((a) => ({
+          id: a.id,
+          filename: a.filename,
+          sizeBytes: a.sizeBytes,
+          mimeType: a.mimeType,
+          dataUrl: a.dataUrl!,
+        }))
       openCompose({
         id: email.id,
         to: email.to,
+        cc: email.cc,
+        bcc: email.bcc,
         subject: email.subject,
         body: email.body,
         accountId: email.accountId,
+        attachments: draftAttachments.length > 0 ? draftAttachments : undefined,
       })
       return
     }
@@ -264,6 +301,14 @@ export function EmailView() {
                 onDeleteAllOutbox={deleteAllOutboxEmails}
               />
             )}
+            <EmailLabelsBar
+              labels={emailLabels}
+              activeLabelId={activeLabelFilter}
+              onFilter={setActiveLabelFilter}
+              onCreateLabel={(name, color) => createEmailLabel(name, color)}
+              onDeleteLabel={deleteEmailLabel}
+              emailCounts={labelCounts}
+            />
             {activeEmailFolder === 'inbox' && (
               <div className="flex items-center gap-1.5 mb-2 flex-wrap">
                 <button
@@ -334,6 +379,24 @@ export function EmailView() {
                   >
                     Archive
                   </button>
+                  {emailLabels.length > 0 && (
+                    <select
+                      value={batchLabelId}
+                      onChange={(e) => {
+                        const id = e.target.value
+                        setBatchLabelId(id)
+                        if (id) batchApplyEmailLabel(selectedEmailIds, id)
+                      }}
+                      className="px-2 py-1 rounded-lg glass text-[10px] text-theme-secondary outline-none max-w-[7rem]"
+                    >
+                      <option value="">Add label…</option>
+                      {emailLabels.map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.name}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                   {!batchConfirmDelete ? (
                     <button
                       type="button"
@@ -403,6 +466,8 @@ export function EmailView() {
               <p className="p-4 text-sm text-theme-muted text-center">
                 {followUpFilterEnabled && activeEmailFolder === 'inbox'
                   ? 'No emails flagged for follow-up — you are caught up!'
+                  : activeLabelFilter
+                    ? `No emails with label "${emailLabels.find((l) => l.id === activeLabelFilter)?.name ?? 'selected'}"`
                   : aiOutboxEnabled && activeEmailFolder === 'inbox'
                   ? 'No filtered mail in AI Outbox — nothing AI flagged as junk or low priority'
                   : aiInboxEnabled && activeEmailFolder === 'inbox' && inboxStats.hidden > 0
@@ -413,6 +478,7 @@ export function EmailView() {
               filtered.map((e) => {
                 const acc = accounts.find((a) => a.id === e.accountId)
                 const c = getClassification(e.id)
+                const rowLabels = emailLabels.filter((l) => e.labelIds?.includes(l.id))
                 return (
                   <SwipeableEmailRow
                     key={e.id}
@@ -428,6 +494,7 @@ export function EmailView() {
                     selectionMode={emailSelectionMode}
                     selected={selectedEmailIds.includes(e.id)}
                     onToggleSelect={() => toggleEmailSelection(e.id)}
+                    labels={rowLabels}
                   />
                 )
               })
@@ -596,12 +663,26 @@ export function EmailView() {
                             <p className="text-theme truncate">{att.filename}</p>
                             <p className="text-xs text-theme-muted">{formatFileSize(att.sizeBytes)}</p>
                           </div>
+                          {att.dataUrl && (
+                            <a
+                              href={att.dataUrl}
+                              download={att.filename}
+                              className="text-xs text-accent hover:underline shrink-0"
+                            >
+                              Download
+                            </a>
+                          )}
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
                 <EmailQuickAck email={activeEmail} />
+                <EmailLabelPicker
+                  labels={emailLabels}
+                  selectedIds={activeEmail.labelIds ?? []}
+                  onToggle={(labelId) => toggleEmailLabelOnEmail(activeEmail.id, labelId)}
+                />
                 {(activeEmail.folder ?? 'inbox') === 'inbox' && (
                   <EmailInboxTraining
                     email={activeEmail}
