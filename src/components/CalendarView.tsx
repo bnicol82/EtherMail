@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar, Users } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
 import { addDays, formatEventTimeRange, isSameDay, startOfWeek } from '../lib/utils'
+import { useSwipe } from '../hooks/useSwipe'
 
 const EVENT_COLORS = ['#6366f1', '#22d3ee', '#f472b6', '#a78bfa', '#34d399']
 
@@ -13,6 +14,11 @@ function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
 export function CalendarView() {
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+
+  const weekSwipe = useSwipe(
+    () => setWeekStart((w) => addDays(w, 7)),
+    () => setWeekStart((w) => addDays(w, -7)),
+  )
 
   const weekDays = useMemo(
     () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
@@ -26,7 +32,7 @@ export function CalendarView() {
 
   const upcoming = useMemo(() => {
     const now = new Date()
-    return sortedEvents.filter((e) => new Date(e.end) >= now).slice(0, 6)
+    return sortedEvents.filter((e) => new Date(e.end) >= now).slice(0, 12)
   }, [sortedEvents])
 
   const today = new Date()
@@ -68,61 +74,87 @@ export function CalendarView() {
           </div>
         </div>
 
-        <div className="glass rounded-xl p-4 mb-6">
-          <p className="text-sm font-medium text-theme mb-4">
+        {/* Week grid — swipe left/right to change weeks */}
+        <div className="glass rounded-xl p-4 mb-6 overflow-hidden">
+          <p className="text-sm font-medium text-theme mb-1">
             {weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })}
             <span className="text-theme-muted font-normal">
               {' '}· Week of {weekDays[0].toLocaleDateString([], { month: 'short', day: 'numeric' })}
             </span>
           </p>
-          <div className="grid grid-cols-7 gap-2">
-            {weekDays.map((day) => {
-              const dayEvents = eventsForDay(sortedEvents, day)
-              const isToday = isSameDay(day, today)
-              return (
-                <div
-                  key={day.toISOString()}
-                  className={`min-h-[120px] rounded-lg p-2 ${
-                    isToday ? 'bg-accent-soft border border-accent' : 'glass'
-                  }`}
-                >
-                  <p className="text-[10px] text-theme-muted uppercase mb-1">
-                    {day.toLocaleDateString([], { weekday: 'short' })}
-                  </p>
-                  <p className={`text-sm font-semibold mb-2 ${isToday ? 'text-accent' : 'text-theme'}`}>
-                    {day.getDate()}
-                  </p>
-                  <div className="space-y-1">
-                    {dayEvents.map((e, idx) => (
-                      <div
-                        key={e.id}
-                        className="text-[10px] p-1 rounded truncate text-theme"
-                        style={{
-                          background: `${EVENT_COLORS[idx % EVENT_COLORS.length]}33`,
-                          borderLeft: `2px solid ${EVENT_COLORS[idx % EVENT_COLORS.length]}`,
-                        }}
-                        title={e.title}
-                      >
-                        {e.title}
-                      </div>
-                    ))}
+          <p className="text-[10px] text-theme-muted mb-3">Swipe to change week</p>
+
+          <div
+            className="overflow-hidden select-none cursor-grab active:cursor-grabbing"
+            style={{ touchAction: 'pan-y pinch-zoom' }}
+            {...weekSwipe.handlers}
+          >
+            <div
+              className="grid grid-cols-7 gap-2 min-w-0"
+              style={{
+                transform: `translateX(${weekSwipe.offset}px)`,
+                transition: weekSwipe.isDragging ? 'none' : 'transform 0.25s ease-out',
+                opacity: weekSwipe.isDragging ? 0.92 : 1,
+              }}
+            >
+              {weekDays.map((day) => {
+                const dayEvents = eventsForDay(sortedEvents, day)
+                const isToday = isSameDay(day, today)
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`min-h-[120px] rounded-lg p-2 ${
+                      isToday ? 'bg-accent-soft border border-accent' : 'glass'
+                    }`}
+                  >
+                    <p className="text-[10px] text-theme-muted uppercase mb-1">
+                      {day.toLocaleDateString([], { weekday: 'short' })}
+                    </p>
+                    <p className={`text-sm font-semibold mb-2 ${isToday ? 'text-accent' : 'text-theme'}`}>
+                      {day.getDate()}
+                    </p>
+                    <div className="space-y-1">
+                      {dayEvents.map((e, idx) => (
+                        <div
+                          key={e.id}
+                          className="text-[10px] p-1 rounded truncate text-theme"
+                          style={{
+                            background: `${EVENT_COLORS[idx % EVENT_COLORS.length]}33`,
+                            borderLeft: `2px solid ${EVENT_COLORS[idx % EVENT_COLORS.length]}`,
+                          }}
+                          title={e.title}
+                        >
+                          {e.title}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )
-            })}
+                )
+              })}
+            </div>
           </div>
         </div>
 
-        <div className="glass rounded-xl p-4">
-          <h2 className="font-semibold text-theme mb-3">Upcoming</h2>
+        {/* Upcoming — swipe or scroll horizontally through events */}
+        <div className="glass rounded-xl p-4 overflow-hidden">
+          <div className="flex items-center justify-between mb-1">
+            <h2 className="font-semibold text-theme">Upcoming</h2>
+            {upcoming.length > 1 && (
+              <span className="text-[10px] text-theme-muted">Swipe to browse</span>
+            )}
+          </div>
+
           {upcoming.length === 0 ? (
-            <p className="text-sm text-theme-muted">No upcoming events</p>
+            <p className="text-sm text-theme-muted mt-2">No upcoming events</p>
           ) : (
-            <div className="space-y-2">
+            <div
+              className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1 pt-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+              style={{ touchAction: 'pan-x pinch-zoom' }}
+            >
               {upcoming.map((e, i) => (
                 <div
                   key={e.id}
-                  className="flex items-start gap-3 p-3 rounded-lg glass hover-theme"
+                  className="snap-start shrink-0 w-[min(85vw,280px)] flex items-start gap-3 p-3 rounded-lg glass hover-theme"
                 >
                   <div
                     className="w-1 self-stretch rounded-full shrink-0"
