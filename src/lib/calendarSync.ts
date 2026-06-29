@@ -43,6 +43,9 @@ export function syncCalendarFromEmails(
       start,
       end,
       attendees: extractAttendees(email.body),
+      location: extractField(email.body, 'Location'),
+      room: extractField(email.body, 'Room'),
+      sourceEmailId: email.id,
     })
   }
 
@@ -72,4 +75,10 @@ function extractAttendees(body: string): string[] | undefined {
     .split(/[,;]/)
     .map((s) => s.trim())
     .filter(Boolean)
+}
+
+function extractField(body: string, field: string): string | undefined {
+  const re = new RegExp(`${field}:\\s*(.+)`, 'i')
+  const match = body.match(re)
+  return match?.[1]?.trim() || undefined
 }
