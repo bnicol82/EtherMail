@@ -90,6 +90,7 @@ export interface Email {
   attachmentIds?: string[]
   folder?: EmailFolder
   acknowledgements?: EmailAcknowledgement[]
+  snoozedUntil?: string
 }
 
 export interface ComposeDraft {
@@ -154,6 +155,33 @@ export interface AIAlert {
 export interface AlertMeta {
   read?: boolean
   dismissed?: boolean
+  snoozedUntil?: string
+}
+
+export type AssistantPersonality = 'professional' | 'friendly' | 'concise' | 'warm'
+
+export interface AssistantSettings {
+  /** Name the assistant uses when speaking proactively */
+  userName: string
+  voiceURI: string
+  voiceRate: number
+  voicePitch: number
+  personality: AssistantPersonality
+  /** Speak new-email and meeting reminders while using the app */
+  proactiveEnabled: boolean
+  /** Enable microphone voice chat in AI Assistant */
+  voiceChatEnabled: boolean
+  meetingReminderMinutes: number
+  announceNewEmails: boolean
+}
+
+export interface SearchResult {
+  id: string
+  type: 'note' | 'email' | 'calendar' | 'view'
+  title: string
+  subtitle?: string
+  view?: View
+  sourceId?: string
 }
 
 export interface CommandItem {

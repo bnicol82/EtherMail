@@ -1,6 +1,7 @@
 import { AlertTriangle, Bell, Calendar, Check, ChevronDown, ChevronUp, Mail, ListTodo, FolderOpen, X } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import { useEtherMailStore, useAIAlerts } from '../store/useStore'
+import { SnoozeMenu } from './SnoozeMenu'
 import type { AIAlert, AIAlertCategory } from '../types'
 
 const CATEGORY_ICONS: Record<AIAlertCategory, typeof Mail> = {
@@ -31,6 +32,7 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
   const alerts = useAIAlerts()
   const markAlertRead = useEtherMailStore((s) => s.markAlertRead)
   const dismissAlert = useEtherMailStore((s) => s.dismissAlert)
+  const snoozeAlert = useEtherMailStore((s) => s.snoozeAlert)
   const markAllAlertsRead = useEtherMailStore((s) => s.markAllAlertsRead)
   const setView = useEtherMailStore((s) => s.setView)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
@@ -146,6 +148,7 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
                             Read
                           </button>
                         )}
+                        <SnoozeMenu compact onSnooze={(preset) => snoozeAlert(alert.id, preset)} />
                         <button
                           type="button"
                           onClick={() => dismissAlert(alert.id)}
@@ -224,6 +227,7 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
                         Mark read
                       </button>
                     )}
+                    <SnoozeMenu onSnooze={(preset) => snoozeAlert(alert.id, preset)} />
                     <button
                       type="button"
                       onClick={() => dismissAlert(alert.id)}

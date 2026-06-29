@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
-import { Send, Sparkles, Globe, Shield, Trash2 } from 'lucide-react'
+import { Send, Sparkles, Globe, Shield, Trash2, Mic, Loader2 } from 'lucide-react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { MarkdownContent } from './MarkdownContent'
 import { AIAlertsPanel } from './AIAlertsPanel'
+import { listenOnce, speakText, isListeningSupported, stopSpeaking } from '../lib/voice'
+import { formatAssistantReplyForSpeech } from '../lib/proactiveAssistant'
 
 const SUGGESTIONS = [
   'Summarize Q3 Plan',
@@ -22,10 +24,14 @@ export function AIView() {
   const addChatMessage = useEtherMailStore((s) => s.addChatMessage)
   const clearChat = useEtherMailStore((s) => s.clearChat)
   const aiSettings = useEtherMailStore((s) => s.aiSettings)
+  const assistantSettings = useEtherMailStore((s) => s.assistantSettings)
   const unreadAlertCount = useUnreadAlertCount()
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [listening, setListening] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const speakNextResponse = useRef(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -55,11 +61,18 @@ export function AIView() {
               aiSettings.externalProvider,
             )
       addChatMessage({ role: 'assistant', content, mode: last.mode })
+
+      if (speakNextResponse.current && assistantSettings.voiceChatEnabled) {
+        speakNextResponse.current = false
+        const spoken = formatAssistantReplyForSpeech(content)
+        speakText(spoken, assistantSettings).catch(() => {})
+      }
+
       setLoading(false)
     }
     const t = setTimeout(respond, 600)
     return () => clearTimeout(t)
-  }, [chatMessages, notes, emails, aiSettings, addChatMessage])
+  }, [chatMessages, notes, emails, aiSettings, assistantSettings, addChatMessage])
 
   const send = async () => {
     if (!input.trim() || loading) return
@@ -68,50 +81,72 @@ export function AIView() {
     addChatMessage({ role: 'user', content: q, mode: aiMode })
   }
 
+  const startVoice = async () => {
+    if (!assistantSettings.voiceChatEnabled || loading || listening) return
+    if (!isListeningSupported()) {
+      setVoiceError('Voice input not supported in this browser')
+      return
+    }
+    setVoiceError(null)
+    stopSpeaking()
+    setListening(true)
+    try {
+      const transcript = await listenOnce()
+      speakNextResponse.current = true
+      addChatMessage({ role: 'user', content: transcript, mode: aiMode })
+    } catch (err) {
+      setVoiceError(err instanceof Error ? err.message : 'Could not hear you')
+    } finally {
+      setListening(false)
+    }
+  }
+
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-theme flex items-center gap-2">
-              AI Assistant
+      <div className="px-3 py-2 sm:p-4 md:p-6 border-b border-[var(--glass-border)] glass shrink-0">
+        <div className="flex items-center justify-between gap-2 min-w-0">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-2xl font-bold text-theme flex items-center gap-1.5 sm:gap-2 truncate">
+              <span className="truncate">AI Assistant</span>
               {unreadAlertCount > 0 && (
-                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium">
-                  {unreadAlertCount} alert{unreadAlertCount === 1 ? '' : 's'}
+                <span className="text-[10px] sm:text-xs px-1.5 sm:px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium shrink-0">
+                  {unreadAlertCount}
                 </span>
               )}
             </h1>
-            <p className="text-sm text-theme-muted mt-0.5">
-              Private vault AI with optional external models
+            <p className="hidden sm:block text-sm text-theme-muted mt-0.5">
+              Private vault AI with voice chat
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1 sm:gap-2 shrink-0">
             <button
               onClick={() => setAiMode('vault')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+              title="Vault AI (RAG)"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors ${
                 aiMode === 'vault'
                   ? 'bg-[var(--accent)] text-white'
                   : 'glass text-theme-secondary hover-theme hover:text-theme'
               }`}
             >
-              <Shield size={16} />
-              Vault AI (RAG)
+              <Shield size={15} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">Vault AI (RAG)</span>
             </button>
             <button
               onClick={() => setAiMode('external')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm transition-colors ${
+              title="External AI"
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-lg text-xs sm:text-sm transition-colors ${
                 aiMode === 'external'
                   ? 'bg-purple-600 text-white'
                   : 'glass text-theme-secondary hover-theme hover:text-theme'
               }`}
             >
-              <Globe size={16} />
-              External AI
+              <Globe size={15} className="sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">External AI</span>
             </button>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center gap-2 text-xs">
+        <div className="hidden sm:flex mt-2 sm:mt-3 items-center gap-2 text-xs">
           {aiMode === 'vault' ? (
             <span className="flex items-center gap-1.5 text-emerald-400">
               <Sparkles size={12} /> Has access to your vault, emails, and links
@@ -121,8 +156,10 @@ export function AIView() {
               <Globe size={12} /> No vault access — general knowledge only
             </span>
           )}
-          {aiSettings.bridgeEnabled && (
-            <span className="text-accent">· Bridge enabled (Phase 3)</span>
+          {assistantSettings.voiceChatEnabled && (
+            <span className="text-accent flex items-center gap-1">
+              <Mic size={12} /> Voice chat on
+            </span>
           )}
         </div>
       </div>
@@ -190,30 +227,51 @@ export function AIView() {
 
       <AIAlertsPanel variant="dock" />
 
-      <div className="p-4 border-t border-[var(--glass-border)] glass shrink-0">
+      <div className="p-3 sm:p-4 border-t border-[var(--glass-border)] glass shrink-0">
+        {voiceError && (
+          <p className="text-xs text-red-400 mb-2 text-center">{voiceError}</p>
+        )}
         <div className="flex gap-2 max-w-3xl mx-auto">
+          {assistantSettings.voiceChatEnabled && (
+            <button
+              onClick={startVoice}
+              disabled={loading || listening}
+              className={`px-3 sm:px-4 py-3 rounded-xl transition-colors shrink-0 ${
+                listening
+                  ? 'bg-red-500/20 text-red-400 animate-pulse'
+                  : 'glass hover-theme text-theme-secondary'
+              }`}
+              title={listening ? 'Listening…' : 'Voice input'}
+              aria-label="Voice input"
+            >
+              {listening ? <Loader2 size={18} className="animate-spin" /> : <Mic size={18} />}
+            </button>
+          )}
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
             placeholder={
-              aiMode === 'vault'
-                ? 'Ask about your vault...'
-                : 'Ask a general question (no vault context)...'
+              listening
+                ? 'Listening…'
+                : aiMode === 'vault'
+                  ? 'Ask about your vault...'
+                  : 'Ask a general question...'
             }
-            className="flex-1 px-4 py-3 rounded-xl input-theme text-base"
+            disabled={listening}
+            className="flex-1 px-4 py-3 rounded-xl input-theme text-base min-w-0"
           />
           <button
             onClick={send}
-            disabled={loading || !input.trim()}
-            className="px-4 py-3 rounded-xl bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 text-theme transition-colors"
+            disabled={loading || !input.trim() || listening}
+            className="px-4 py-3 rounded-xl bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 text-theme transition-colors shrink-0"
           >
             <Send size={18} />
           </button>
           {chatMessages.length > 0 && (
             <button
               onClick={clearChat}
-              className="px-3 py-3 rounded-xl glass hover-theme text-theme-secondary"
+              className="px-3 py-3 rounded-xl glass hover-theme text-theme-secondary shrink-0"
               title="Clear chat"
             >
               <Trash2 size={18} />

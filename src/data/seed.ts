@@ -143,6 +143,77 @@ Sarah J., Team leads
 - [ ] Schedule client meeting for next week
 `,
   },
+  {
+    id: 'note-tpl-followup',
+    title: 'Follow-up Template',
+    folderId: 'templates',
+    tags: ['#template', '#email'],
+    createdAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+    content: `# Re: Follow-up on our conversation
+
+Hi [Name],
+
+Thanks again for taking the time to meet. I wanted to follow up on the points we discussed:
+
+- [Key point 1]
+- [Key point 2]
+
+Please let me know if you have any questions. Happy to jump on a quick call this week.
+
+Best regards,
+[Your name]`,
+  },
+  {
+    id: 'note-tpl-meeting',
+    title: 'Meeting Request Template',
+    folderId: 'templates',
+    tags: ['#template', '#email'],
+    createdAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+    content: `# Meeting request — [Topic]
+
+Hi [Name],
+
+I'd like to schedule a brief meeting to discuss [topic]. Would any of these times work for you?
+
+- [Option 1]
+- [Option 2]
+
+Looking forward to connecting.
+
+Thanks,
+[Your name]`,
+  },
+  {
+    id: 'note-tpl-status',
+    title: 'Project Status Update',
+    folderId: 'templates',
+    tags: ['#template', '#email'],
+    createdAt: '2026-06-01T10:00:00Z',
+    updatedAt: '2026-06-20T10:00:00Z',
+    content: `# Project Update — [Project Name]
+
+Hi team,
+
+Quick status update on [Project Name]:
+
+**Progress**
+- [Completed item]
+- [In progress item]
+
+**Next steps**
+- [Action 1]
+- [Action 2]
+
+**Blockers**
+- None / [Describe blocker]
+
+Let me know if you have questions before our next sync.
+
+Best,
+[Your name]`,
+  },
 ]
 
 export const SEED_ACCOUNTS: EmailAccount[] = [

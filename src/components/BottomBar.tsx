@@ -8,6 +8,7 @@ import {
   Sparkles,
   MessageSquare,
   CloudSun,
+  X,
 } from 'lucide-react'
 import { useEtherMailStore, useStats, useUpcomingMeetings } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
@@ -89,13 +90,24 @@ export function BottomBar() {
               <Sparkles size={10} className="text-accent" />
               Quick reply
             </span>
-            <button
-              onClick={openFullChat}
-              className="text-[10px] text-accent hover:underline flex items-center gap-1"
-            >
-              <MessageSquare size={10} />
-              Open chat
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={openFullChat}
+                className="text-[10px] text-accent hover:underline flex items-center gap-1"
+              >
+                <MessageSquare size={10} />
+                Open chat
+              </button>
+              {!aiLoading && aiContextResponse && (
+                <button
+                  onClick={clearAiContextResponse}
+                  className="p-0.5 rounded hover-theme text-theme-muted"
+                  aria-label="Dismiss quick reply"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-2 min-h-0">
             {aiLoading ? (
