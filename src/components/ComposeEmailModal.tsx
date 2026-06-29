@@ -1,9 +1,14 @@
-import { useEffect, useState } from 'react'
-import { Send, FileEdit, X, FileText, Sparkles, Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Send, FileEdit, X, FileText, Sparkles, Loader2, Paperclip } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
-import type { ComposeDraft, Email } from '../types'
-import { providerColor, providerLabel } from '../lib/utils'
+import type { ComposeAttachment, ComposeDraft, Email } from '../types'
+import { providerColor, providerLabel, formatFileSize, fileIcon } from '../lib/utils'
 import { getEmailTemplates, generateTemplateWithAI } from '../lib/emailTemplates'
+import {
+  filesToComposeAttachments,
+  MAX_COMPOSE_ATTACHMENT_BYTES,
+  MAX_COMPOSE_ATTACHMENTS,
+} from '../lib/composeAttachments'
 
 export function ComposeEmailModal() {
   const composeDraft = useEtherMailStore((s) => s.composeDraft)
@@ -25,6 +30,9 @@ export function ComposeEmailModal() {
   const [aiInstruction, setAiInstruction] = useState('')
   const [aiLoading, setAiLoading] = useState(false)
   const [replyToEmail, setReplyToEmail] = useState<Email | undefined>()
+  const [attachments, setAttachments] = useState<ComposeAttachment[]>([])
+  const [attachError, setAttachError] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const templates = getEmailTemplates(notes)
 
@@ -37,6 +45,8 @@ export function ComposeEmailModal() {
     setBody(composeDraft.body)
     setAccountId(composeDraft.accountId)
     setShowCcBcc(!!(composeDraft.cc || composeDraft.bcc))
+    setAttachments(composeDraft.attachments ?? [])
+    setAttachError(null)
     setReplyToEmail(undefined)
   }, [composeDraft])
 
@@ -51,6 +61,19 @@ export function ComposeEmailModal() {
     subject,
     body,
     accountId: accountId || composeDraft.accountId,
+    attachments: attachments.length > 0 ? attachments : undefined,
+  }
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files?.length) return
+    setAttachError(null)
+    try {
+      const added = await filesToComposeAttachments(files)
+      setAttachments((prev) => [...prev, ...added].slice(0, MAX_COMPOSE_ATTACHMENTS))
+    } catch (err) {
+      setAttachError(err instanceof Error ? err.message : 'Could not attach file')
+    }
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const applyTemplate = (templateId: string) => {
@@ -262,6 +285,60 @@ export function ComposeEmailModal() {
               rows={8}
               className="mt-1 w-full px-3 py-2 rounded-lg input-theme text-sm outline-none resize-y min-h-[120px]"
             />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] uppercase tracking-wider text-theme-muted font-medium">
+                Attachments
+              </span>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={attachments.length >= MAX_COMPOSE_ATTACHMENTS}
+                className="flex items-center gap-1 text-[10px] text-accent hover:underline disabled:opacity-40"
+              >
+                <Paperclip size={12} />
+                Attach file
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                className="hidden"
+                onChange={(e) => handleFiles(e.target.files)}
+              />
+            </div>
+            {attachError && (
+              <p className="text-[10px] text-red-400 mb-1">{attachError}</p>
+            )}
+            <p className="text-[10px] text-theme-muted mb-1.5">
+              Max {MAX_COMPOSE_ATTACHMENTS} files, {MAX_COMPOSE_ATTACHMENT_BYTES / 1024 / 1024}MB each — synced to Vault → Email Files
+            </p>
+            {attachments.length > 0 ? (
+              <ul className="space-y-1">
+                {attachments.map((att) => (
+                  <li
+                    key={att.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-lg glass text-xs"
+                  >
+                    <span>{fileIcon(att.mimeType)}</span>
+                    <span className="flex-1 truncate text-theme-secondary">{att.filename}</span>
+                    <span className="text-theme-muted shrink-0">{formatFileSize(att.sizeBytes)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                      className="p-0.5 rounded hover-theme text-theme-muted"
+                      aria-label={`Remove ${att.filename}`}
+                    >
+                      <X size={12} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[10px] text-theme-muted">No attachments</p>
+            )}
           </div>
         </div>
 

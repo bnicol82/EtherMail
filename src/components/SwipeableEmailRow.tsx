@@ -5,7 +5,8 @@ import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
 import { Star, Link2, Paperclip, CheckCircle2 } from 'lucide-react'
 import { CategoryBadge } from './AIInboxBar'
-import type { EmailJunkCategory } from '../types'
+import { EmailLabelChip } from './EmailLabelsBar'
+import type { EmailJunkCategory, EmailLabel } from '../types'
 
 interface Props {
   email: Email
@@ -18,6 +19,7 @@ interface Props {
   selectionMode?: boolean
   selected?: boolean
   onToggleSelect?: () => void
+  labels?: EmailLabel[]
 }
 
 export function SwipeableEmailRow({
@@ -31,6 +33,7 @@ export function SwipeableEmailRow({
   selectionMode,
   selected,
   onToggleSelect,
+  labels = [],
 }: Props) {
   const startX = useRef(0)
   const [offset, setOffset] = useState(0)
@@ -122,8 +125,11 @@ export function SwipeableEmailRow({
           <p className={`text-sm truncate pl-4 ${email.read ? 'text-theme-muted' : 'text-theme-secondary'}`}>
             {email.subject}
           </p>
-          <div className="flex items-center gap-1.5 pl-4 mt-0.5">
-            <p className="text-xs text-theme-muted truncate flex-1">{email.preview}</p>
+          <div className="flex items-center gap-1.5 pl-4 mt-0.5 flex-wrap">
+            <p className="text-xs text-theme-muted truncate flex-1 min-w-0">{email.preview}</p>
+            {labels.slice(0, 2).map((label) => (
+              <EmailLabelChip key={label.id} label={label} />
+            ))}
             {showCategory && category && category !== 'important' && (
               <CategoryBadge category={category} />
             )}

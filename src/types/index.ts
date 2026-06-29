@@ -82,9 +82,25 @@ export interface EmailAttachment {
   sizeBytes: number
   mimeType: string
   date: string
+  /** Base64 data URL for user-composed attachments (demo) */
+  dataUrl?: string
 }
 
 export const EMAIL_FILES_FOLDER_ID = 'email-files'
+
+export interface EmailLabel {
+  id: string
+  name: string
+  color: string
+}
+
+export interface ComposeAttachment {
+  id: string
+  filename: string
+  sizeBytes: number
+  mimeType: string
+  dataUrl: string
+}
 
 export interface Email {
   id: string
@@ -102,6 +118,7 @@ export interface Email {
   starred: boolean
   linkedNoteId: string | null
   attachmentIds?: string[]
+  labelIds?: string[]
   folder?: EmailFolder
   acknowledgements?: EmailAcknowledgement[]
   snoozedUntil?: string
@@ -152,6 +169,7 @@ export interface ComposeDraft {
   subject: string
   body: string
   accountId: string
+  attachments?: ComposeAttachment[]
 }
 
 export interface GraphNode {

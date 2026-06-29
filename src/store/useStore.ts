@@ -6,6 +6,7 @@ import {
   SEED_CALENDAR,
   SEED_EMAILS,
   SEED_FOLDERS,
+  SEED_EMAIL_LABELS,
   SEED_NOTES,
   buildGraphFromData,
   getDemoEmailsForAccount,
@@ -25,6 +26,7 @@ import type {
   EmailInboxOverride,
   EmailInboxTraining,
   EmailJunkCategory,
+  EmailLabel,
   Note,
   OAuthSettings,
   Theme,
@@ -47,6 +49,7 @@ import { snoozeUntilFromPreset } from '../lib/snooze'
 import { DEFAULT_INBOX_TRAINING, getOutboxEmails } from '../lib/aiInbox'
 import { generateMeetingBrief } from '../lib/meetingPrep'
 import { findFreeSlots, formatProposalEmail } from '../lib/smartPropose'
+import { materializeEmailAttachments } from '../lib/composeAttachments'
 
 function uniquePush(arr: string[], value: string): string[] {
   const v = value.toLowerCase()
@@ -193,6 +196,14 @@ interface EtherMailState {
   batchStarEmails: (emailIds: string[], starred: boolean) => void
   batchMarkEmailsRead: (emailIds: string[], read: boolean) => void
 
+  emailLabels: EmailLabel[]
+  activeLabelFilter: string | null
+  setActiveLabelFilter: (labelId: string | null) => void
+  createEmailLabel: (name: string, color?: string) => string
+  deleteEmailLabel: (labelId: string) => void
+  toggleEmailLabelOnEmail: (emailId: string, labelId: string) => void
+  batchApplyEmailLabel: (emailIds: string[], labelId: string) => void
+
   hiddenPanels: Record<string, boolean>
   togglePanelHidden: (panelId: string) => void
 
@@ -224,6 +235,8 @@ export const useEtherMailStore = create<EtherMailState>()(
       folders: SEED_FOLDERS,
       emails: SEED_EMAILS,
       emailAttachments: SEED_ATTACHMENTS,
+      emailLabels: SEED_EMAIL_LABELS,
+      activeLabelFilter: null,
       vaultFiles: [],
       accounts: SEED_ACCOUNTS,
       calendarEvents: SEED_CALENDAR,
@@ -599,6 +612,7 @@ export const useEtherMailStore = create<EtherMailState>()(
             subject,
             body,
             accountId: initial?.accountId ?? defaultAccount,
+            attachments: initial?.attachments,
           },
           view: 'email',
           mobilePanel: 'list',
@@ -614,6 +628,15 @@ export const useEtherMailStore = create<EtherMailState>()(
         const preview = draft.body.trim().slice(0, 120) || '(no content)'
 
         if (draft.id) {
+          const { records, ids } = materializeEmailAttachments(
+            draft.attachments,
+            draft.id,
+            draft.accountId,
+          )
+          const attachmentIds = draft.attachments?.length
+            ? ids
+            : state.emails.find((e) => e.id === draft.id)?.attachmentIds
+
           set({
             emails: state.emails.map((e) =>
               e.id === draft.id
@@ -628,9 +651,16 @@ export const useEtherMailStore = create<EtherMailState>()(
                     date: now,
                     folder: 'sent' as EmailFolder,
                     read: true,
+                    attachmentIds,
                   }
                 : e,
             ),
+            emailAttachments: draft.attachments?.length
+              ? [
+                  ...state.emailAttachments.filter((a) => a.emailId !== draft.id),
+                  ...records,
+                ]
+              : state.emailAttachments,
             activeEmailId: draft.id,
             activeEmailFolder: 'sent',
             composeDraft: null,
@@ -640,6 +670,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
 
         const id = `email-${Date.now()}`
+        const { records, ids } = materializeEmailAttachments(draft.attachments, id, draft.accountId)
         const email: Email = {
           id,
           accountId: draft.accountId,
@@ -655,10 +686,12 @@ export const useEtherMailStore = create<EtherMailState>()(
           read: true,
           starred: false,
           linkedNoteId: null,
+          attachmentIds: ids.length > 0 ? ids : undefined,
           folder: 'sent',
         }
         set({
           emails: [...state.emails, email],
+          emailAttachments: [...state.emailAttachments, ...records],
           activeEmailId: id,
           activeEmailFolder: 'sent',
           composeDraft: null,
@@ -673,6 +706,15 @@ export const useEtherMailStore = create<EtherMailState>()(
         const preview = draft.body.trim().slice(0, 120) || '(draft)'
 
         if (draft.id) {
+          const { records, ids } = materializeEmailAttachments(
+            draft.attachments,
+            draft.id,
+            draft.accountId,
+          )
+          const attachmentIds = draft.attachments?.length
+            ? ids
+            : state.emails.find((e) => e.id === draft.id)?.attachmentIds
+
           set({
             emails: state.emails.map((e) =>
               e.id === draft.id
@@ -686,9 +728,16 @@ export const useEtherMailStore = create<EtherMailState>()(
                     preview,
                     date: now,
                     folder: 'drafts' as EmailFolder,
+                    attachmentIds,
                   }
                 : e,
             ),
+            emailAttachments: draft.attachments?.length
+              ? [
+                  ...state.emailAttachments.filter((a) => a.emailId !== draft.id),
+                  ...records,
+                ]
+              : state.emailAttachments,
             activeEmailId: draft.id,
             activeEmailFolder: 'drafts',
             composeDraft: null,
@@ -698,6 +747,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
 
         const id = `draft-${Date.now()}`
+        const { records, ids } = materializeEmailAttachments(draft.attachments, id, draft.accountId)
         const email: Email = {
           id,
           accountId: draft.accountId,
@@ -713,10 +763,12 @@ export const useEtherMailStore = create<EtherMailState>()(
           read: true,
           starred: false,
           linkedNoteId: null,
+          attachmentIds: ids.length > 0 ? ids : undefined,
           folder: 'drafts',
         }
         set({
           emails: [...state.emails, email],
+          emailAttachments: [...state.emailAttachments, ...records],
           activeEmailId: id,
           activeEmailFolder: 'drafts',
           composeDraft: null,
@@ -969,6 +1021,61 @@ export const useEtherMailStore = create<EtherMailState>()(
         }))
       },
 
+      setActiveLabelFilter: (activeLabelFilter) => set({ activeLabelFilter }),
+
+      createEmailLabel: (name, color) => {
+        const trimmed = name.trim()
+        if (!trimmed) return ''
+        const id = `label-${Date.now()}`
+        const palette = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4']
+        const label: EmailLabel = {
+          id,
+          name: trimmed,
+          color: color ?? palette[get().emailLabels.length % palette.length],
+        }
+        set((s) => ({ emailLabels: [...s.emailLabels, label] }))
+        return id
+      },
+
+      deleteEmailLabel: (labelId) =>
+        set((s) => ({
+          emailLabels: s.emailLabels.filter((l) => l.id !== labelId),
+          emails: s.emails.map((e) => ({
+            ...e,
+            labelIds: e.labelIds?.filter((id) => id !== labelId),
+          })),
+          activeLabelFilter: s.activeLabelFilter === labelId ? null : s.activeLabelFilter,
+        })),
+
+      toggleEmailLabelOnEmail: (emailId, labelId) =>
+        set((s) => ({
+          emails: s.emails.map((e) => {
+            if (e.id !== emailId) return e
+            const current = e.labelIds ?? []
+            const has = current.includes(labelId)
+            return {
+              ...e,
+              labelIds: has
+                ? current.filter((id) => id !== labelId)
+                : [...current, labelId],
+            }
+          }),
+        })),
+
+      batchApplyEmailLabel: (emailIds, labelId) => {
+        const ids = new Set(emailIds)
+        set((s) => ({
+          emails: s.emails.map((e) => {
+            if (!ids.has(e.id)) return e
+            const current = e.labelIds ?? []
+            if (current.includes(labelId)) return e
+            return { ...e, labelIds: [...current, labelId] }
+          }),
+          selectedEmailIds: [],
+          emailSelectionMode: false,
+        }))
+      },
+
       hiddenPanels: {},
       togglePanelHidden: (panelId) =>
         set((s) => ({
@@ -1052,7 +1159,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 5,
+      version: 6,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1091,6 +1198,17 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (version < 5) {
           next = { ...next, vaultFiles: [] }
         }
+        if (version < 6) {
+          next = {
+            ...next,
+            emailLabels: SEED_EMAIL_LABELS,
+            activeLabelFilter: null,
+            emails: ((next.emails as Email[]) ?? []).map((e) => ({
+              ...e,
+              labelIds: e.labelIds ?? [],
+            })),
+          }
+        }
         return next
       },
       partialize: (s) => ({
@@ -1120,6 +1238,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         aiInboxEnabled: s.aiInboxEnabled,
         aiOutboxEnabled: s.aiOutboxEnabled,
         followUpFilterEnabled: s.followUpFilterEnabled,
+        emailLabels: s.emailLabels,
+        activeLabelFilter: s.activeLabelFilter,
         inboxTraining: s.inboxTraining,
         emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,
