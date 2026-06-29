@@ -14,6 +14,7 @@ import {
 } from '../lib/utils'
 import { useSwipe } from '../hooks/useSwipe'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
+import { EventDetailBox } from './EventDetailBox'
 
 const EVENT_COLORS = ['#6366f1', '#22d3ee', '#f472b6', '#a78bfa', '#34d399']
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -22,16 +23,48 @@ function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
   return events.filter((e) => isSameDay(new Date(e.start), day))
 }
 
+function EventChip({
+  event,
+  color,
+  className = '',
+  onSelect,
+}: {
+  event: CalendarEvent
+  color: string
+  className?: string
+  onSelect: (event: CalendarEvent) => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation()
+        onSelect(event)
+      }}
+      className={`text-left rounded truncate text-theme hover:opacity-90 ${className}`}
+      style={{
+        background: `${color}33`,
+        borderLeft: `2px solid ${color}`,
+      }}
+      title={event.title}
+    >
+      {event.title}
+    </button>
+  )
+}
+
 function MonthGrid({
   month,
   events,
   today,
   onSelectDay,
+  onSelectEvent,
 }: {
   month: Date
   events: CalendarEvent[]
   today: Date
   onSelectDay: (day: Date) => void
+  onSelectEvent: (event: CalendarEvent) => void
 }) {
   const days = getMonthGridDays(month)
 
@@ -74,17 +107,13 @@ function MonthGrid({
               </span>
               <div className="space-y-0.5">
                 {dayEvents.slice(0, 2).map((e, idx) => (
-                  <div
+                  <EventChip
                     key={e.id}
-                    className="text-[9px] px-1 py-0.5 rounded truncate text-theme"
-                    style={{
-                      background: `${EVENT_COLORS[idx % EVENT_COLORS.length]}33`,
-                      borderLeft: `2px solid ${EVENT_COLORS[idx % EVENT_COLORS.length]}`,
-                    }}
-                    title={e.title}
-                  >
-                    {e.title}
-                  </div>
+                    event={e}
+                    color={EVENT_COLORS[idx % EVENT_COLORS.length]}
+                    className="text-[9px] px-1 py-0.5 block w-full"
+                    onSelect={onSelectEvent}
+                  />
                 ))}
                 {dayEvents.length > 2 && (
                   <span className="text-[8px] text-theme-muted">+{dayEvents.length - 2}</span>
@@ -103,6 +132,7 @@ export function CalendarView() {
   const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false)
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
 
   const weekHidden = hiddenPanels['calendar-week'] ?? false
   const upcomingHidden = hiddenPanels['calendar-upcoming'] ?? false
@@ -133,7 +163,6 @@ export function CalendarView() {
   }, [sortedEvents])
 
   const today = new Date()
-
   const monthTitle = weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })
 
   const selectDayFromMonth = (day: Date) => {
@@ -141,10 +170,15 @@ export function CalendarView() {
     setFullCalendarOpen(false)
   }
 
+  const eventColor = (event: CalendarEvent) => {
+    const idx = sortedEvents.findIndex((e) => e.id === event.id)
+    return EVENT_COLORS[(idx >= 0 ? idx : 0) % EVENT_COLORS.length]
+  }
+
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 pb-4">
-      <div className="max-w-5xl mx-auto">
-        <div className="flex items-center justify-between flex-wrap gap-3 mb-6">
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-4 md:p-6 pb-4">
+      <div className="max-w-5xl mx-auto flex flex-col flex-1 min-h-0 w-full">
+        <div className="shrink-0 flex items-center justify-between flex-wrap gap-3 mb-4">
           <div>
             <h1 className="text-2xl font-bold text-theme flex items-center gap-2">
               <Calendar size={24} className="text-accent" />
@@ -189,10 +223,13 @@ export function CalendarView() {
           </div>
         </div>
 
-        <PanelRestoreTab panelId="calendar-week" label="Week" className="mb-2" />
+        <div className="shrink-0 flex flex-col gap-1 mb-2">
+          <PanelRestoreTab panelId="calendar-week" label="Week view" />
+          <PanelRestoreTab panelId="calendar-upcoming" label="Upcoming events" />
+        </div>
 
         {!weekHidden && (
-          <div className="glass rounded-xl p-4 mb-6 overflow-hidden">
+          <div className="glass rounded-xl p-4 mb-4 shrink-0 overflow-hidden">
             <div className="flex items-center justify-between mb-1">
               <button
                 type="button"
@@ -211,12 +248,12 @@ export function CalendarView() {
             </div>
             <p className="text-[10px] text-theme-muted mb-3">
               {fullCalendarOpen
-                ? 'Scroll through months · tap a day to jump to that week'
-                : 'Tap month to open full calendar · swipe to change week'}
+                ? 'Scroll through months · tap an event for details'
+                : 'Tap month for full calendar · tap an event for details'}
             </p>
 
             {fullCalendarOpen ? (
-              <div className="max-h-[min(65vh,520px)] overflow-y-auto overscroll-contain pr-1 -mr-1">
+              <div className="max-h-[min(45vh,400px)] overflow-y-auto overscroll-contain pr-1">
                 {scrollMonths.map((month) => (
                   <MonthGrid
                     key={`${month.getFullYear()}-${month.getMonth()}`}
@@ -224,6 +261,7 @@ export function CalendarView() {
                     events={sortedEvents}
                     today={today}
                     onSelectDay={selectDayFromMonth}
+                    onSelectEvent={setSelectedEvent}
                   />
                 ))}
               </div>
@@ -259,17 +297,13 @@ export function CalendarView() {
                         </p>
                         <div className="space-y-1">
                           {dayEvents.map((e, idx) => (
-                            <div
+                            <EventChip
                               key={e.id}
-                              className="text-[10px] p-1 rounded truncate text-theme"
-                              style={{
-                                background: `${EVENT_COLORS[idx % EVENT_COLORS.length]}33`,
-                                borderLeft: `2px solid ${EVENT_COLORS[idx % EVENT_COLORS.length]}`,
-                              }}
-                              title={e.title}
-                            >
-                              {e.title}
-                            </div>
+                              event={e}
+                              color={EVENT_COLORS[idx % EVENT_COLORS.length]}
+                              className="text-[10px] p-1 block w-full"
+                              onSelect={setSelectedEvent}
+                            />
                           ))}
                         </div>
                       </div>
@@ -281,11 +315,9 @@ export function CalendarView() {
           </div>
         )}
 
-        <PanelRestoreTab panelId="calendar-upcoming" label="Upcoming" className="mb-2" />
-
         {!upcomingHidden && (
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
+          <div className="glass rounded-xl p-4 flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between mb-3 shrink-0">
               <h2 className="font-semibold text-theme">Upcoming</h2>
               <PanelHideButton panelId="calendar-upcoming" label="upcoming" />
             </div>
@@ -293,41 +325,53 @@ export function CalendarView() {
             {upcoming.length === 0 ? (
               <p className="text-sm text-theme-muted">No upcoming events</p>
             ) : (
-              <div className="space-y-2 max-h-[min(50vh,400px)] overflow-y-auto">
-                {upcoming.map((e, i) => (
-                  <div
-                    key={e.id}
-                    className="flex items-start gap-3 p-3 rounded-lg glass hover-theme"
-                  >
-                    <div
-                      className="w-1 self-stretch rounded-full shrink-0"
-                      style={{ background: EVENT_COLORS[i % EVENT_COLORS.length] }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-theme">{e.title}</p>
-                      <p className="text-xs text-theme-muted mt-0.5">
-                        {new Date(e.start).toLocaleDateString([], {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                        {' · '}
-                        {formatEventTimeRange(e.start, e.end)}
-                      </p>
-                      {e.attendees && e.attendees.length > 0 && (
-                        <p className="text-[10px] text-theme-muted mt-1 flex items-center gap-1">
-                          <Users size={10} />
-                          {e.attendees.join(', ')}
+              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-1 px-1">
+                <div className="space-y-2 pb-2">
+                  {upcoming.map((e, i) => (
+                    <button
+                      key={e.id}
+                      type="button"
+                      onClick={() => setSelectedEvent(e)}
+                      className="w-full flex items-start gap-3 p-3 rounded-lg glass hover-theme text-left transition-colors"
+                    >
+                      <div
+                        className="w-1 self-stretch rounded-full shrink-0"
+                        style={{ background: EVENT_COLORS[i % EVENT_COLORS.length] }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-theme">{e.title}</p>
+                        <p className="text-xs text-theme-muted mt-0.5">
+                          {new Date(e.start).toLocaleDateString([], {
+                            weekday: 'short',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
+                          {' · '}
+                          {formatEventTimeRange(e.start, e.end)}
                         </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                        {e.attendees && e.attendees.length > 0 && (
+                          <p className="text-[10px] text-theme-muted mt-1 flex items-center gap-1">
+                            <Users size={10} />
+                            {e.attendees.join(', ')}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
           </div>
         )}
       </div>
+
+      {selectedEvent && (
+        <EventDetailBox
+          event={selectedEvent}
+          color={eventColor(selectedEvent)}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
     </div>
   )
 }
