@@ -4,6 +4,7 @@ import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
 import { addDays, formatEventTimeRange, isSameDay, startOfWeek } from '../lib/utils'
 import { useSwipe } from '../hooks/useSwipe'
+import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 
 const EVENT_COLORS = ['#6366f1', '#22d3ee', '#f472b6', '#a78bfa', '#34d399']
 
@@ -13,7 +14,11 @@ function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
 
 export function CalendarView() {
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
+  const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+
+  const weekHidden = hiddenPanels['calendar-week'] ?? false
+  const upcomingHidden = hiddenPanels['calendar-upcoming'] ?? false
 
   const weekSwipe = useSwipe(
     () => setWeekStart((w) => addDays(w, 7)),
@@ -74,14 +79,19 @@ export function CalendarView() {
           </div>
         </div>
 
-        {/* Week grid — swipe left/right to change weeks */}
+        <PanelRestoreTab panelId="calendar-week" label="Week" className="mb-2" />
+
+        {!weekHidden && (
         <div className="glass rounded-xl p-4 mb-6 overflow-hidden">
-          <p className="text-sm font-medium text-theme mb-1">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-sm font-medium text-theme">
             {weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })}
             <span className="text-theme-muted font-normal">
               {' '}· Week of {weekDays[0].toLocaleDateString([], { month: 'short', day: 'numeric' })}
             </span>
-          </p>
+            </p>
+            <PanelHideButton panelId="calendar-week" label="week view" />
+          </div>
           <p className="text-[10px] text-theme-muted mb-3">Swipe to change week</p>
 
           <div
@@ -134,14 +144,20 @@ export function CalendarView() {
             </div>
           </div>
         </div>
+        )}
 
-        {/* Upcoming — swipe or scroll horizontally through events */}
+        <PanelRestoreTab panelId="calendar-upcoming" label="Upcoming" className="mb-2" />
+
+        {!upcomingHidden && (
         <div className="glass rounded-xl p-4 overflow-hidden">
           <div className="flex items-center justify-between mb-1">
             <h2 className="font-semibold text-theme">Upcoming</h2>
-            {upcoming.length > 1 && (
-              <span className="text-[10px] text-theme-muted">Swipe to browse</span>
-            )}
+            <div className="flex items-center gap-2">
+              {upcoming.length > 1 && (
+                <span className="text-[10px] text-theme-muted">Swipe to browse</span>
+              )}
+              <PanelHideButton panelId="calendar-upcoming" label="upcoming" />
+            </div>
           </div>
 
           {upcoming.length === 0 ? (
@@ -183,6 +199,7 @@ export function CalendarView() {
             </div>
           )}
         </div>
+        )}
       </div>
     </div>
   )

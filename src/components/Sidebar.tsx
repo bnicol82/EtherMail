@@ -9,6 +9,7 @@ import {
   Settings,
   X,
   Inbox,
+  FileText,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerColor } from '../lib/utils'
@@ -16,11 +17,11 @@ import type { View } from '../types'
 
 const NAV: { id: View; label: string; icon: typeof Mail }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'graph', label: 'Knowledge Graph', icon: Network },
-  { id: 'vault', label: 'Vaults', icon: FolderOpen },
   { id: 'email', label: 'Email', icon: Mail },
+  { id: 'vault', label: 'Vault', icon: FolderOpen },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
-  { id: 'ai', label: 'AI Assistant', icon: Bot },
+  { id: 'notes', label: 'Notes', icon: FileText },
+  { id: 'graph', label: 'Graph', icon: Network },
 ]
 
 export function Sidebar() {
@@ -33,6 +34,7 @@ export function Sidebar() {
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
   const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
+  const setSearchQuery = useEtherMailStore((s) => s.setSearchQuery)
   const unread = emails.filter((e) => {
     const acc = accounts.find((a) => a.id === e.accountId)
     return acc?.connected && !e.read
@@ -40,6 +42,7 @@ export function Sidebar() {
 
   const navigate = (v: View) => {
     if (v === 'email') selectAccount(null)
+    if (v === 'notes') setSearchQuery('')
     setView(v)
     setSidebarOpen(false)
   }
@@ -104,6 +107,18 @@ export function Sidebar() {
             )}
           </button>
         ))}
+
+        <button
+          onClick={() => navigate('ai')}
+          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mt-2 ${
+            view === 'ai'
+              ? 'nav-active'
+              : 'text-theme-muted hover-theme hover:text-theme'
+          }`}
+        >
+          <Bot size={18} />
+          <span className="flex-1 text-left">AI Assistant</span>
+        </button>
 
         <div className="pt-2">
           <p className="px-3 text-xs font-medium text-theme-muted uppercase tracking-wider mb-2">

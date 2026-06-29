@@ -20,6 +20,7 @@ import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { MiniGraph } from './MiniGraph'
 import { AccountDot } from './AccountDot'
+import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 
@@ -45,6 +46,11 @@ export function VaultView() {
   const setMobilePanel = useNexusStore((s) => s.setMobilePanel)
   const setAiAssistantOpen = useNexusStore((s) => s.setAiAssistantOpen)
   const submitAiQuery = useNexusStore((s) => s.submitAiQuery)
+  const hiddenPanels = useNexusStore((s) => s.hiddenPanels)
+
+  const treeHidden = hiddenPanels['vault-tree'] ?? false
+  const editorHidden = hiddenPanels['vault-editor'] ?? false
+  const railHidden = hiddenPanels['vault-rail'] ?? false
 
   const [expanded, setExpanded] = useState<Set<string>>(
     new Set(['root', 'projects', 'athena', EMAIL_FILES_FOLDER_ID]),
@@ -156,15 +162,17 @@ export function VaultView() {
 
   return (
     <div className="flex-1 flex min-h-0 overflow-hidden">
-      {/* File tree */}
+      <PanelRestoreTab panelId="vault-tree" label="Folders" className="m-1" />
+
+      {!treeHidden && (
       <div
         className={`
           ${mobilePanel === 'detail' ? 'hidden md:flex' : 'flex'}
           w-full md:w-56 glass border-r border-[var(--glass-border)] flex-col shrink-0
         `}
       >
-        <div className="p-3 border-b border-[var(--glass-border)]">
-          <div className="relative">
+        <div className="p-3 border-b border-[var(--glass-border)] flex items-center gap-2">
+          <div className="relative flex-1">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-theme-muted" />
             <input
               value={searchQuery}
@@ -173,6 +181,7 @@ export function VaultView() {
               className="w-full pl-8 pr-3 py-1.5 rounded-lg input-theme text-sm outline-none focus:border-[var(--accent-border)]"
             />
           </div>
+          <PanelHideButton panelId="vault-tree" label="folders" />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {renderFolder('root')}
@@ -218,8 +227,13 @@ export function VaultView() {
           )}
         </div>
       </div>
+      )}
+
+      <PanelRestoreTab panelId="vault-editor" label="Editor" className="m-1" />
+      <PanelRestoreTab panelId="vault-rail" label="Insights" className="m-1" />
 
       {/* Editor / attachment detail */}
+      {!editorHidden && (
       <div
         className={`
           ${mobilePanel !== 'detail' ? 'hidden md:flex' : 'flex'}
@@ -338,6 +352,7 @@ export function VaultView() {
                     {mode === 'preview' && <Eye size={16} />}
                   </button>
                 ))}
+                <PanelHideButton panelId="vault-editor" label="editor" />
               </div>
             </div>
 
@@ -366,12 +381,16 @@ export function VaultView() {
               </div>
 
               {/* Right rail */}
+              {!railHidden && (
               <div className="hidden lg:flex w-64 flex-col border-l border-[var(--glass-border)] glass shrink-0 overflow-y-auto">
-                <div className="p-3 border-b border-[var(--glass-border)]">
-                  <div className="flex items-center gap-2 mb-2">
+                <div className="p-3 border-b border-[var(--glass-border)] flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-1">
                     <Sparkles size={14} className="text-accent" />
                     <span className="text-sm font-medium text-theme">Vault AI Insights</span>
                   </div>
+                  <PanelHideButton panelId="vault-rail" label="insights" />
+                </div>
+                <div className="p-3 border-b border-[var(--glass-border)]">
                   <div className="space-y-1">
                     {['Refine Wording', 'Find Similar Note', 'Find Similar Link'].map((a) => (
                       <button
@@ -427,6 +446,7 @@ export function VaultView() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           </>
         ) : (
@@ -435,6 +455,7 @@ export function VaultView() {
           </div>
         )}
       </div>
+      )}
     </div>
   )
 }

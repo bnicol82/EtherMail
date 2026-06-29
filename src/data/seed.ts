@@ -331,6 +331,28 @@ This event relates to your Budget Q4 planning notes.`,
     starred: false,
     linkedNoteId: 'note-budget',
     attachmentIds: ['att-6', 'att-7'],
+    folder: 'inbox',
+  },
+  {
+    id: 'email-sent-1',
+    accountId: 'acc-gmail',
+    from: 'name@gmail.com',
+    fromName: 'You',
+    to: 'sarah.j@corp.com',
+    subject: 'Re: Project Update — Athena Q3',
+    preview: 'Thanks Sarah — reviewed the strategy doc and left comments in the vault...',
+    body: `Thanks Sarah,
+
+Reviewed the strategy doc and left comments in the vault note.
+
+Looks good overall. I'll sync with the team before Friday.
+
+Best`,
+    date: '2026-06-27T15:00:00Z',
+    read: true,
+    starred: false,
+    linkedNoteId: 'note-q3-marketing',
+    folder: 'sent',
   },
 ]
 
