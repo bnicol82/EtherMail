@@ -62,6 +62,18 @@ export interface Folder {
   isSystem?: boolean
 }
 
+/** User-uploaded file stored in a vault folder */
+export interface VaultFile {
+  id: string
+  folderId: string
+  filename: string
+  sizeBytes: number
+  mimeType: string
+  uploadedAt: string
+  /** Base64 data URL for demo persistence (small files only) */
+  dataUrl?: string
+}
+
 export interface EmailAttachment {
   id: string
   emailId: string

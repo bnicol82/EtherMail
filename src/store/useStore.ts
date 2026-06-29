@@ -28,9 +28,11 @@ import type {
   Note,
   OAuthSettings,
   Theme,
+  VaultFile,
   View,
   WeatherSettings,
 } from '../types'
+import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
 import { computeAIAlerts } from '../lib/aiAlerts'
 import { generateVaultAIResponse } from '../lib/rag'
@@ -61,12 +63,14 @@ interface EtherMailState {
   folders: typeof SEED_FOLDERS
   emails: Email[]
   emailAttachments: EmailAttachment[]
+  vaultFiles: VaultFile[]
   accounts: typeof SEED_ACCOUNTS
   calendarEvents: typeof SEED_CALENDAR
 
   activeNoteId: string | null
   activeEmailId: string | null
   activeAttachmentId: string | null
+  activeVaultFileId: string | null
   activeFolderId: string
   activeAccountId: string | null
   activeEmailFolder: EmailFolder
@@ -116,6 +120,9 @@ interface EtherMailState {
   selectAccount: (accountId: string | null) => void
   updateNote: (id: string, updates: Partial<Note>) => void
   createNote: (folderId?: string) => string
+  createFolder: (name: string, parentId?: string) => string
+  uploadVaultFile: (file: File, folderId: string) => Promise<void>
+  selectVaultFile: (id: string | null) => void
   linkEmailToNote: (emailId: string, noteId: string | null) => void
   markEmailRead: (emailId: string) => void
   setActiveEmailFolder: (folder: EmailFolder) => void
@@ -185,12 +192,14 @@ export const useEtherMailStore = create<EtherMailState>()(
       folders: SEED_FOLDERS,
       emails: SEED_EMAILS,
       emailAttachments: SEED_ATTACHMENTS,
+      vaultFiles: [],
       accounts: SEED_ACCOUNTS,
       calendarEvents: SEED_CALENDAR,
 
       activeNoteId: 'note-research',
       activeEmailId: 'email-1',
       activeAttachmentId: null,
+      activeVaultFileId: null,
       activeFolderId: 'athena',
       activeAccountId: null,
       activeEmailFolder: 'inbox',
@@ -295,12 +304,32 @@ export const useEtherMailStore = create<EtherMailState>()(
       selectNote: (id, opts) => {
         const current = get().view
         const nextView = opts?.view ?? (current === 'notes' ? 'notes' : 'vault')
-        set({ activeNoteId: id, activeAttachmentId: null, view: nextView, mobilePanel: 'detail' })
+        set({
+          activeNoteId: id,
+          activeAttachmentId: null,
+          activeVaultFileId: null,
+          view: nextView,
+          mobilePanel: 'detail',
+        })
       },
       selectEmail: (id) =>
         set({ activeEmailId: id, view: 'email', mobilePanel: 'detail' }),
       selectAttachment: (id) =>
-        set({ activeAttachmentId: id, activeNoteId: null, view: 'vault', mobilePanel: 'detail' }),
+        set({
+          activeAttachmentId: id,
+          activeNoteId: null,
+          activeVaultFileId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }),
+      selectVaultFile: (id) =>
+        set({
+          activeVaultFileId: id,
+          activeNoteId: null,
+          activeAttachmentId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }),
       selectFolder: (activeFolderId) => {
         const state = get()
         if (activeFolderId === 'email-files') {
@@ -308,11 +337,12 @@ export const useEtherMailStore = create<EtherMailState>()(
           set({
             activeFolderId,
             activeNoteId: null,
+            activeVaultFileId: null,
             activeAttachmentId: state.activeAttachmentId ?? first?.id ?? null,
             view: 'vault',
           })
         } else {
-          set({ activeFolderId, activeAttachmentId: null })
+          set({ activeFolderId, activeAttachmentId: null, activeVaultFileId: null })
         }
       },
       selectAccount: (activeAccountId) =>
@@ -327,7 +357,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         })),
       createNote: (folderId) => {
         const id = `note-${Date.now()}`
-        const folder = folderId ?? get().activeFolderId
+        let folder = folderId ?? get().activeFolderId
+        if (folder === EMAIL_FILES_FOLDER_ID) folder = 'athena'
         const note: Note = {
           id,
           title: 'Untitled Note',
@@ -341,11 +372,54 @@ export const useEtherMailStore = create<EtherMailState>()(
         set((s) => ({
           notes: [...s.notes, note],
           activeNoteId: id,
+          activeVaultFileId: null,
           view,
           mobilePanel: 'detail',
         }))
         return id
       },
+
+      createFolder: (name, parentId) => {
+        const parent = parentId ?? get().activeFolderId
+        if (parent === EMAIL_FILES_FOLDER_ID) return ''
+        const trimmed = name.trim()
+        if (!trimmed) return ''
+        const id = `folder-${Date.now()}`
+        set((s) => ({
+          folders: [...s.folders, { id, name: trimmed, parentId: parent }],
+          activeFolderId: id,
+        }))
+        return id
+      },
+
+      uploadVaultFile: async (file, folderId) => {
+        if (folderId === EMAIL_FILES_FOLDER_ID) return
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => reject(new Error('read failed'))
+          reader.readAsDataURL(file)
+        })
+        const id = `vfile-${Date.now()}`
+        const entry: VaultFile = {
+          id,
+          folderId,
+          filename: file.name,
+          sizeBytes: file.size,
+          mimeType: file.type || 'application/octet-stream',
+          uploadedAt: new Date().toISOString(),
+          dataUrl,
+        }
+        set((s) => ({
+          vaultFiles: [...s.vaultFiles, entry],
+          activeVaultFileId: id,
+          activeNoteId: null,
+          activeAttachmentId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }))
+      },
+
       linkEmailToNote: (emailId, noteId) =>
         set((s) => ({
           emails: s.emails.map((e) =>
@@ -808,7 +882,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 4,
+      version: 5,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -844,11 +918,16 @@ export const useEtherMailStore = create<EtherMailState>()(
             emailInboxOverrides: {},
           }
         }
+        if (version < 5) {
+          next = { ...next, vaultFiles: [] }
+        }
         return next
       },
       partialize: (s) => ({
         notes: s.notes,
+        folders: s.folders,
         emails: s.emails,
+        vaultFiles: s.vaultFiles,
         accounts: s.accounts,
         calendarEvents: s.calendarEvents,
         oauthSettings: s.oauthSettings,
