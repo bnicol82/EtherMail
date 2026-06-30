@@ -19,6 +19,7 @@ import {
 } from '../data/seed'
 import { buildContactGraph } from '../lib/contactGraph'
 import { refreshStaleCalendarEvents } from '../lib/calendarDemo'
+import { repairAccountVaults, accountVaultId } from '../lib/vaults'
 import type {
   AISettings,
   AckStatus,
@@ -469,7 +470,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           const scopedAttachments = state.activeVaultId
             ? state.emailAttachments.filter((a) => {
                 const acc = state.accounts.find((x) => x.id === a.accountId)
-                return (acc?.defaultVaultId ?? VAULT_PERSONAL_ID) === state.activeVaultId
+                return acc && accountVaultId(acc) === state.activeVaultId
               })
             : state.emailAttachments
           const first = scopedAttachments[0]
@@ -491,7 +492,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
       },
       selectAccount: (activeAccountId) =>
-        set({ activeAccountId, view: 'email', mobilePanel: 'list' }),
+        set({ activeAccountId, view: 'email', mobilePanel: 'list', graphPersonFilter: null }),
       updateNote: (id, updates) =>
         set((s) => ({
           notes: s.notes.map((n) =>
@@ -1373,7 +1374,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 10,
+      version: 11,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1552,6 +1553,13 @@ export const useEtherMailStore = create<EtherMailState>()(
             folders,
           }
         }
+        if (version < 11) {
+          next = {
+            ...next,
+            accounts: repairAccountVaults((next.accounts as typeof SEED_ACCOUNTS) ?? SEED_ACCOUNTS),
+            graphPersonFilter: null,
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1570,6 +1578,11 @@ export const useEtherMailStore = create<EtherMailState>()(
         const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
         const repairs: Record<string, unknown> = {}
         if (!state.vaults?.length) repairs.vaults = SEED_VAULTS
+
+        const repairedAccounts = repairAccountVaults(state.accounts)
+        if (repairedAccounts.some((a, i) => a.defaultVaultId !== state.accounts[i]?.defaultVaultId)) {
+          repairs.accounts = repairedAccounts
+        }
 
         let foldersChanged = false
         const repairedFolders = state.folders.map((f) => {

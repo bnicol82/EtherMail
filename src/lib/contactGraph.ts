@@ -7,6 +7,7 @@ import type {
   Note,
 } from '../types'
 import { normalizeAddress, parseAddressList } from './emailCompose'
+import { accountVaultId } from './vaults'
 
 export interface ContactRecord {
   personId: string
@@ -121,7 +122,7 @@ export function emailsForVault(
 ): Email[] {
   if (!vaultId) return emails
   const accountIds = new Set(
-    accounts.filter((a) => (a.defaultVaultId ?? 'vault-personal') === vaultId).map((a) => a.id),
+    accounts.filter((a) => accountVaultId(a) === vaultId).map((a) => a.id),
   )
   return emails.filter((e) => accountIds.has(e.accountId))
 }

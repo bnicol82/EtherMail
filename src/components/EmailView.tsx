@@ -36,7 +36,6 @@ import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
 import { emailMatchesPerson } from '../lib/contactGraph'
-import { VAULT_PERSONAL_ID } from '../data/seed'
 import type { ComposeAttachment, EmailFolder } from '../types'
 
 export function EmailView() {
@@ -45,7 +44,6 @@ export function EmailView() {
   const notes = useEtherMailStore((s) => s.notes)
   const activeEmailId = useEtherMailStore((s) => s.activeEmailId)
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
-  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
   const graphPersonFilter = useEtherMailStore((s) => s.graphPersonFilter)
   const setGraphPersonFilter = useEtherMailStore((s) => s.setGraphPersonFilter)
   const activeEmailFolder = useEtherMailStore((s) => s.activeEmailFolder)
@@ -168,7 +166,6 @@ export function EmailView() {
     const acc = accounts.find((a) => a.id === e.accountId)
     if (!acc?.connected) return false
     if (activeAccountId && e.accountId !== activeAccountId) return false
-    if (activeVaultId && (acc.defaultVaultId ?? VAULT_PERSONAL_ID) !== activeVaultId) return false
     if (graphPersonFilter && !emailMatchesPerson(e, graphPersonFilter)) return false
     return true
   }
@@ -188,7 +185,7 @@ export function EmailView() {
       counts[f]++
     }
     return counts
-  }, [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter])
+  }, [emails, accounts, activeAccountId, graphPersonFilter])
 
   const filtered = emails.filter((e) => {
     if (!emailInScope(e)) return false
@@ -215,7 +212,7 @@ export function EmailView() {
 
   const accountEmailPool = useMemo(
     () => emails.filter((e) => emailInScope(e)),
-    [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter],
+    [emails, accounts, activeAccountId, graphPersonFilter],
   )
 
   const threadedList = useMemo(

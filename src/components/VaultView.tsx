@@ -26,6 +26,7 @@ import { VaultAddMenu } from './VaultAddMenu'
 import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { EMAIL_FILES_WORK_FOLDER_ID, VAULT_PERSONAL_ID } from '../data/seed'
+import { accountVaultId } from '../lib/vaults'
 
 export function VaultView() {
   const folders = useNexusStore((s) => s.folders)
@@ -93,7 +94,7 @@ export function VaultView() {
   const scopedAttachments = emailAttachments.filter((a) => {
     if (!activeVaultId) return true
     const acc = accounts.find((x) => x.id === a.accountId)
-    return (acc?.defaultVaultId ?? 'vault-personal') === activeVaultId
+    return (acc && accountVaultId(acc) === activeVaultId)
   })
 
   const folderAttachments = scopedAttachments
