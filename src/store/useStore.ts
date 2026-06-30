@@ -10,9 +10,14 @@ import {
   SEED_FOLDERS,
   SEED_EMAIL_LABELS,
   SEED_NOTES,
-  buildGraphFromData,
+  SEED_VAULTS,
+  VAULT_PERSONAL_ID,
+  VAULT_WORK_ID,
+  ROOT_WORK_ID,
+  EMAIL_FILES_WORK_FOLDER_ID,
   getDemoEmailsForAccount,
 } from '../data/seed'
+import { buildContactGraph } from '../lib/contactGraph'
 import type {
   AISettings,
   AckStatus,
@@ -34,7 +39,9 @@ import type {
   Theme,
   VaultFile,
   View,
+  Vault,
   WeatherSettings,
+  Folder,
 } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { formatCalendarInviteBody, formatForwardInviteSubject } from '../lib/calendarInvite'
@@ -74,6 +81,11 @@ interface EtherMailState {
 
   notes: Note[]
   folders: typeof SEED_FOLDERS
+  vaults: Vault[]
+  activeVaultId: string | null
+  setActiveVault: (vaultId: string | null) => void
+  graphPersonFilter: string | null
+  setGraphPersonFilter: (personId: string | null) => void
   emails: Email[]
   emailAttachments: EmailAttachment[]
   vaultFiles: VaultFile[]
@@ -242,8 +254,26 @@ export const useEtherMailStore = create<EtherMailState>()(
       theme: 'glass',
       setTheme: (theme) => set({ theme }),
 
+      setActiveVault: (activeVaultId) => {
+        if (!activeVaultId) {
+          set({ activeVaultId: null, graphPersonFilter: null })
+          return
+        }
+        const root = get().folders.find((f) => f.parentId === null && f.vaultId === activeVaultId)
+        set({
+          activeVaultId,
+          activeFolderId: root?.id ?? get().activeFolderId,
+          graphPersonFilter: null,
+        })
+      },
+
+      setGraphPersonFilter: (graphPersonFilter) => set({ graphPersonFilter }),
+
       notes: SEED_NOTES,
       folders: SEED_FOLDERS,
+      vaults: SEED_VAULTS,
+      activeVaultId: VAULT_WORK_ID,
+      graphPersonFilter: null,
       emails: SEED_EMAILS,
       emailAttachments: SEED_ATTACHMENTS,
       emailLabels: SEED_EMAIL_LABELS,
@@ -432,8 +462,16 @@ export const useEtherMailStore = create<EtherMailState>()(
         }),
       selectFolder: (activeFolderId) => {
         const state = get()
-        if (activeFolderId === 'email-files') {
-          const first = state.emailAttachments[0]
+        const isEmailFilesFolder =
+          activeFolderId === EMAIL_FILES_FOLDER_ID || activeFolderId === EMAIL_FILES_WORK_FOLDER_ID
+        if (isEmailFilesFolder) {
+          const scopedAttachments = state.activeVaultId
+            ? state.emailAttachments.filter((a) => {
+                const acc = state.accounts.find((x) => x.id === a.accountId)
+                return (acc?.defaultVaultId ?? VAULT_PERSONAL_ID) === state.activeVaultId
+              })
+            : state.emailAttachments
+          const first = scopedAttachments[0]
           set({
             activeFolderId,
             activeNoteId: null,
@@ -442,7 +480,13 @@ export const useEtherMailStore = create<EtherMailState>()(
             view: 'vault',
           })
         } else {
-          set({ activeFolderId, activeAttachmentId: null, activeVaultFileId: null })
+          const folder = state.folders.find((f) => f.id === activeFolderId)
+          set({
+            activeFolderId,
+            activeAttachmentId: null,
+            activeVaultFileId: null,
+            activeVaultId: folder?.vaultId ?? state.activeVaultId,
+          })
         }
       },
       selectAccount: (activeAccountId) =>
@@ -459,11 +503,13 @@ export const useEtherMailStore = create<EtherMailState>()(
         const id = `note-${Date.now()}`
         let folder = folderId ?? get().activeFolderId
         if (folder === EMAIL_FILES_FOLDER_ID) folder = 'athena'
+        const folderMeta = get().folders.find((f) => f.id === folder)
         const note: Note = {
           id,
           title: 'Untitled Note',
           content: '# Untitled Note\n\nStart writing...',
           folderId: folder,
+          vaultId: folderMeta?.vaultId ?? get().activeVaultId ?? VAULT_PERSONAL_ID,
           tags: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -484,9 +530,18 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (parent === EMAIL_FILES_FOLDER_ID) return ''
         const trimmed = name.trim()
         if (!trimmed) return ''
+        const parentFolder = get().folders.find((f) => f.id === parent)
         const id = `folder-${Date.now()}`
         set((s) => ({
-          folders: [...s.folders, { id, name: trimmed, parentId: parent }],
+          folders: [
+            ...s.folders,
+            {
+              id,
+              name: trimmed,
+              parentId: parent,
+              vaultId: parentFolder?.vaultId ?? s.activeVaultId ?? VAULT_PERSONAL_ID,
+            },
+          ],
           activeFolderId: id,
         }))
         return id
@@ -494,6 +549,7 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       uploadVaultFile: async (file, folderId) => {
         if (folderId === EMAIL_FILES_FOLDER_ID) return
+        const folderMeta = get().folders.find((f) => f.id === folderId)
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
           reader.onload = () => resolve(reader.result as string)
@@ -504,6 +560,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         const entry: VaultFile = {
           id,
           folderId,
+          vaultId: folderMeta?.vaultId ?? get().activeVaultId ?? VAULT_PERSONAL_ID,
           filename: file.name,
           sizeBytes: file.size,
           mimeType: file.type || 'application/octet-stream',
@@ -1315,7 +1372,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 8,
+      version: 9,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1405,6 +1462,64 @@ export const useEtherMailStore = create<EtherMailState>()(
             })),
           }
         }
+        if (version < 9) {
+          const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
+          let folders = ((next.folders as Folder[]) ?? SEED_FOLDERS).map((f) => {
+            const vaultId =
+              f.vaultId ??
+              (workFolderIds.has(f.id) || f.parentId === 'projects' || f.parentId === ROOT_WORK_ID
+                ? VAULT_WORK_ID
+                : VAULT_PERSONAL_ID)
+            let parentId = f.parentId
+            if ((f.id === 'projects' || f.id === 'athena') && parentId === 'root') {
+              parentId = ROOT_WORK_ID
+            }
+            return {
+              ...f,
+              vaultId,
+              parentId,
+              name: f.id === 'root' ? 'Personal' : f.name,
+            }
+          })
+          const folderIds = new Set(folders.map((f) => f.id))
+          for (const seedFolder of SEED_FOLDERS) {
+            if (!folderIds.has(seedFolder.id)) folders.push(seedFolder)
+          }
+
+          let notes = ((next.notes as Note[]) ?? []).map((n) => ({
+            ...n,
+            vaultId:
+              n.vaultId ??
+              (workFolderIds.has(n.folderId) || n.folderId === 'athena' ? VAULT_WORK_ID : VAULT_PERSONAL_ID),
+          }))
+          const weekend = SEED_NOTES.find((n) => n.id === 'note-weekend')
+          if (weekend && !notes.some((n) => n.id === weekend.id)) {
+            notes = [...notes, weekend]
+          }
+
+          const accounts = ((next.accounts as typeof SEED_ACCOUNTS) ?? []).map((a) => ({
+            ...a,
+            defaultVaultId:
+              a.defaultVaultId ?? (a.id === 'acc-outlook' ? VAULT_WORK_ID : VAULT_PERSONAL_ID),
+          }))
+
+          const vaultFiles = ((next.vaultFiles as VaultFile[]) ?? []).map((vf) => ({
+            ...vf,
+            vaultId: vf.vaultId ?? VAULT_PERSONAL_ID,
+          }))
+
+          next = {
+            ...next,
+            vaults: SEED_VAULTS,
+            activeVaultId: (next.activeVaultId as string | null) ?? VAULT_WORK_ID,
+            graphPersonFilter: null,
+            folders,
+            notes,
+            accounts,
+            vaultFiles,
+            calendarEvents: SEED_CALENDAR,
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1423,6 +1538,8 @@ export const useEtherMailStore = create<EtherMailState>()(
       partialize: (s) => ({
         notes: s.notes,
         folders: s.folders,
+        vaults: s.vaults,
+        activeVaultId: s.activeVaultId,
         emails: s.emails,
         vaultFiles: s.vaultFiles,
         accounts: s.accounts,
@@ -1464,7 +1581,10 @@ export const useNexusStore = useEtherMailStore
 export function useGraph() {
   const notes = useEtherMailStore((s) => s.notes)
   const emails = useEtherMailStore((s) => s.emails)
-  return buildGraphFromData(notes, emails)
+  const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
+  const accounts = useEtherMailStore((s) => s.accounts)
+  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  return buildContactGraph(notes, emails, calendarEvents, accounts, activeVaultId)
 }
 
 export function useStats() {

@@ -25,6 +25,7 @@ import { ShareNoteButton } from './ShareNoteButton'
 import { VaultAddMenu } from './VaultAddMenu'
 import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
+import { EMAIL_FILES_WORK_FOLDER_ID } from '../data/seed'
 
 export function VaultView() {
   const folders = useNexusStore((s) => s.folders)
@@ -52,21 +53,27 @@ export function VaultView() {
   const setAiAssistantOpen = useNexusStore((s) => s.setAiAssistantOpen)
   const submitAiQuery = useNexusStore((s) => s.submitAiQuery)
   const hiddenPanels = useNexusStore((s) => s.hiddenPanels)
+  const activeVaultId = useNexusStore((s) => s.activeVaultId)
 
   const treeHidden = hiddenPanels['vault-tree'] ?? false
   const editorHidden = hiddenPanels['vault-editor'] ?? false
   const railHidden = hiddenPanels['vault-rail'] ?? false
 
   const [expanded, setExpanded] = useState<Set<string>>(
-    new Set(['root', 'projects', 'athena', EMAIL_FILES_FOLDER_ID]),
+    new Set(['root', 'root-work', 'projects', 'athena', EMAIL_FILES_FOLDER_ID, EMAIL_FILES_WORK_FOLDER_ID]),
   )
   const activeNote = notes.find((n) => n.id === activeNoteId)
   const activeAttachment = emailAttachments.find((a) => a.id === activeAttachmentId)
   const activeVaultFile = vaultFiles.find((f) => f.id === activeVaultFileId)
-  const isEmailFiles = activeFolderId === EMAIL_FILES_FOLDER_ID
+  const isEmailFiles =
+    activeFolderId === EMAIL_FILES_FOLDER_ID || activeFolderId === EMAIL_FILES_WORK_FOLDER_ID
+  const vaultRoots = activeVaultId
+    ? folders.filter((f) => f.parentId === null && f.vaultId === activeVaultId)
+    : folders.filter((f) => f.parentId === null)
   const { nodes, edges } = useGraph()
 
   const folderNotes = notes.filter((n) => {
+    if (activeVaultId && n.vaultId !== activeVaultId) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       return (
@@ -78,7 +85,13 @@ export function VaultView() {
     return n.folderId === activeFolderId
   })
 
-  const folderAttachments = emailAttachments
+  const scopedAttachments = emailAttachments.filter((a) => {
+    if (!activeVaultId) return true
+    const acc = accounts.find((x) => x.id === a.accountId)
+    return (acc?.defaultVaultId ?? 'vault-personal') === activeVaultId
+  })
+
+  const folderAttachments = scopedAttachments
     .filter((a) => {
       if (!searchQuery) return true
       const q = searchQuery.toLowerCase()
@@ -93,6 +106,7 @@ export function VaultView() {
 
   const folderVaultFiles = vaultFiles
     .filter((f) => {
+      if (activeVaultId && f.vaultId !== activeVaultId) return false
       if (searchQuery) {
         const q = searchQuery.toLowerCase()
         return f.filename.toLowerCase().includes(q)
@@ -127,7 +141,8 @@ export function VaultView() {
     if (!folder) return null
     const children = folders.filter((f) => f.parentId === folderId)
     const isExpanded = expanded.has(folderId)
-    const isEmailFilesFolder = folderId === EMAIL_FILES_FOLDER_ID
+    const isEmailFilesFolder =
+      folderId === EMAIL_FILES_FOLDER_ID || folderId === EMAIL_FILES_WORK_FOLDER_ID
 
     return (
       <div key={folderId}>
@@ -154,9 +169,9 @@ export function VaultView() {
             <Folder size={14} className="shrink-0 text-amber-400/80" />
           )}
           <span className="truncate flex-1 text-left">{folder.name}</span>
-          {isEmailFilesFolder && emailAttachments.length > 0 && (
+          {isEmailFilesFolder && scopedAttachments.length > 0 && (
             <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-soft text-accent shrink-0">
-              {emailAttachments.length}
+              {scopedAttachments.length}
             </span>
           )}
         </button>
@@ -224,7 +239,7 @@ export function VaultView() {
           <PanelHideButton panelId="vault-tree" label="folders" />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {renderFolder('root')}
+          {vaultRoots.map((root) => renderFolder(root.id))}
         </div>
         <div className="p-2 border-t border-[var(--glass-border)] max-h-48 overflow-y-auto">
           <p className="text-xs text-theme-muted px-2 mb-1">

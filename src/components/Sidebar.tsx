@@ -13,6 +13,8 @@ import {
   SquarePen,
   Bell,
   Search,
+  Briefcase,
+  Home,
 } from 'lucide-react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { providerColor } from '../lib/utils'
@@ -40,6 +42,9 @@ export function Sidebar() {
   const setSearchQuery = useEtherMailStore((s) => s.setSearchQuery)
   const setCommandPaletteOpen = useEtherMailStore((s) => s.setCommandPaletteOpen)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+  const vaults = useEtherMailStore((s) => s.vaults)
+  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  const setActiveVault = useEtherMailStore((s) => s.setActiveVault)
   const unreadAlertCount = useUnreadAlertCount()
   const unread = emails.filter((e) => {
     const acc = accounts.find((a) => a.id === e.accountId)
@@ -112,6 +117,41 @@ export function Sidebar() {
           <span className="flex-1 text-left">Search vault & inbox</span>
           <kbd className="text-[10px] px-1 rounded bg-black/10">⌘K</kbd>
         </button>
+
+        <div className="mt-3">
+          <p className="px-1 text-[10px] font-medium text-theme-muted uppercase tracking-wider mb-1.5">
+            Vault
+          </p>
+          <div className="flex flex-wrap gap-1">
+            <button
+              onClick={() => setActiveVault(null)}
+              className={`px-2 py-1 rounded-lg text-[11px] transition-colors ${
+                activeVaultId === null
+                  ? 'bg-accent-soft text-accent font-medium'
+                  : 'text-theme-muted hover-theme'
+              }`}
+            >
+              All
+            </button>
+            {vaults.map((vault) => {
+              const Icon = vault.kind === 'work' ? Briefcase : Home
+              return (
+                <button
+                  key={vault.id}
+                  onClick={() => setActiveVault(vault.id)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] transition-colors ${
+                    activeVaultId === vault.id
+                      ? 'bg-accent-soft text-accent font-medium'
+                      : 'text-theme-muted hover-theme'
+                  }`}
+                >
+                  <Icon size={12} />
+                  {vault.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
       <nav className="flex-1 overflow-y-auto p-3 space-y-1">

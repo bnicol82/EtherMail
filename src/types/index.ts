@@ -4,6 +4,14 @@ export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'scheduled' | 'archive' 
 
 export type Theme = 'glass' | 'dark' | 'blue'
 
+export type VaultKind = 'work' | 'personal' | 'custom'
+
+export interface Vault {
+  id: string
+  name: string
+  kind: VaultKind
+}
+
 export interface CalendarEvent {
   id: string
   title: string
@@ -38,6 +46,8 @@ export interface EmailAccount {
   connectedAt?: string
   /** demo = simulated OAuth; oauth = real token stored locally */
   syncMode?: 'demo' | 'oauth'
+  /** Default vault for this account's mail and attachments */
+  defaultVaultId?: string
 }
 
 export interface OAuthSettings {
@@ -51,6 +61,7 @@ export interface Note {
   title: string
   content: string
   folderId: string
+  vaultId: string
   tags: string[]
   createdAt: string
   updatedAt: string
@@ -60,6 +71,7 @@ export interface Folder {
   id: string
   name: string
   parentId: string | null
+  vaultId: string
   /** System folders are auto-populated (e.g. Email Files) */
   isSystem?: boolean
 }
@@ -68,6 +80,7 @@ export interface Folder {
 export interface VaultFile {
   id: string
   folderId: string
+  vaultId: string
   filename: string
   sizeBytes: number
   mimeType: string
@@ -176,19 +189,27 @@ export interface ComposeDraft {
   scheduledAt?: string
 }
 
+export interface GraphNodeMetadata {
+  email?: string
+  emailCount?: number
+  calendarCount?: number
+  totalInteractions?: number
+}
+
 export interface GraphNode {
   id: string
   label: string
-  type: 'note' | 'email' | 'person' | 'tag'
+  type: 'note' | 'email' | 'person' | 'tag' | 'calendar'
   x?: number
   y?: number
+  metadata?: GraphNodeMetadata
 }
 
 export interface GraphEdge {
   id: string
   source: string
   target: string
-  type: 'links_to' | 'references' | 'tagged' | 'from'
+  type: 'links_to' | 'references' | 'tagged' | 'from' | 'emailed' | 'attended'
 }
 
 export interface ChatMessage {
