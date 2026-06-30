@@ -18,6 +18,7 @@ import {
   getDemoEmailsForAccount,
 } from '../data/seed'
 import { buildContactGraph } from '../lib/contactGraph'
+import { refreshStaleCalendarEvents } from '../lib/calendarDemo'
 import type {
   AISettings,
   AckStatus,
@@ -1598,6 +1599,12 @@ export const useEtherMailStore = create<EtherMailState>()(
 
         if (Object.keys(repairs).length > 0) {
           useEtherMailStore.setState(repairs)
+        }
+
+        const latest = useEtherMailStore.getState()
+        const refreshed = refreshStaleCalendarEvents(latest.calendarEvents)
+        if (refreshed !== latest.calendarEvents) {
+          useEtherMailStore.setState({ calendarEvents: refreshed })
         }
       },
       partialize: (s) => ({

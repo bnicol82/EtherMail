@@ -10,6 +10,7 @@ import type {
   Vault,
 } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
+import { buildDemoCalendarEvents } from '../lib/calendarDemo'
 
 export const SEED_VAULTS: Vault[] = [
   { id: 'vault-personal', name: 'Personal', kind: 'personal' },
@@ -789,47 +790,6 @@ Best`,
 /** Shown in the bottom dock quick-reply panel on first load */
 export const SEED_AI_CONTEXT_RESPONSE = SEED_CHAT_MESSAGES[1].content
 
-export const SEED_CALENDAR: CalendarEvent[] = [
-  {
-    id: 'cal-1',
-    uid: 'cal-1@ethermail',
-    title: 'Project Sync',
-    start: '2026-06-30T10:00:00',
-    end: '2026-06-30T11:00:00',
-    attendees: ['Sarah J.', 'Alex Kim', 'Team leads'],
-    location: 'HQ — East Wing',
-    room: '4B',
-  },
-  {
-    id: 'cal-2',
-    uid: 'cal-2@ethermail',
-    title: 'Budget Review',
-    start: '2026-06-30T14:00:00',
-    end: '2026-06-30T15:00:00',
-    attendees: ['Sarah J.', 'Finance team', 'Alex Kim'],
-    location: 'Finance Building',
-    room: '201',
-    sourceEmailId: 'email-5',
-  },
-  {
-    id: 'cal-3',
-    uid: 'cal-3@ethermail',
-    title: 'Client Meeting',
-    start: '2026-07-01T11:00:00',
-    end: '2026-07-01T12:00:00',
-    attendees: ['Acme Corp'],
-    location: 'Virtual — Teams',
-    room: 'Bridge A',
-  },
-  {
-    id: 'cal-4',
-    uid: 'cal-4@ethermail',
-    title: 'Team Standup',
-    start: '2026-07-02T09:00:00',
-    end: '2026-07-02T09:30:00',
-    location: 'HQ — East Wing',
-    room: '2A',
-  },
-]
+export const SEED_CALENDAR: CalendarEvent[] = buildDemoCalendarEvents()
 
 export { buildContactGraph as buildGraphFromData } from '../lib/contactGraph'

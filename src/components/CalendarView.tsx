@@ -17,6 +17,7 @@ import { useSwipe } from '../hooks/useSwipe'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { EventDetailBox } from './EventDetailBox'
 import { EventChip, WeekCalendarGrid, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
+import { getUpcomingCalendarEvents } from '../lib/calendarDemo'
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
@@ -127,10 +128,10 @@ export function CalendarView() {
     [calendarEvents],
   )
 
-  const upcoming = useMemo(() => {
-    const now = new Date()
-    return sortedEvents.filter((e) => new Date(e.end) >= now)
-  }, [sortedEvents])
+  const upcoming = useMemo(
+    () => getUpcomingCalendarEvents(calendarEvents),
+    [calendarEvents],
+  )
 
   const today = new Date()
   const monthTitle = weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })
@@ -309,7 +310,7 @@ export function CalendarView() {
             {upcoming.length === 0 ? (
               <p className="text-sm text-theme-muted">No upcoming events</p>
             ) : (
-              <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain -mx-1 px-1">
+              <div className="flex-1 min-h-0 max-h-[min(38vh,280px)] overflow-y-auto overscroll-contain -mx-1 px-1">
                 <div className="space-y-2 pb-2">
                   {upcoming.map((e, i) => (
                     <button
