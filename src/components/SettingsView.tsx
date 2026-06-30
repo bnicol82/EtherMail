@@ -1,4 +1,4 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2 } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
@@ -29,6 +29,8 @@ export function SettingsView() {
   const accounts = useEtherMailStore((s) => s.accounts)
   const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
   const disconnectAccount = useEtherMailStore((s) => s.disconnectAccount)
+  const syncGmailInbox = useEtherMailStore((s) => s.syncGmailInbox)
+  const gmailSyncingAccountId = useEtherMailStore((s) => s.gmailSyncingAccountId)
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const setOAuthSettings = useEtherMailStore((s) => s.setOAuthSettings)
   const weatherSettings = useEtherMailStore((s) => s.weatherSettings)
@@ -400,7 +402,8 @@ export function SettingsView() {
         </div>
         <p className="text-sm text-theme-muted mb-4">
           Optional — add client IDs to enable real OAuth on GitHub Pages (PKCE, no backend).
-          Leave blank to use demo connect with simulated data.
+          Leave blank to use demo connect with simulated data. Gmail sync requires a Google client ID
+          with Gmail API enabled.
         </p>
         <div className="space-y-3">
           <div>
@@ -437,21 +440,43 @@ export function SettingsView() {
       <section className="glass rounded-xl p-5">
         <h2 className="font-semibold text-theme mb-4">Email Accounts</h2>
         <div className="space-y-3">
-          {accounts.map((acc) => (
+          {accounts.map((acc) => {
+            const isGmailOAuth = acc.provider === 'gmail' && acc.syncMode === 'oauth'
+            const isSyncing = gmailSyncingAccountId === acc.id
+            return (
             <div
               key={acc.id}
-              className="flex items-center justify-between p-3 rounded-xl glass"
+              className="flex items-center justify-between gap-3 p-3 rounded-xl glass"
             >
-              <div>
-                <p className="text-sm text-theme">{acc.email}</p>
+              <div className="min-w-0">
+                <p className="text-sm text-theme truncate">{acc.email}</p>
                 <p className="text-xs text-theme-muted">
                   {providerLabel(acc.provider)}
-                  {acc.syncMode === 'oauth' && ' · Live OAuth'}
+                  {acc.syncMode === 'oauth' && ' · Live Gmail sync'}
                   {acc.syncMode === 'demo' && acc.connected && ' · Demo sync'}
                 </p>
+                {acc.lastSyncedAt && (
+                  <p className="text-[10px] text-theme-muted mt-0.5">
+                    Last synced {new Date(acc.lastSyncedAt).toLocaleString()}
+                  </p>
+                )}
+                {acc.syncError && (
+                  <p className="text-[10px] text-red-400 mt-0.5">{acc.syncError}</p>
+                )}
               </div>
               {acc.connected ? (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
+                  {isGmailOAuth && (
+                    <button
+                      type="button"
+                      onClick={() => void syncGmailInbox(acc.id)}
+                      disabled={isSyncing}
+                      className="text-xs px-2 py-1 rounded-lg glass text-theme-secondary hover-theme inline-flex items-center gap-1 disabled:opacity-50"
+                    >
+                      <RefreshCw size={12} className={isSyncing ? 'animate-spin' : ''} />
+                      {isSyncing ? 'Syncing' : 'Sync'}
+                    </button>
+                  )}
                   <span className="text-xs px-2 py-1 rounded bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                     Connected
                   </span>
@@ -465,13 +490,13 @@ export function SettingsView() {
               ) : (
                 <button
                   onClick={() => startConnectAccount(acc.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg btn-accent"
+                  className="text-xs px-3 py-1.5 rounded-lg btn-accent shrink-0"
                 >
                   {canUseRealOAuth(acc.provider, oauthSettings) ? 'Connect' : 'Connect (demo)'}
                 </button>
               )}
             </div>
-          ))}
+          )})}
         </div>
       </section>
     </div>

@@ -76,7 +76,12 @@ export async function handleOAuthCallback(
   code: string,
   state: string,
   settings: OAuthSettings,
-): Promise<{ accountId: string; accessToken: string } | null> {
+): Promise<{
+  accountId: string
+  accessToken: string
+  refreshToken?: string
+  expiresIn: number
+} | null> {
   const raw = sessionStorage.getItem(OAUTH_SESSION_KEY)
   if (!raw) return null
 
@@ -106,10 +111,19 @@ export async function handleOAuthCallback(
 
   if (!res.ok) return null
 
-  const data = (await res.json()) as { access_token: string }
+  const data = (await res.json()) as {
+    access_token: string
+    refresh_token?: string
+    expires_in: number
+  }
   cleanOAuthUrl()
 
-  return { accountId: pending.accountId, accessToken: data.access_token }
+  return {
+    accountId: pending.accountId,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    expiresIn: data.expires_in ?? 3600,
+  }
 }
 
 export function cleanOAuthUrl(): void {
