@@ -272,7 +272,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       notes: SEED_NOTES,
       folders: SEED_FOLDERS,
       vaults: SEED_VAULTS,
-      activeVaultId: VAULT_WORK_ID,
+      activeVaultId: null,
       graphPersonFilter: null,
       emails: SEED_EMAILS,
       emailAttachments: SEED_ATTACHMENTS,
@@ -1372,7 +1372,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 9,
+      version: 10,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1511,13 +1511,44 @@ export const useEtherMailStore = create<EtherMailState>()(
           next = {
             ...next,
             vaults: SEED_VAULTS,
-            activeVaultId: (next.activeVaultId as string | null) ?? VAULT_WORK_ID,
+            activeVaultId: null,
             graphPersonFilter: null,
             folders,
             notes,
             accounts,
             vaultFiles,
             calendarEvents: SEED_CALENDAR,
+          }
+        }
+        if (version < 10) {
+          const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
+          let folders = ((next.folders as Folder[]) ?? SEED_FOLDERS).map((f) => {
+            const vaultId =
+              f.vaultId ??
+              (workFolderIds.has(f.id) || f.parentId === 'projects' || f.parentId === ROOT_WORK_ID
+                ? VAULT_WORK_ID
+                : VAULT_PERSONAL_ID)
+            let parentId = f.parentId
+            if ((f.id === 'projects' || f.id === 'athena') && parentId === 'root') {
+              parentId = ROOT_WORK_ID
+            }
+            return {
+              ...f,
+              vaultId,
+              parentId,
+              name: f.id === 'root' ? 'Personal' : f.name,
+            }
+          })
+          const folderIds = new Set(folders.map((f) => f.id))
+          for (const seedFolder of SEED_FOLDERS) {
+            if (!folderIds.has(seedFolder.id)) folders.push(seedFolder)
+          }
+
+          next = {
+            ...next,
+            vaults: SEED_VAULTS,
+            activeVaultId: null,
+            folders,
           }
         }
         return next
@@ -1533,6 +1564,40 @@ export const useEtherMailStore = create<EtherMailState>()(
           })
         } else if (hasSeedThread && last?.role === 'assistant') {
           useEtherMailStore.setState({ aiContextResponse: SEED_AI_CONTEXT_RESPONSE })
+        }
+
+        const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
+        const repairs: Record<string, unknown> = {}
+        if (!state.vaults?.length) repairs.vaults = SEED_VAULTS
+
+        let foldersChanged = false
+        const repairedFolders = state.folders.map((f) => {
+          if (f.vaultId) return f
+          foldersChanged = true
+          let parentId = f.parentId
+          if ((f.id === 'projects' || f.id === 'athena') && parentId === 'root') {
+            parentId = ROOT_WORK_ID
+          }
+          return {
+            ...f,
+            parentId,
+            vaultId:
+              workFolderIds.has(f.id) || f.parentId === 'projects' || f.parentId === ROOT_WORK_ID
+                ? VAULT_WORK_ID
+                : VAULT_PERSONAL_ID,
+          }
+        })
+        const folderIds = new Set(repairedFolders.map((f) => f.id))
+        for (const seedFolder of SEED_FOLDERS) {
+          if (!folderIds.has(seedFolder.id)) {
+            repairedFolders.push(seedFolder)
+            foldersChanged = true
+          }
+        }
+        if (foldersChanged) repairs.folders = repairedFolders
+
+        if (Object.keys(repairs).length > 0) {
+          useEtherMailStore.setState(repairs)
         }
       },
       partialize: (s) => ({

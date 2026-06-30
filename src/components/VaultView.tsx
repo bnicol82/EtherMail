@@ -25,7 +25,7 @@ import { ShareNoteButton } from './ShareNoteButton'
 import { VaultAddMenu } from './VaultAddMenu'
 import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
-import { EMAIL_FILES_WORK_FOLDER_ID } from '../data/seed'
+import { EMAIL_FILES_WORK_FOLDER_ID, VAULT_PERSONAL_ID } from '../data/seed'
 
 export function VaultView() {
   const folders = useNexusStore((s) => s.folders)
@@ -54,6 +54,7 @@ export function VaultView() {
   const submitAiQuery = useNexusStore((s) => s.submitAiQuery)
   const hiddenPanels = useNexusStore((s) => s.hiddenPanels)
   const activeVaultId = useNexusStore((s) => s.activeVaultId)
+  const vaults = useNexusStore((s) => s.vaults)
 
   const treeHidden = hiddenPanels['vault-tree'] ?? false
   const editorHidden = hiddenPanels['vault-editor'] ?? false
@@ -67,9 +68,13 @@ export function VaultView() {
   const activeVaultFile = vaultFiles.find((f) => f.id === activeVaultFileId)
   const isEmailFiles =
     activeFolderId === EMAIL_FILES_FOLDER_ID || activeFolderId === EMAIL_FILES_WORK_FOLDER_ID
-  const vaultRoots = activeVaultId
-    ? folders.filter((f) => f.parentId === null && f.vaultId === activeVaultId)
+  const vaultRoots = (activeVaultId
+    ? folders.filter((f) => f.parentId === null && (f.vaultId ?? VAULT_PERSONAL_ID) === activeVaultId)
     : folders.filter((f) => f.parentId === null)
+  ).sort((a, b) => {
+    const order = (id?: string) => (id === VAULT_PERSONAL_ID ? 0 : 1)
+    return order(a.vaultId) - order(b.vaultId)
+  })
   const { nodes, edges } = useGraph()
 
   const folderNotes = notes.filter((n) => {
@@ -139,7 +144,11 @@ export function VaultView() {
   const renderFolder = (folderId: string, depth = 0) => {
     const folder = folders.find((f) => f.id === folderId)
     if (!folder) return null
-    const children = folders.filter((f) => f.parentId === folderId)
+    const folderVaultId = folder.vaultId ?? VAULT_PERSONAL_ID
+    if (activeVaultId && folderVaultId !== activeVaultId) return null
+    const children = folders.filter(
+      (f) => f.parentId === folderId && (f.vaultId ?? VAULT_PERSONAL_ID) === folderVaultId,
+    )
     const isExpanded = expanded.has(folderId)
     const isEmailFilesFolder =
       folderId === EMAIL_FILES_FOLDER_ID || folderId === EMAIL_FILES_WORK_FOLDER_ID
@@ -239,7 +248,16 @@ export function VaultView() {
           <PanelHideButton panelId="vault-tree" label="folders" />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
-          {vaultRoots.map((root) => renderFolder(root.id))}
+          {vaultRoots.map((root) => (
+            <div key={root.id} className="mb-2">
+              {!activeVaultId && (
+                <p className="px-2 pt-1 pb-1 text-[10px] font-semibold uppercase tracking-wider text-theme-muted">
+                  {vaults.find((v) => v.id === (root.vaultId ?? VAULT_PERSONAL_ID))?.name ?? 'Vault'}
+                </p>
+              )}
+              {renderFolder(root.id)}
+            </div>
+          ))}
         </div>
         <div className="p-2 border-t border-[var(--glass-border)] max-h-48 overflow-y-auto">
           <p className="text-xs text-theme-muted px-2 mb-1">
