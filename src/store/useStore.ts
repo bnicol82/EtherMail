@@ -19,7 +19,7 @@ import {
 } from '../data/seed'
 import { buildContactGraph } from '../lib/contactGraph'
 import { refreshStaleCalendarEvents } from '../lib/calendarDemo'
-import { repairAccountVaults, accountVaultId } from '../lib/vaults'
+import { repairDemoMailbox, accountVaultId } from '../lib/vaults'
 import type {
   AISettings,
   AckStatus,
@@ -1342,13 +1342,10 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       disconnectAccount: (accountId) => {
         const state = get()
-        const remainingEmails = state.emails.filter((e) => e.accountId !== accountId)
-        const connectedIds = new Set(
-          state.accounts
-            .filter((a) => a.connected && a.id !== accountId)
-            .map((a) => a.id),
-        )
-        const connectedEmails = remainingEmails.filter((e) => connectedIds.has(e.accountId))
+        const connectedEmails = state.emails.filter((e) => {
+          const acc = state.accounts.find((a) => a.id === e.accountId)
+          return acc?.connected && e.accountId !== accountId
+        })
 
         set({
           accounts: state.accounts.map((a) =>
@@ -1356,7 +1353,6 @@ export const useEtherMailStore = create<EtherMailState>()(
               ? { ...a, connected: false, connectedAt: undefined, syncMode: undefined }
               : a,
           ),
-          emails: remainingEmails,
           calendarEvents: syncCalendarFromEmails(
             connectedEmails,
             state.emailAttachments,
@@ -1374,7 +1370,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 11,
+      version: 12,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1556,7 +1552,23 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (version < 11) {
           next = {
             ...next,
-            accounts: repairAccountVaults((next.accounts as typeof SEED_ACCOUNTS) ?? SEED_ACCOUNTS),
+            accounts: repairDemoMailbox(
+              (next.accounts as typeof SEED_ACCOUNTS) ?? SEED_ACCOUNTS,
+              (next.emails as Email[]) ?? [],
+            ).accounts,
+            graphPersonFilter: null,
+          }
+        }
+        if (version < 12) {
+          const mailbox = repairDemoMailbox(
+            (next.accounts as typeof SEED_ACCOUNTS) ?? SEED_ACCOUNTS,
+            (next.emails as Email[]) ?? [],
+          )
+          next = {
+            ...next,
+            accounts: mailbox.accounts,
+            emails: mailbox.emails,
+            activeAccountId: null,
             graphPersonFilter: null,
           }
         }
@@ -1579,9 +1591,13 @@ export const useEtherMailStore = create<EtherMailState>()(
         const repairs: Record<string, unknown> = {}
         if (!state.vaults?.length) repairs.vaults = SEED_VAULTS
 
-        const repairedAccounts = repairAccountVaults(state.accounts)
-        if (repairedAccounts.some((a, i) => a.defaultVaultId !== state.accounts[i]?.defaultVaultId)) {
-          repairs.accounts = repairedAccounts
+        const repairedAccounts = repairDemoMailbox(state.accounts, state.emails)
+        if (
+          repairedAccounts.accounts !== state.accounts ||
+          repairedAccounts.emails !== state.emails
+        ) {
+          repairs.accounts = repairedAccounts.accounts
+          repairs.emails = repairedAccounts.emails
         }
 
         let foldersChanged = false
@@ -1616,8 +1632,19 @@ export const useEtherMailStore = create<EtherMailState>()(
 
         const latest = useEtherMailStore.getState()
         const refreshed = refreshStaleCalendarEvents(latest.calendarEvents)
-        if (refreshed !== latest.calendarEvents) {
-          useEtherMailStore.setState({ calendarEvents: refreshed })
+        const mailbox = repairDemoMailbox(latest.accounts, latest.emails)
+        const updates: Record<string, unknown> = {}
+        if (refreshed !== latest.calendarEvents) updates.calendarEvents = refreshed
+        if (
+          mailbox.accounts !== latest.accounts ||
+          mailbox.emails !== latest.emails
+        ) {
+          updates.accounts = mailbox.accounts
+          updates.emails = mailbox.emails
+        }
+        if (latest.graphPersonFilter) updates.graphPersonFilter = null
+        if (Object.keys(updates).length > 0) {
+          useEtherMailStore.setState(updates)
         }
       },
       partialize: (s) => ({
