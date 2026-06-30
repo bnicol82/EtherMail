@@ -1,11 +1,13 @@
 import { useEffect, useRef } from 'react'
 import type { GraphEdge, GraphNode } from '../types'
+import { personRadius } from '../lib/contactGraph'
 
 const TYPE_COLORS: Record<GraphNode['type'], string> = {
   note: '#6366f1',
   email: '#22d3ee',
   person: '#f472b6',
   tag: '#a78bfa',
+  calendar: '#34d399',
 }
 
 interface Props {
@@ -83,7 +85,8 @@ export function MiniGraph({
     displayNodes.forEach((node) => {
       if (node.x === undefined || node.y === undefined) return
       const isFocus = node.id === focusId
-      const radius = isFocus ? 8 : 5
+      const baseRadius = node.type === 'person' ? personRadius(node.metadata) : 5
+      const radius = isFocus ? baseRadius + 2 : baseRadius
       ctx.beginPath()
       ctx.arc(node.x, node.y, radius, 0, Math.PI * 2)
       ctx.fillStyle = TYPE_COLORS[node.type]

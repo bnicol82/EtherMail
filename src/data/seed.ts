@@ -6,19 +6,32 @@ import type {
   EmailAttachment,
   EmailLabel,
   Folder,
-  GraphEdge,
-  GraphNode,
   Note,
+  Vault,
 } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 
+export const SEED_VAULTS: Vault[] = [
+  { id: 'vault-personal', name: 'Personal', kind: 'personal' },
+  { id: 'vault-work', name: 'Work', kind: 'work' },
+]
+
+export const VAULT_PERSONAL_ID = 'vault-personal'
+export const VAULT_WORK_ID = 'vault-work'
+export const ROOT_PERSONAL_ID = 'root'
+export const ROOT_WORK_ID = 'root-work'
+export const EMAIL_FILES_WORK_FOLDER_ID = 'email-files-work'
+
 export const SEED_FOLDERS: Folder[] = [
-  { id: 'root', name: "Sarah J's Personal Vault", parentId: null },
-  { id: EMAIL_FILES_FOLDER_ID, name: 'Email Files', parentId: 'root', isSystem: true },
-  { id: 'templates', name: 'Templates', parentId: 'root' },
-  { id: 'archives', name: 'Archives', parentId: 'root' },
-  { id: 'projects', name: 'Projects', parentId: 'root' },
-  { id: 'athena', name: 'Project Athena', parentId: 'projects' },
+  { id: ROOT_PERSONAL_ID, name: 'Personal', parentId: null, vaultId: VAULT_PERSONAL_ID },
+  { id: EMAIL_FILES_FOLDER_ID, name: 'Email Files', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID, isSystem: true },
+  { id: 'templates', name: 'Templates', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
+  { id: 'archives', name: 'Archives', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
+  { id: 'personal', name: 'Life & Hobbies', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
+  { id: ROOT_WORK_ID, name: 'Work', parentId: null, vaultId: VAULT_WORK_ID },
+  { id: EMAIL_FILES_WORK_FOLDER_ID, name: 'Email Files', parentId: ROOT_WORK_ID, vaultId: VAULT_WORK_ID, isSystem: true },
+  { id: 'projects', name: 'Projects', parentId: ROOT_WORK_ID, vaultId: VAULT_WORK_ID },
+  { id: 'athena', name: 'Project Athena', parentId: 'projects', vaultId: VAULT_WORK_ID },
 ]
 
 export const SEED_EMAIL_LABELS: EmailLabel[] = [
@@ -33,6 +46,7 @@ export const SEED_NOTES: Note[] = [
     id: 'note-research',
     title: 'Research Notes',
     folderId: 'athena',
+    vaultId: VAULT_WORK_ID,
     tags: ['#q3', '#marketing', '#data'],
     createdAt: '2026-06-10T09:00:00Z',
     updatedAt: '2026-06-27T14:30:00Z',
@@ -74,6 +88,7 @@ Key contact: Sarah J. on budget alignment for [[Budget Q4]].
     id: 'note-q3-marketing',
     title: 'Q3 Marketing Strategy',
     folderId: 'athena',
+    vaultId: VAULT_WORK_ID,
     tags: ['#q3', '#marketing'],
     createdAt: '2026-06-05T11:00:00Z',
     updatedAt: '2026-06-26T16:00:00Z',
@@ -103,6 +118,7 @@ Connected to [[Research Notes]] for competitive positioning.
     id: 'note-competitive',
     title: 'Competitive Analysis',
     folderId: 'athena',
+    vaultId: VAULT_WORK_ID,
     tags: ['#data', '#research'],
     createdAt: '2026-06-08T10:00:00Z',
     updatedAt: '2026-06-20T12:00:00Z',
@@ -123,6 +139,7 @@ Referenced in [[Research Notes]].
     id: 'note-budget',
     title: 'Budget Q4',
     folderId: 'projects',
+    vaultId: VAULT_WORK_ID,
     tags: ['#budget', '#q3'],
     createdAt: '2026-06-01T08:00:00Z',
     updatedAt: '2026-06-25T09:00:00Z',
@@ -143,6 +160,7 @@ Linked to [[Q3 Marketing Strategy]] and expense reminder emails.
     id: 'note-meeting',
     title: 'Meeting Minutes',
     folderId: 'athena',
+    vaultId: VAULT_WORK_ID,
     tags: ['#meetings'],
     createdAt: '2026-06-14T15:00:00Z',
     updatedAt: '2026-06-14T16:30:00Z',
@@ -165,6 +183,7 @@ Sarah J., Team leads
     id: 'note-tpl-followup',
     title: 'Follow-up Template',
     folderId: 'templates',
+    vaultId: VAULT_PERSONAL_ID,
     tags: ['#template', '#email'],
     createdAt: '2026-06-01T10:00:00Z',
     updatedAt: '2026-06-20T10:00:00Z',
@@ -186,6 +205,7 @@ Best regards,
     id: 'note-tpl-meeting',
     title: 'Meeting Request Template',
     folderId: 'templates',
+    vaultId: VAULT_PERSONAL_ID,
     tags: ['#template', '#email'],
     createdAt: '2026-06-01T10:00:00Z',
     updatedAt: '2026-06-20T10:00:00Z',
@@ -207,6 +227,7 @@ Thanks,
     id: 'note-tpl-status',
     title: 'Project Status Update',
     folderId: 'templates',
+    vaultId: VAULT_PERSONAL_ID,
     tags: ['#template', '#email'],
     createdAt: '2026-06-01T10:00:00Z',
     updatedAt: '2026-06-20T10:00:00Z',
@@ -232,12 +253,47 @@ Let me know if you have questions before our next sync.
 Best,
 [Your name]`,
   },
+  {
+    id: 'note-weekend',
+    title: 'Weekend Plans',
+    folderId: 'personal',
+    vaultId: VAULT_PERSONAL_ID,
+    tags: ['#personal'],
+    createdAt: '2026-06-20T12:00:00Z',
+    updatedAt: '2026-06-27T18:00:00Z',
+    content: `# Weekend Plans
+
+## Ideas
+- Hiking at Redwood trail
+- Farmers market Saturday morning
+- Dinner with friends Sunday
+
+## People
+Catch up with the weekend group — see related emails from **Weekend Plans**.
+`,
+  },
 ]
 
 export const SEED_ACCOUNTS: EmailAccount[] = [
-  { id: 'acc-gmail', email: 'name@gmail.com', provider: 'gmail', connected: true, connectedAt: '2026-06-01T00:00:00Z', syncMode: 'demo' },
-  { id: 'acc-outlook', email: 'work@corp.com', provider: 'enterprise', connected: true, connectedAt: '2026-06-01T00:00:00Z', syncMode: 'demo' },
-  { id: 'acc-yahoo', email: 'user@yahoo.com', provider: 'yahoo', connected: false },
+  {
+    id: 'acc-gmail',
+    email: 'name@gmail.com',
+    provider: 'gmail',
+    connected: true,
+    connectedAt: '2026-06-01T00:00:00Z',
+    syncMode: 'demo',
+    defaultVaultId: VAULT_PERSONAL_ID,
+  },
+  {
+    id: 'acc-outlook',
+    email: 'work@corp.com',
+    provider: 'enterprise',
+    connected: true,
+    connectedAt: '2026-06-01T00:00:00Z',
+    syncMode: 'demo',
+    defaultVaultId: VAULT_WORK_ID,
+  },
+  { id: 'acc-yahoo', email: 'user@yahoo.com', provider: 'yahoo', connected: false, defaultVaultId: VAULT_PERSONAL_ID },
 ]
 
 export const SEED_ATTACHMENTS: EmailAttachment[] = [
@@ -740,7 +796,7 @@ export const SEED_CALENDAR: CalendarEvent[] = [
     title: 'Project Sync',
     start: '2026-06-30T10:00:00',
     end: '2026-06-30T11:00:00',
-    attendees: ['Sarah J.', 'Team leads'],
+    attendees: ['Sarah J.', 'Alex Kim', 'Team leads'],
     location: 'HQ — East Wing',
     room: '4B',
   },
@@ -750,7 +806,7 @@ export const SEED_CALENDAR: CalendarEvent[] = [
     title: 'Budget Review',
     start: '2026-06-30T14:00:00',
     end: '2026-06-30T15:00:00',
-    attendees: ['Sarah J.', 'Finance team'],
+    attendees: ['Sarah J.', 'Finance team', 'Alex Kim'],
     location: 'Finance Building',
     room: '201',
     sourceEmailId: 'email-5',
@@ -776,55 +832,4 @@ export const SEED_CALENDAR: CalendarEvent[] = [
   },
 ]
 
-export function buildGraphFromData(notes: Note[], emails: Email[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const nodes: GraphNode[] = []
-  const edges: GraphEdge[] = []
-  const seen = new Set<string>()
-
-  const addNode = (node: GraphNode) => {
-    if (!seen.has(node.id)) {
-      seen.add(node.id)
-      nodes.push(node)
-    }
-  }
-
-  notes.forEach((note) => {
-    addNode({ id: note.id, label: note.title, type: 'note' })
-    note.tags.forEach((tag) => {
-      const tagId = `tag-${tag}`
-      addNode({ id: tagId, label: tag, type: 'tag' })
-      edges.push({ id: `${note.id}-${tagId}`, source: note.id, target: tagId, type: 'tagged' })
-    })
-    const linkRegex = /\[\[([^\]]+)\]\]/g
-    let match
-    while ((match = linkRegex.exec(note.content)) !== null) {
-      const linkedTitle = match[1]
-      const linked = notes.find((n) => n.title === linkedTitle)
-      if (linked) {
-        edges.push({
-          id: `${note.id}-${linked.id}`,
-          source: note.id,
-          target: linked.id,
-          type: 'links_to',
-        })
-      }
-    }
-  })
-
-  emails.forEach((email) => {
-    addNode({ id: email.id, label: email.subject.slice(0, 30), type: 'email' })
-    const personId = `person-${email.from}`
-    addNode({ id: personId, label: email.fromName, type: 'person' })
-    edges.push({ id: `${email.id}-${personId}`, source: personId, target: email.id, type: 'from' })
-    if (email.linkedNoteId) {
-      edges.push({
-        id: `${email.id}-${email.linkedNoteId}`,
-        source: email.id,
-        target: email.linkedNoteId,
-        type: 'references',
-      })
-    }
-  })
-
-  return { nodes, edges }
-}
+export { buildContactGraph as buildGraphFromData } from '../lib/contactGraph'

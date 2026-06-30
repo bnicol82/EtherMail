@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNexusStore, useGraph } from '../store/useStore'
+import { personRadius } from '../lib/contactGraph'
 import type { GraphNode } from '../types'
 
 const TYPE_COLORS: Record<GraphNode['type'], string> = {
@@ -7,6 +8,7 @@ const TYPE_COLORS: Record<GraphNode['type'], string> = {
   email: '#22d3ee',
   person: '#f472b6',
   tag: '#a78bfa',
+  calendar: '#34d399',
 }
 
 export function GraphView() {
@@ -14,6 +16,9 @@ export function GraphView() {
   const selectNote = useNexusStore((s) => s.selectNote)
   const selectEmail = useNexusStore((s) => s.selectEmail)
   const setView = useNexusStore((s) => s.setView)
+  const setGraphPersonFilter = useNexusStore((s) => s.setGraphPersonFilter)
+  const activeVaultId = useNexusStore((s) => s.activeVaultId)
+  const vaults = useNexusStore((s) => s.vaults)
   const notes = useNexusStore((s) => s.notes)
   const emails = useNexusStore((s) => s.emails)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -23,6 +28,7 @@ export function GraphView() {
 
   const width = 900
   const height = 600
+  const activeVault = vaults.find((v) => v.id === activeVaultId)
 
   // Simple force layout
   useEffect(() => {
@@ -123,7 +129,8 @@ export function GraphView() {
       const x = p.x * scaleX
       const y = p.y * scaleY
       const isHovered = hovered === node.id
-      const radius = isHovered ? 10 : 6
+      const baseRadius = node.type === 'person' ? personRadius(node.metadata) : 6
+      const radius = isHovered ? baseRadius + 3 : baseRadius
 
       ctx.beginPath()
       ctx.arc(x, y, radius, 0, Math.PI * 2)
@@ -138,9 +145,18 @@ export function GraphView() {
 
       ctx.fillStyle = '#cbd5e1'
       ctx.font = '11px Inter, sans-serif'
-      ctx.fillText(node.label.slice(0, 20), x - 30, y + radius + 12)
+      const suffix =
+        node.type === 'person' && node.metadata?.totalInteractions
+          ? ` (${node.metadata.emailCount ?? 0}✉ ${node.metadata.calendarCount ?? 0}📅)`
+          : ''
+      ctx.fillText((node.label.slice(0, 18) + suffix).slice(0, 28), x - 30, y + radius + 12)
     })
   }, [positions, nodes, edges, hovered])
+
+  const hitRadiusFor = (node: GraphNode) => {
+    const base = node.type === 'person' ? personRadius(node.metadata) : 6
+    return base + 8
+  }
 
   const handleClick = (e: React.MouseEvent) => {
     const canvas = canvasRef.current
@@ -158,13 +174,18 @@ export function GraphView() {
       if (!p) continue
       const nx = p.x * scaleX
       const ny = p.y * scaleY
-      if (Math.hypot(x - nx, y - ny) < 14) {
+      if (Math.hypot(x - nx, y - ny) < hitRadiusFor(node)) {
         if (node.type === 'note' || notes.find((n) => n.id === node.id)) {
           selectNote(node.id)
           setView('vault')
         } else if (node.type === 'email' || emails.find((em) => em.id === node.id)) {
           selectEmail(node.id)
           setView('email')
+        } else if (node.type === 'person') {
+          setGraphPersonFilter(node.id)
+          setView('email')
+        } else if (node.type === 'calendar') {
+          setView('calendar')
         }
         return
       }
@@ -178,15 +199,13 @@ export function GraphView() {
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
     const w = rect.width
-    const h = rect.height
     const scaleX = w / width
-    const scaleY = h / height
 
     let found: string | null = null
     for (const node of nodes) {
       const p = positions.get(node.id)
       if (!p) continue
-      if (Math.hypot(x - p.x * scaleX, y - p.y * scaleY) < 14) {
+      if (Math.hypot(x - p.x * scaleX, y - p.y * (rect.height / height)) < hitRadiusFor(node)) {
         found = node.id
         break
       }
@@ -199,7 +218,9 @@ export function GraphView() {
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-theme">Knowledge Graph</h1>
         <p className="text-sm text-theme-muted mt-1">
-          {nodes.length} nodes · {edges.length} connections — click a node to navigate
+          {nodes.length} nodes · {edges.length} connections
+          {activeVault ? ` · ${activeVault.name} vault` : ' · all vaults'}
+          {' — '}click people to filter inbox; size reflects email + calendar density
         </p>
       </div>
 
@@ -210,10 +231,11 @@ export function GraphView() {
           onClick={handleClick}
           onMouseMove={handleMove}
         />
-        <div className="absolute bottom-4 left-4 flex gap-3 text-xs text-theme-secondary glass rounded-lg px-3 py-2">
+        <div className="absolute bottom-4 left-4 flex flex-wrap gap-3 text-xs text-theme-secondary glass rounded-lg px-3 py-2">
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Notes</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-400" /> Emails</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-400" /> People</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Calendar</span>
           <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-400" /> Tags</span>
         </div>
       </div>

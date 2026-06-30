@@ -35,6 +35,8 @@ import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
+import { emailMatchesPerson } from '../lib/contactGraph'
+import { VAULT_PERSONAL_ID } from '../data/seed'
 import type { ComposeAttachment, EmailFolder } from '../types'
 
 export function EmailView() {
@@ -43,6 +45,9 @@ export function EmailView() {
   const notes = useEtherMailStore((s) => s.notes)
   const activeEmailId = useEtherMailStore((s) => s.activeEmailId)
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
+  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  const graphPersonFilter = useEtherMailStore((s) => s.graphPersonFilter)
+  const setGraphPersonFilter = useEtherMailStore((s) => s.setGraphPersonFilter)
   const activeEmailFolder = useEtherMailStore((s) => s.activeEmailFolder)
   const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
@@ -159,6 +164,15 @@ export function EmailView() {
     ? classifyEmail(activeEmail, inboxTraining, emailInboxOverrides[activeEmail.id])
     : null
 
+  const emailInScope = (e: (typeof emails)[number]) => {
+    const acc = accounts.find((a) => a.id === e.accountId)
+    if (!acc?.connected) return false
+    if (activeAccountId && e.accountId !== activeAccountId) return false
+    if (activeVaultId && (acc.defaultVaultId ?? VAULT_PERSONAL_ID) !== activeVaultId) return false
+    if (graphPersonFilter && !emailMatchesPerson(e, graphPersonFilter)) return false
+    return true
+  }
+
   const folderCounts = useMemo(() => {
     const counts: Record<EmailFolder, number> = {
       inbox: 0,
@@ -169,19 +183,15 @@ export function EmailView() {
       trash: 0,
     }
     for (const e of emails) {
-      const acc = accounts.find((a) => a.id === e.accountId)
-      if (!acc?.connected) continue
-      if (activeAccountId && e.accountId !== activeAccountId) continue
+      if (!emailInScope(e)) continue
       const f = e.folder ?? 'inbox'
       counts[f]++
     }
     return counts
-  }, [emails, accounts, activeAccountId])
+  }, [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter])
 
   const filtered = emails.filter((e) => {
-    const acc = accounts.find((a) => a.id === e.accountId)
-    if (!acc?.connected) return false
-    if (activeAccountId && e.accountId !== activeAccountId) return false
+    if (!emailInScope(e)) return false
     if ((e.folder ?? 'inbox') !== activeEmailFolder) return false
     if (activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)) {
       const c = classifyEmail(e, inboxTraining, emailInboxOverrides[e.id])
@@ -204,14 +214,8 @@ export function EmailView() {
   })
 
   const accountEmailPool = useMemo(
-    () =>
-      emails.filter((e) => {
-        const acc = accounts.find((a) => a.id === e.accountId)
-        if (!acc?.connected) return false
-        if (activeAccountId && e.accountId !== activeAccountId) return false
-        return true
-      }),
-    [emails, accounts, activeAccountId],
+    () => emails.filter((e) => emailInScope(e)),
+    [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter],
   )
 
   const threadedList = useMemo(
@@ -285,6 +289,24 @@ export function EmailView() {
         <PanelRestoreTab panelId="email-detail" label="Email" />
         <PanelRestoreTab panelId="email-ai" label="AI Summary" />
       </div>
+
+      {graphPersonFilter && (
+        <div className="shrink-0 px-3 py-2 border-b border-[var(--glass-border)] glass flex items-center justify-between gap-2 text-xs">
+          <span className="text-theme-secondary">
+            Showing mail with{' '}
+            <span className="text-pink-400 font-medium">
+              {graphPersonFilter.replace(/^person-/, '').replace(/-/g, ' ')}
+            </span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setGraphPersonFilter(null)}
+            className="text-accent hover:underline shrink-0"
+          >
+            Clear contact filter
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* Folder + list column */}

@@ -2,8 +2,10 @@ import { useRef, useState, useEffect } from 'react'
 import { Plus, FileText, FolderPlus, Upload } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
+import { EMAIL_FILES_WORK_FOLDER_ID } from '../data/seed'
 
 const MAX_UPLOAD_BYTES = 512_000
+const SYSTEM_FOLDER_IDS = new Set([EMAIL_FILES_FOLDER_ID, EMAIL_FILES_WORK_FOLDER_ID])
 
 interface Props {
   folderId: string
@@ -23,7 +25,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
-  const disabled = folderId === EMAIL_FILES_FOLDER_ID
+  const disabled = SYSTEM_FOLDER_IDS.has(folderId)
 
   useEffect(() => {
     if (!open) return
@@ -41,10 +43,18 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
     if (folderPrompt) folderInputRef.current?.focus()
   }, [folderPrompt])
 
-  const parentForFolder = folderId === EMAIL_FILES_FOLDER_ID ? 'root' : folderId
+  const parentForFolder = SYSTEM_FOLDER_IDS.has(folderId)
+    ? folderId === EMAIL_FILES_WORK_FOLDER_ID
+      ? 'root-work'
+      : 'root'
+    : folderId
 
   const onNewNote = () => {
-    const target = folderId === EMAIL_FILES_FOLDER_ID ? 'athena' : folderId
+    const target = folderId === EMAIL_FILES_FOLDER_ID
+      ? 'personal'
+      : folderId === EMAIL_FILES_WORK_FOLDER_ID
+        ? 'athena'
+        : folderId
     createNote(target)
     setOpen(false)
   }
@@ -70,7 +80,11 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
       setError(`Max ${Math.round(MAX_UPLOAD_BYTES / 1024)}KB per file`)
       return
     }
-    const target = folderId === EMAIL_FILES_FOLDER_ID ? 'root' : folderId
+    const target = SYSTEM_FOLDER_IDS.has(folderId)
+      ? folderId === EMAIL_FILES_WORK_FOLDER_ID
+        ? 'root-work'
+        : 'root'
+      : folderId
     try {
       await uploadVaultFile(file, target)
       setOpen(false)
