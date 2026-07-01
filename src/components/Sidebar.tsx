@@ -16,9 +16,12 @@ import {
   Briefcase,
   Home,
 } from 'lucide-react'
+import { useRef } from 'react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
+import { useMenuScrollHaptic } from '../hooks/useMenuScrollHaptic'
+import { isFinePointerDevice, menuHoverFeedback } from '../lib/uiFeedback'
 
 const NAV: { id: View; label: string; icon: typeof Mail }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -46,6 +49,12 @@ export function Sidebar() {
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
   const setActiveVault = useEtherMailStore((s) => s.setActiveVault)
   const unreadAlertCount = useUnreadAlertCount()
+  const navRef = useRef<HTMLElement>(null)
+  const menuScrollHaptic = useMenuScrollHaptic(navRef)
+
+  const onMenuHover = () => {
+    if (isFinePointerDevice()) menuHoverFeedback()
+  }
   const unread = emails.filter((e) => {
     const acc = accounts.find((a) => a.id === e.accountId)
     return acc?.connected && !e.read
@@ -154,10 +163,19 @@ export function Sidebar() {
         </div>
       </div>
 
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+      <nav
+        ref={navRef}
+        className="flex-1 overflow-y-auto p-3 space-y-1 touch-pan-y"
+        onPointerDown={menuScrollHaptic.onPointerDown}
+        onPointerMove={menuScrollHaptic.onPointerMove}
+        onPointerUp={menuScrollHaptic.onPointerUp}
+        onPointerCancel={menuScrollHaptic.onPointerCancel}
+      >
         {NAV.map(({ id, label, icon: Icon }) => (
           <button
             key={id}
+            data-menu-item={`nav-${id}`}
+            onMouseEnter={onMenuHover}
             onClick={() => navigate(id)}
             className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
               view === id && (id !== 'email' || !activeAccountId)
@@ -176,6 +194,8 @@ export function Sidebar() {
         ))}
 
         <button
+          data-menu-item="nav-ai"
+          onMouseEnter={onMenuHover}
           onClick={() => navigate('ai')}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mt-2 ${
             view === 'ai'
@@ -202,6 +222,8 @@ export function Sidebar() {
           </p>
 
           <button
+            data-menu-item="account-all"
+            onMouseEnter={onMenuHover}
             onClick={() => {
               selectAccount(null)
               setSidebarOpen(false)
@@ -227,6 +249,8 @@ export function Sidebar() {
             return (
               <button
                 key={acc.id}
+                data-menu-item={`account-${acc.id}`}
+                onMouseEnter={onMenuHover}
                 onClick={() => {
                   if (acc.connected) {
                     selectAccount(acc.id)
