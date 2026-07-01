@@ -70,7 +70,7 @@ export function NoteMarkdownEditor({ title, content, onTitleChange, onContentCha
         placeholder="Note title"
       />
 
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--glass-border)] glass shrink-0">
+      <div className="flex items-center gap-2 px-3 py-1 border-b border-[var(--glass-border)] shrink-0">
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
@@ -79,9 +79,9 @@ export function NoteMarkdownEditor({ title, content, onTitleChange, onContentCha
           title="Insert image"
         >
           <ImagePlus size={14} />
-          {imageBusy ? 'Adding…' : 'Image'}
+          <span className="hidden sm:inline">{imageBusy ? 'Adding…' : 'Image'}</span>
         </button>
-        <span className="text-[10px] text-theme-muted hidden sm:inline">
+        <span className="text-[10px] text-theme-muted hidden md:inline">
           Paste or upload · max 400KB
         </span>
         <input
