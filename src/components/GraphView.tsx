@@ -18,8 +18,10 @@ import {
   findOrphanIds,
   fitCameraToBounds,
   getNeighborhood,
+  GRAPH_LAYOUT_VIEWS,
   nodeDrawRadius,
-  runForceLayout,
+  runGraphLayout,
+  type GraphLayoutView,
   type GraphPosition,
 } from '../lib/graphLayout'
 import {
@@ -57,6 +59,7 @@ export function GraphView() {
   const [localGraph, setLocalGraph] = useState(false)
   const [localDepth, setLocalDepth] = useState(2)
   const [showArrows, setShowArrows] = useState(true)
+  const [layoutView, setLayoutView] = useState<GraphLayoutView>('force')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [positions, setPositions] = useState<Map<string, GraphPosition>>(new Map())
@@ -101,17 +104,33 @@ export function GraphView() {
     return getNeighborhood(focusId, edges, 1)
   }, [focusId, edges])
 
+  const applyLayout = useCallback(
+    (clearPins: boolean) => {
+      if (clearPins) pinnedRef.current.clear()
+      const layout = runGraphLayout(layoutView, nodes, edges, {
+        width: LAYOUT_W,
+        height: LAYOUT_H,
+      })
+      const merged = new Map<string, GraphPosition>()
+      nodes.forEach((n) => {
+        const pinned = pinnedRef.current.has(n.id) ? positionsRef.current.get(n.id) : null
+        merged.set(n.id, pinned ?? layout.get(n.id) ?? { x: LAYOUT_W / 2, y: LAYOUT_H / 2 })
+      })
+      positionsRef.current = merged
+      setPositions(merged)
+      pinnedRef.current = new Set([...pinnedRef.current].filter((id) => merged.has(id)))
+    },
+    [layoutView, nodes, edges],
+  )
+
   useEffect(() => {
-    const layout = runForceLayout(nodes, edges, { width: LAYOUT_W, height: LAYOUT_H })
-    const merged = new Map<string, GraphPosition>()
-    nodes.forEach((n) => {
-      const pinned = pinnedRef.current.has(n.id) ? positionsRef.current.get(n.id) : null
-      merged.set(n.id, pinned ?? layout.get(n.id) ?? { x: LAYOUT_W / 2, y: LAYOUT_H / 2 })
-    })
-    positionsRef.current = merged
-    setPositions(merged)
-    pinnedRef.current = new Set([...pinnedRef.current].filter((id) => merged.has(id)))
-  }, [graphKey, nodes])
+    applyLayout(false)
+  }, [graphKey, applyLayout])
+
+  const handleLayoutViewChange = useCallback((view: GraphLayoutView) => {
+    pinnedRef.current.clear()
+    setLayoutView(view)
+  }, [])
 
   useEffect(() => {
     const el = containerRef.current
@@ -188,7 +207,7 @@ export function GraphView() {
   useEffect(() => {
     if (positions.size > 0) fitView()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [graphKey])
+  }, [graphKey, layoutView])
 
   const openNode = useCallback(
     (node: GraphNode) => {
@@ -504,6 +523,8 @@ export function GraphView() {
             onLocalDepthChange={setLocalDepth}
             showArrows={showArrows}
             onShowArrowsChange={setShowArrows}
+            layoutView={layoutView}
+            onLayoutViewChange={handleLayoutViewChange}
             typeCounts={typeCounts}
             selectedNode={selectedNode}
             orphanCount={orphanCount}
@@ -563,13 +584,26 @@ export function GraphView() {
             >
               <Maximize2 size={14} />
             </button>
+            <label className="sr-only" htmlFor="graph-layout-select">
+              Layout
+            </label>
+            <select
+              id="graph-layout-select"
+              value={layoutView}
+              onChange={(e) => handleLayoutViewChange(e.target.value as GraphLayoutView)}
+              className="max-w-[5.5rem] sm:max-w-none px-1.5 py-1 rounded-lg glass text-[10px] text-theme-secondary outline-none cursor-pointer"
+              title="Graph layout"
+            >
+              {GRAPH_LAYOUT_VIEWS.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.label}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => {
-                pinnedRef.current.clear()
-                const layout = runForceLayout(nodes, edges, { width: LAYOUT_W, height: LAYOUT_H })
-                positionsRef.current = layout
-                setPositions(layout)
+                applyLayout(true)
                 fitView()
               }}
               className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
