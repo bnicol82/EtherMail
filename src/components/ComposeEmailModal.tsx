@@ -223,19 +223,19 @@ export function ComposeEmailModal() {
 
   return (
     <div
-      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-0 sm:p-6 pb-24 sm:pb-6 bg-black/50 backdrop-blur-md"
+      className="fixed inset-0 z-[70] flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-black/50 backdrop-blur-md"
       onClick={() => dismiss(true)}
       role="dialog"
       aria-modal="true"
       aria-labelledby="compose-title"
     >
       <div
-        className="glass-frost rounded-t-2xl sm:rounded-2xl w-full max-w-2xl max-h-[min(92vh,44rem)] shadow-2xl border border-[var(--glass-border)] flex flex-col overflow-hidden"
+        className="glass-frost w-full max-w-2xl h-full sm:h-auto sm:max-h-[min(92vh,44rem)] shadow-2xl border-0 sm:border border-[var(--glass-border)] flex flex-col overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] sm:pt-0 sm:pb-0 sm:rounded-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div className="shrink-0 border-b border-[var(--glass-border)] bg-gradient-to-r from-[var(--accent)]/15 via-transparent to-purple-500/10">
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-3">
             <div className="w-9 h-9 rounded-xl bg-[var(--accent)]/20 flex items-center justify-center shrink-0">
               <Send size={18} className="text-accent" />
             </div>
@@ -431,7 +431,7 @@ export function ComposeEmailModal() {
 
         {/* Side panel: templates or AI */}
         {panel !== 'none' && (
-          <div className="shrink-0 border-b border-[var(--glass-border)] bg-accent-soft/30 max-h-40 overflow-y-auto p-3">
+          <div className="shrink-0 border-b border-[var(--glass-border)] bg-accent-soft/30 max-h-32 sm:max-h-40 overflow-y-auto p-3">
             {panel === 'templates' && (
               <div className="space-y-2">
                 <p className="text-xs font-medium text-theme flex items-center gap-1.5">
@@ -506,7 +506,7 @@ export function ComposeEmailModal() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Write your message…"
-            className="flex-1 w-full px-4 py-3 bg-transparent text-sm text-theme-secondary leading-relaxed outline-none resize-none min-h-[10rem]"
+            className="flex-1 w-full px-4 py-3 bg-transparent text-sm text-theme-secondary leading-relaxed outline-none resize-none min-h-0 sm:min-h-[10rem]"
           />
 
           {/* Attachments strip */}

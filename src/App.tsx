@@ -52,10 +52,11 @@ export default function App() {
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const completeOAuthConnect = useEtherMailStore((s) => s.completeOAuthConnect)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+  const composeDraft = useEtherMailStore((s) => s.composeDraft)
 
   useScheduledSend()
 
-  const showDock = view !== 'ai'
+  const showDock = view !== 'ai' && !composeDraft
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
