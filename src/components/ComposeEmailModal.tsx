@@ -10,7 +10,7 @@ import {
   Italic,
   List,
   Wand2,
-  Minimize2,
+  Save,
   Clock,
   ChevronDown,
   Check,
@@ -293,10 +293,10 @@ export function ComposeEmailModal() {
               type="button"
               onClick={handleSaveAndPreview}
               className="p-2 rounded-xl hover-theme text-theme-muted shrink-0"
-              aria-label="Save draft and preview"
-              title="Save draft & preview"
+              aria-label="Save draft"
+              title="Save draft"
             >
-              <Minimize2 size={18} />
+              <Save size={18} />
             </button>
             <button
               type="button"
