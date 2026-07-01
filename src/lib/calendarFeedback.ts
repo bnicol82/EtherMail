@@ -1,21 +1,11 @@
-/** Short haptic pulse when the calendar snaps to a new day or month */
+import { touchTick } from './touchFeedback'
+
+/** Short pulse when the calendar snaps to a new day */
 export function calendarHapticTick(): void {
-  try {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate(12)
-    }
-  } catch {
-    /* vibrate blocked or unsupported */
-  }
+  touchTick()
 }
 
-/** Slightly stronger pulse for month boundaries */
+/** Stronger pulse when crossing a month boundary */
 export function calendarHapticMonth(): void {
-  try {
-    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
-      navigator.vibrate([10, 24, 10])
-    }
-  } catch {
-    /* vibrate blocked or unsupported */
-  }
+  touchTick(true)
 }
