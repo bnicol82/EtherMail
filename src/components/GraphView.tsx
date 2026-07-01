@@ -1,95 +1,214 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNexusStore, useGraph } from '../store/useStore'
-import { personRadius } from '../lib/contactGraph'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  Focus,
+  Mail,
+  Maximize2,
+  RotateCcw,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react'
+import { useEtherMailStore, useGraph } from '../store/useStore'
+import { GraphFilterPanel } from './GraphFilterPanel'
+import {
+  countNodesByType,
+  filterGraph,
+  findOrphanIds,
+  fitCameraToBounds,
+  getNeighborhood,
+  nodeDrawRadius,
+  runForceLayout,
+  type GraphPosition,
+} from '../lib/graphLayout'
+import {
+  ALL_NODE_TYPES,
+  GRAPH_EDGE_COLORS,
+  GRAPH_EDGE_LABELS,
+  GRAPH_EDGE_WIDTH,
+  GRAPH_NODE_COLORS,
+  GRAPH_TYPE_LABELS,
+} from '../lib/graphTheme'
 import type { GraphNode } from '../types'
 
-const TYPE_COLORS: Record<GraphNode['type'], string> = {
-  note: '#6366f1',
-  email: '#22d3ee',
-  person: '#f472b6',
-  tag: '#a78bfa',
-  calendar: '#34d399',
-}
+const LAYOUT_W = 900
+const LAYOUT_H = 600
 
 export function GraphView() {
-  const { nodes, edges } = useGraph()
-  const selectNote = useNexusStore((s) => s.selectNote)
-  const selectEmail = useNexusStore((s) => s.selectEmail)
-  const setView = useNexusStore((s) => s.setView)
-  const setGraphPersonFilter = useNexusStore((s) => s.setGraphPersonFilter)
-  const activeVaultId = useNexusStore((s) => s.activeVaultId)
-  const vaults = useNexusStore((s) => s.vaults)
-  const notes = useNexusStore((s) => s.notes)
-  const emails = useNexusStore((s) => s.emails)
+  const { nodes: allNodes, edges: allEdges } = useGraph()
+  const selectNote = useEtherMailStore((s) => s.selectNote)
+  const selectEmail = useEtherMailStore((s) => s.selectEmail)
+  const setView = useEtherMailStore((s) => s.setView)
+  const setGraphPersonFilter = useEtherMailStore((s) => s.setGraphPersonFilter)
+  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  const vaults = useEtherMailStore((s) => s.vaults)
+
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const [positions, setPositions] = useState<Map<string, { x: number; y: number }>>(new Map())
-  const [hovered, setHovered] = useState<string | null>(null)
+  const positionsRef = useRef<Map<string, GraphPosition>>(new Map())
+  const pinnedRef = useRef<Set<string>>(new Set())
 
-  const width = 900
-  const height = 600
+  const [search, setSearch] = useState('')
+  const [types, setTypes] = useState<Set<GraphNode['type']>>(() => new Set(ALL_NODE_TYPES))
+  const [orphansOnly, setOrphansOnly] = useState(false)
+  const [localGraph, setLocalGraph] = useState(false)
+  const [localDepth, setLocalDepth] = useState(2)
+  const [showArrows, setShowArrows] = useState(true)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
+  const [positions, setPositions] = useState<Map<string, GraphPosition>>(new Map())
+  const [camera, setCamera] = useState({ panX: 0, panY: 0, zoom: 1 })
+  const [canvasSize, setCanvasSize] = useState({ w: 800, h: 500 })
+  const [dragging, setDragging] = useState<{ id: string; ox: number; oy: number } | null>(null)
+  const [panning, setPanning] = useState<{ sx: number; sy: number; panX: number; panY: number } | null>(
+    null,
+  )
+  const [, bumpFrame] = useState(0)
+
   const activeVault = vaults.find((v) => v.id === activeVaultId)
+  const selectedNode = allNodes.find((n) => n.id === selectedId) ?? null
 
-  // Simple force layout
+  const { nodes, edges } = useMemo(
+    () =>
+      filterGraph(allNodes, allEdges, {
+        types,
+        search,
+        orphansOnly,
+        localRootId: localGraph && selectedId ? selectedId : null,
+        localDepth,
+      }),
+    [allNodes, allEdges, types, search, orphansOnly, localGraph, selectedId, localDepth],
+  )
+
+  const graphKey = useMemo(
+    () => `${nodes.map((n) => n.id).join('|')}::${edges.map((e) => e.id).join('|')}`,
+    [nodes, edges],
+  )
+
+  const typeCounts = useMemo(() => countNodesByType(allNodes), [allNodes])
+  const orphanCount = useMemo(() => findOrphanIds(allNodes, allEdges).size, [allNodes, allEdges])
+
+  const focusId = hoveredId ?? selectedId
+  const highlightIds = useMemo(() => {
+    if (!focusId) return null
+    return getNeighborhood(focusId, edges, 1)
+  }, [focusId, edges])
+
   useEffect(() => {
-    const pos = new Map<string, { x: number; y: number; vx: number; vy: number }>()
-    nodes.forEach((n, i) => {
-      const angle = (i / nodes.length) * Math.PI * 2
-      const r = 180 + Math.random() * 80
-      pos.set(n.id, {
-        x: width / 2 + Math.cos(angle) * r,
-        y: height / 2 + Math.sin(angle) * r,
-        vx: 0,
-        vy: 0,
-      })
+    const layout = runForceLayout(nodes, edges, { width: LAYOUT_W, height: LAYOUT_H })
+    const merged = new Map<string, GraphPosition>()
+    nodes.forEach((n) => {
+      const pinned = pinnedRef.current.has(n.id) ? positionsRef.current.get(n.id) : null
+      merged.set(n.id, pinned ?? layout.get(n.id) ?? { x: LAYOUT_W / 2, y: LAYOUT_H / 2 })
     })
+    positionsRef.current = merged
+    setPositions(merged)
+    pinnedRef.current = new Set([...pinnedRef.current].filter((id) => merged.has(id)))
+  }, [graphKey, nodes])
 
-    for (let iter = 0; iter < 80; iter++) {
-      // Repulsion
-      const ids = [...pos.keys()]
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) {
-          const a = pos.get(ids[i])!
-          const b = pos.get(ids[j])!
-          const dx = b.x - a.x
-          const dy = b.y - a.y
-          const dist = Math.max(Math.hypot(dx, dy), 1)
-          const force = 800 / (dist * dist)
-          a.vx -= (dx / dist) * force
-          a.vy -= (dy / dist) * force
-          b.vx += (dx / dist) * force
-          b.vy += (dy / dist) * force
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      setCanvasSize({ w: el.clientWidth, h: Math.max(400, el.clientHeight) })
+    })
+    ro.observe(el)
+    setCanvasSize({ w: el.clientWidth, h: Math.max(400, el.clientHeight) })
+    return () => ro.disconnect()
+  }, [])
+
+  const screenToWorld = useCallback(
+    (sx: number, sy: number) => ({
+      x: (sx - camera.panX) / camera.zoom,
+      y: (sy - camera.panY) / camera.zoom,
+    }),
+    [camera],
+  )
+
+  const hitTest = useCallback(
+    (sx: number, sy: number) => {
+      const { x, y } = screenToWorld(sx, sy)
+      let hit: GraphNode | null = null
+      let best = Infinity
+      for (const node of nodes) {
+        const p = positionsRef.current.get(node.id)
+        if (!p) continue
+        const r = nodeDrawRadius(node) + 4
+        const d = Math.hypot(x - p.x, y - p.y)
+        if (d < r && d < best) {
+          best = d
+          hit = node
         }
       }
-      // Attraction along edges
-      edges.forEach((e) => {
-        const a = pos.get(e.source)
-        const b = pos.get(e.target)
-        if (!a || !b) return
-        const dx = b.x - a.x
-        const dy = b.y - a.y
-        const dist = Math.max(Math.hypot(dx, dy), 1)
-        const force = (dist - 100) * 0.02
-        a.vx += (dx / dist) * force
-        a.vy += (dy / dist) * force
-        b.vx -= (dx / dist) * force
-        b.vy -= (dy / dist) * force
-      })
-      // Center gravity
-      pos.forEach((p) => {
-        p.vx += (width / 2 - p.x) * 0.001
-        p.vy += (height / 2 - p.y) * 0.001
-        p.vx *= 0.85
-        p.vy *= 0.85
-        p.x += p.vx
-        p.y += p.vy
-      })
-    }
+      return hit
+    },
+    [nodes, screenToWorld],
+  )
 
-    const final = new Map<string, { x: number; y: number }>()
-    pos.forEach((p, id) => final.set(id, { x: p.x, y: p.y }))
-    setPositions(final)
-  }, [nodes.length, edges.length])
+  const fitView = useCallback(() => {
+    const fit = fitCameraToBounds(positionsRef.current, canvasSize.w, canvasSize.h)
+    setCamera(fit)
+  }, [canvasSize])
+
+  useEffect(() => {
+    if (positions.size > 0) fitView()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [graphKey])
+
+  const openNode = useCallback(
+    (node: GraphNode) => {
+      if (node.type === 'note') {
+        selectNote(node.id)
+        setView('vault')
+      } else if (node.type === 'email') {
+        selectEmail(node.id)
+        setView('email')
+      } else if (node.type === 'person') {
+        setGraphPersonFilter(node.id)
+        setView('email')
+      } else if (node.type === 'calendar') {
+        setView('calendar')
+      } else if (node.type === 'tag') {
+        setSearch(node.label)
+        setTypes(new Set(ALL_NODE_TYPES))
+        setSelectedId(node.id)
+      }
+    },
+    [selectNote, selectEmail, setView, setGraphPersonFilter],
+  )
+
+  const drawArrow = (
+    ctx: CanvasRenderingContext2D,
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    color: string,
+    width: number,
+  ) => {
+    const dx = x2 - x1
+    const dy = y2 - y1
+    const dist = Math.max(Math.hypot(dx, dy), 1)
+    const ux = dx / dist
+    const uy = dy / dist
+    const endX = x2 - ux * 10
+    const endY = y2 - uy * 10
+    ctx.beginPath()
+    ctx.moveTo(x1, y1)
+    ctx.lineTo(endX, endY)
+    ctx.strokeStyle = color
+    ctx.lineWidth = width
+    ctx.stroke()
+    if (showArrows) {
+      const head = 7
+      const angle = Math.atan2(dy, dx)
+      ctx.beginPath()
+      ctx.moveTo(endX, endY)
+      ctx.lineTo(endX - head * Math.cos(angle - 0.45), endY - head * Math.sin(angle - 0.45))
+      ctx.lineTo(endX - head * Math.cos(angle + 0.45), endY - head * Math.sin(angle + 0.45))
+      ctx.closePath()
+      ctx.fillStyle = color
+      ctx.fill()
+    }
+  }
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -98,146 +217,397 @@ export function GraphView() {
     if (!ctx) return
 
     const dpr = window.devicePixelRatio || 1
-    const w = containerRef.current?.clientWidth ?? width
-    const h = Math.min(600, window.innerHeight - 200)
+    const { w, h } = canvasSize
     canvas.width = w * dpr
     canvas.height = h * dpr
     canvas.style.width = `${w}px`
     canvas.style.height = `${h}px`
-    ctx.scale(dpr, dpr)
 
-    const scaleX = w / width
-    const scaleY = h / height
-
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, w, h)
 
-    edges.forEach((edge) => {
-      const s = positions.get(edge.source)
-      const t = positions.get(edge.target)
-      if (!s || !t) return
+    // subtle grid
+    ctx.save()
+    ctx.translate(camera.panX, camera.panY)
+    ctx.scale(camera.zoom, camera.zoom)
+    const gridStep = 40
+    const left = (-camera.panX) / camera.zoom
+    const top = (-camera.panY) / camera.zoom
+    const right = (w - camera.panX) / camera.zoom
+    const bottom = (h - camera.panY) / camera.zoom
+    ctx.strokeStyle = 'rgba(148, 163, 184, 0.06)'
+    ctx.lineWidth = 1 / camera.zoom
+    for (let gx = Math.floor(left / gridStep) * gridStep; gx < right; gx += gridStep) {
       ctx.beginPath()
-      ctx.moveTo(s.x * scaleX, s.y * scaleY)
-      ctx.lineTo(t.x * scaleX, t.y * scaleY)
-      ctx.strokeStyle = 'rgba(255,255,255,0.1)'
-      ctx.lineWidth = 1
+      ctx.moveTo(gx, top)
+      ctx.lineTo(gx, bottom)
       ctx.stroke()
+    }
+    for (let gy = Math.floor(top / gridStep) * gridStep; gy < bottom; gy += gridStep) {
+      ctx.beginPath()
+      ctx.moveTo(left, gy)
+      ctx.lineTo(right, gy)
+      ctx.stroke()
+    }
+
+    edges.forEach((edge) => {
+      const s = positionsRef.current.get(edge.source)
+      const t = positionsRef.current.get(edge.target)
+      if (!s || !t) return
+      const active =
+        !highlightIds || (highlightIds.has(edge.source) && highlightIds.has(edge.target))
+      const color = active ? GRAPH_EDGE_COLORS[edge.type] : 'rgba(148, 163, 184, 0.06)'
+      const width = (active ? GRAPH_EDGE_WIDTH[edge.type] : 0.6) / camera.zoom
+      drawArrow(ctx, s.x, s.y, t.x, t.y, color, width)
     })
 
     nodes.forEach((node) => {
-      const p = positions.get(node.id)
+      const p = positionsRef.current.get(node.id)
       if (!p) return
-      const x = p.x * scaleX
-      const y = p.y * scaleY
-      const isHovered = hovered === node.id
-      const baseRadius = node.type === 'person' ? personRadius(node.metadata) : 6
-      const radius = isHovered ? baseRadius + 3 : baseRadius
+      const active = !highlightIds || highlightIds.has(node.id)
+      const isFocus = node.id === focusId
+      const radius = nodeDrawRadius(node)
+      const drawR = isFocus ? radius + 2.5 : radius
 
       ctx.beginPath()
-      ctx.arc(x, y, radius, 0, Math.PI * 2)
-      ctx.fillStyle = TYPE_COLORS[node.type]
+      ctx.arc(p.x, p.y, drawR, 0, Math.PI * 2)
+      ctx.fillStyle = active ? GRAPH_NODE_COLORS[node.type] : 'rgba(100, 116, 139, 0.25)'
+      ctx.globalAlpha = active ? 1 : 0.35
       ctx.fill()
+      ctx.globalAlpha = 1
 
-      if (isHovered) {
+      if (isFocus) {
         ctx.strokeStyle = '#fff'
-        ctx.lineWidth = 2
+        ctx.lineWidth = 2 / camera.zoom
+        ctx.stroke()
+      } else if (node.id === selectedId) {
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)'
+        ctx.lineWidth = 1.5 / camera.zoom
         ctx.stroke()
       }
 
-      ctx.fillStyle = '#cbd5e1'
-      ctx.font = '11px Inter, sans-serif'
-      const suffix =
-        node.type === 'person' && node.metadata?.totalInteractions
-          ? ` (${node.metadata.emailCount ?? 0}✉ ${node.metadata.calendarCount ?? 0}📅)`
-          : ''
-      ctx.fillText((node.label.slice(0, 18) + suffix).slice(0, 28), x - 30, y + radius + 12)
+      const showLabel = camera.zoom >= 0.55 || isFocus || active
+      if (showLabel) {
+        ctx.fillStyle = active ? 'rgba(226, 232, 240, 0.95)' : 'rgba(148, 163, 184, 0.4)'
+        ctx.font = `${Math.max(9, 11 / camera.zoom)}px Inter, sans-serif`
+        const label =
+          node.type === 'person' && node.metadata?.totalInteractions
+            ? `${node.label} (${node.metadata.totalInteractions})`
+            : node.label
+        const maxLen = camera.zoom < 0.8 ? 14 : 22
+        const text = label.length > maxLen ? `${label.slice(0, maxLen - 1)}…` : label
+        ctx.fillText(text, p.x - drawR, p.y + drawR + 12 / camera.zoom)
+      }
     })
-  }, [positions, nodes, edges, hovered])
 
-  const hitRadiusFor = (node: GraphNode) => {
-    const base = node.type === 'person' ? personRadius(node.metadata) : 6
-    return base + 8
-  }
+    ctx.restore()
+  }, [
+    positions,
+    nodes,
+    edges,
+    camera,
+    canvasSize,
+    highlightIds,
+    focusId,
+    selectedId,
+    showArrows,
+  ])
 
-  const handleClick = (e: React.MouseEvent) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const w = rect.width
-    const h = rect.height
-    const scaleX = w / width
-    const scaleY = h / height
-
-    for (const node of nodes) {
-      const p = positions.get(node.id)
-      if (!p) continue
-      const nx = p.x * scaleX
-      const ny = p.y * scaleY
-      if (Math.hypot(x - nx, y - ny) < hitRadiusFor(node)) {
-        if (node.type === 'note' || notes.find((n) => n.id === node.id)) {
-          selectNote(node.id)
-          setView('vault')
-        } else if (node.type === 'email' || emails.find((em) => em.id === node.id)) {
-          selectEmail(node.id)
-          setView('email')
-        } else if (node.type === 'person') {
-          setGraphPersonFilter(node.id)
-          setView('email')
-        } else if (node.type === 'calendar') {
-          setView('calendar')
-        }
-        return
-      }
+  const onPointerDown = (e: React.PointerEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const sx = e.clientX - rect.left
+    const sy = e.clientY - rect.top
+    const hit = hitTest(sx, sy)
+    if (hit) {
+      const p = positionsRef.current.get(hit.id)!
+      const world = screenToWorld(sx, sy)
+      setDragging({ id: hit.id, ox: world.x - p.x, oy: world.y - p.y })
+      setSelectedId(hit.id)
+      canvasRef.current?.setPointerCapture(e.pointerId)
+    } else {
+      setPanning({ sx: e.clientX, sy: e.clientY, panX: camera.panX, panY: camera.panY })
+      canvasRef.current?.setPointerCapture(e.pointerId)
     }
   }
 
-  const handleMove = (e: React.MouseEvent) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    const w = rect.width
-    const scaleX = w / width
+  const onPointerMove = (e: React.PointerEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const sx = e.clientX - rect.left
+    const sy = e.clientY - rect.top
 
-    let found: string | null = null
-    for (const node of nodes) {
-      const p = positions.get(node.id)
-      if (!p) continue
-      if (Math.hypot(x - p.x * scaleX, y - p.y * (rect.height / height)) < hitRadiusFor(node)) {
-        found = node.id
-        break
-      }
+    if (dragging) {
+      const world = screenToWorld(sx, sy)
+      const next = new Map(positionsRef.current)
+      next.set(dragging.id, { x: world.x - dragging.ox, y: world.y - dragging.oy })
+      positionsRef.current = next
+      pinnedRef.current.add(dragging.id)
+      setPositions(next)
+      bumpFrame((n) => n + 1)
+      return
     }
-    setHovered(found)
+
+    if (panning) {
+      setCamera((c) => ({
+        ...c,
+        panX: panning.panX + (e.clientX - panning.sx),
+        panY: panning.panY + (e.clientY - panning.sy),
+      }))
+      return
+    }
+
+    setHoveredId(hitTest(sx, sy)?.id ?? null)
   }
+
+  const onPointerUp = (e: React.PointerEvent) => {
+    setDragging(null)
+    setPanning(null)
+    canvasRef.current?.releasePointerCapture(e.pointerId)
+  }
+
+  const onWheel = (e: React.WheelEvent) => {
+    e.preventDefault()
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const sx = e.clientX - rect.left
+    const sy = e.clientY - rect.top
+    const world = screenToWorld(sx, sy)
+    const factor = e.deltaY > 0 ? 0.9 : 1.1
+    const zoom = Math.min(3.5, Math.max(0.2, camera.zoom * factor))
+    setCamera({
+      zoom,
+      panX: sx - world.x * zoom,
+      panY: sy - world.y * zoom,
+    })
+  }
+
+  const onDoubleClick = (e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const hit = hitTest(e.clientX - rect.left, e.clientY - rect.top)
+    if (hit) openNode(hit)
+  }
+
+  const toggleType = (type: GraphNode['type']) => {
+    setTypes((prev) => {
+      const next = new Set(prev)
+      if (next.has(type)) {
+        if (next.size === 1) return prev
+        next.delete(type)
+      } else {
+        next.add(type)
+      }
+      return next
+    })
+  }
+
+  const connectedEdges = selectedId
+    ? edges.filter((e) => e.source === selectedId || e.target === selectedId)
+    : []
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden p-4 md:p-6">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-theme">Knowledge Graph</h1>
-        <p className="text-sm text-theme-muted mt-1">
-          {nodes.length} nodes · {edges.length} connections
-          {activeVault ? ` · ${activeVault.name} vault` : ' · all vaults'}
-          {' — '}click people to filter inbox; size reflects email + calendar density
-        </p>
-      </div>
+    <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+      <GraphFilterPanel
+        search={search}
+        onSearchChange={setSearch}
+        types={types}
+        onToggleType={toggleType}
+        orphansOnly={orphansOnly}
+        onOrphansOnlyChange={setOrphansOnly}
+        localGraph={localGraph}
+        onLocalGraphChange={setLocalGraph}
+        localDepth={localDepth}
+        onLocalDepthChange={setLocalDepth}
+        showArrows={showArrows}
+        onShowArrowsChange={setShowArrows}
+        typeCounts={typeCounts}
+        selectedNode={selectedNode}
+        orphanCount={orphanCount}
+      />
 
-      <div ref={containerRef} className="flex-1 glass rounded-xl overflow-hidden relative min-h-[400px]">
-        <canvas
-          ref={canvasRef}
-          className="w-full h-full cursor-pointer"
-          onClick={handleClick}
-          onMouseMove={handleMove}
-        />
-        <div className="absolute bottom-4 left-4 flex flex-wrap gap-3 text-xs text-theme-secondary glass rounded-lg px-3 py-2">
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-indigo-500" /> Notes</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-cyan-400" /> Emails</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-pink-400" /> People</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-emerald-400" /> Calendar</span>
-          <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-purple-400" /> Tags</span>
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 p-3 lg:p-4">
+        <div className="mb-3 flex items-start justify-between gap-3 shrink-0">
+          <div>
+            <h1 className="text-xl lg:text-2xl font-bold text-theme">Knowledge Graph</h1>
+            <p className="text-xs text-theme-muted mt-0.5">
+              {nodes.length} nodes · {edges.length} links
+              {activeVault ? ` · ${activeVault.name}` : ' · all vaults'}
+            </p>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              onClick={() => setCamera((c) => ({ ...c, zoom: Math.min(3.5, c.zoom * 1.2) }))}
+              className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
+              title="Zoom in"
+            >
+              <ZoomIn size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setCamera((c) => ({ ...c, zoom: Math.max(0.2, c.zoom / 1.2) }))}
+              className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
+              title="Zoom out"
+            >
+              <ZoomOut size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={fitView}
+              className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
+              title="Fit to view"
+            >
+              <Maximize2 size={14} />
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                pinnedRef.current.clear()
+                const layout = runForceLayout(nodes, edges, { width: LAYOUT_W, height: LAYOUT_H })
+                positionsRef.current = layout
+                setPositions(layout)
+                fitView()
+              }}
+              className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
+              title="Reset layout"
+            >
+              <RotateCcw size={14} />
+            </button>
+          </div>
         </div>
+
+        <div className="flex-1 flex min-h-0 gap-3">
+          <div
+            ref={containerRef}
+            className="flex-1 glass rounded-xl overflow-hidden relative min-h-[320px] border border-[var(--glass-border)]"
+          >
+            {nodes.length === 0 ? (
+              <div className="absolute inset-0 flex items-center justify-center text-sm text-theme-muted p-6 text-center">
+                No nodes match your filters. Try enabling more groups or clearing search.
+              </div>
+            ) : (
+              <canvas
+                ref={canvasRef}
+                className="w-full h-full touch-none"
+                style={{ cursor: dragging ? 'grabbing' : panning ? 'grabbing' : 'grab' }}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={onPointerUp}
+                onPointerLeave={onPointerUp}
+                onWheel={onWheel}
+                onDoubleClick={onDoubleClick}
+              />
+            )}
+
+            <div className="absolute bottom-3 left-3 flex flex-wrap gap-2 text-[10px] text-theme-secondary glass rounded-lg px-2.5 py-1.5 pointer-events-none">
+              {ALL_NODE_TYPES.map((type) => (
+                <span key={type} className="flex items-center gap-1">
+                  <span
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: GRAPH_NODE_COLORS[type] }}
+                  />
+                  {GRAPH_TYPE_LABELS[type]}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {selectedNode && (
+            <aside className="hidden xl:flex w-56 shrink-0 flex-col glass rounded-xl border border-[var(--glass-border)] overflow-hidden">
+              <div className="p-3 border-b border-[var(--glass-border)]">
+                <p className="text-[10px] uppercase tracking-wide text-theme-muted">
+                  {GRAPH_TYPE_LABELS[selectedNode.type]}
+                </p>
+                <p className="text-sm font-semibold text-theme mt-1 leading-snug break-words">
+                  {selectedNode.label}
+                </p>
+                {selectedNode.type === 'person' && selectedNode.metadata && (
+                  <p className="text-[10px] text-theme-muted mt-1">
+                    {selectedNode.metadata.emailCount ?? 0} emails ·{' '}
+                    {selectedNode.metadata.calendarCount ?? 0} events
+                  </p>
+                )}
+              </div>
+              <div className="p-3 flex-1 overflow-y-auto space-y-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+                  Connections ({connectedEdges.length})
+                </p>
+                {connectedEdges.slice(0, 8).map((edge) => {
+                  const otherId = edge.source === selectedId ? edge.target : edge.source
+                  const other = nodes.find((n) => n.id === otherId)
+                  if (!other) return null
+                  return (
+                    <button
+                      key={edge.id}
+                      type="button"
+                      onClick={() => setSelectedId(other.id)}
+                      className="w-full text-left px-2 py-1.5 rounded-lg glass hover-theme text-[11px]"
+                    >
+                      <span className="text-theme-muted">{GRAPH_EDGE_LABELS[edge.type]}</span>
+                      <span className="block text-theme-secondary truncate">{other.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="p-3 border-t border-[var(--glass-border)] space-y-1.5">
+                <button
+                  type="button"
+                  onClick={() => openNode(selectedNode)}
+                  className="w-full px-3 py-1.5 rounded-lg btn-accent text-xs font-medium"
+                >
+                  Open
+                </button>
+                {selectedNode.type === 'person' && (
+                  <button
+                    type="button"
+                    onClick={() => openNode(selectedNode)}
+                    className="w-full px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme flex items-center justify-center gap-1"
+                  >
+                    <Mail size={12} /> Filter inbox
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocalGraph(true)
+                    fitView()
+                  }}
+                  className="w-full px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme flex items-center justify-center gap-1"
+                >
+                  <Focus size={12} /> Local graph
+                </button>
+              </div>
+            </aside>
+          )}
+        </div>
+
+        {selectedNode && (
+          <div className="xl:hidden mt-2 glass rounded-xl p-3 border border-[var(--glass-border)] shrink-0">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-[10px] text-theme-muted">{GRAPH_TYPE_LABELS[selectedNode.type]}</p>
+                <p className="text-sm font-medium text-theme truncate">{selectedNode.label}</p>
+              </div>
+              <div className="flex gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setLocalGraph(true)}
+                  className="px-2.5 py-1 rounded-lg glass text-[10px] text-theme-secondary"
+                >
+                  Local
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openNode(selectedNode)}
+                  className="px-2.5 py-1 rounded-lg btn-accent text-[10px] font-medium"
+                >
+                  Open
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
