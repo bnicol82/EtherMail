@@ -68,6 +68,7 @@ export function EmailView() {
   const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
   const openCompose = useEtherMailStore((s) => s.openCompose)
   const openComposeFromEmail = useEtherMailStore((s) => s.openComposeFromEmail)
+  const sendQuickAck = useEtherMailStore((s) => s.sendQuickAck)
   const composeDraft = useEtherMailStore((s) => s.composeDraft)
   const cancelScheduledEmail = useEtherMailStore((s) => s.cancelScheduledEmail)
   const sendScheduledEmailNow = useEtherMailStore((s) => s.sendScheduledEmailNow)
@@ -381,6 +382,7 @@ export function EmailView() {
                       )
                     }
                     onDelete={() => deleteEmail(thread.latest.id)}
+                    onQuickAck={(ack) => sendQuickAck(thread.latest.id, ack)}
                     category={c?.category}
                     showCategory={
                       activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)
@@ -405,6 +407,7 @@ export function EmailView() {
                     active={activeEmailId === e.id}
                     onSelect={() => handleSelectEmail(e.id)}
                     onDelete={() => deleteEmail(e.id)}
+                    onQuickAck={(ack) => sendQuickAck(e.id, ack)}
                     category={c?.category}
                     showCategory={
                       activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)

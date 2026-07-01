@@ -1,6 +1,5 @@
-import { useRef, useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import type { Email, EmailAccount } from '../types'
+import type { Email, EmailAccount, AckStatus } from '../types'
 import { AccountDot } from './AccountDot'
 import { formatDate } from '../lib/utils'
 import { Star, Link2, Paperclip, CheckCircle2, Clock } from 'lucide-react'
@@ -8,6 +7,8 @@ import { CategoryBadge } from './AIInboxBar'
 import { EmailLabelChip } from './EmailLabelsBar'
 import type { EmailJunkCategory, EmailLabel } from '../types'
 import { formatScheduledAt } from '../lib/scheduledSend'
+import { useInboxSwipe, INBOX_SWIPE_DELETE_WIDTH } from '../hooks/useInboxSwipe'
+import { SwipeInboxAckStrip } from './SwipeInboxAckStrip'
 
 interface Props {
   email: Email
@@ -15,6 +16,7 @@ interface Props {
   active: boolean
   onSelect: () => void
   onDelete: () => void
+  onQuickAck?: (ack: { status: AckStatus; label: string; message?: string; emoji?: string }) => void
   category?: EmailJunkCategory
   showCategory?: boolean
   selectionMode?: boolean
@@ -29,6 +31,7 @@ export function SwipeableEmailRow({
   active,
   onSelect,
   onDelete,
+  onQuickAck,
   category,
   showCategory,
   selectionMode,
@@ -36,26 +39,37 @@ export function SwipeableEmailRow({
   onToggleSelect,
   labels = [],
 }: Props) {
-  const startX = useRef(0)
-  const [offset, setOffset] = useState(0)
-  const [dragging, setDragging] = useState(false)
+  const folder = email.folder ?? 'inbox'
+  const ackEnabled =
+    !!onQuickAck && !selectionMode && (folder === 'inbox' || folder === 'archive')
 
-  const threshold = 80
-  const deleteWidth = 72
+  const { offset, dragging, snapped, handlers, dismissSnap, showDelete, showAck } = useInboxSwipe({
+    onDelete,
+    ackEnabled,
+  })
 
-  const reset = () => {
-    setDragging(false)
-    setOffset(0)
+  const handleRowClick = () => {
+    if (snapped === 'ack') {
+      dismissSnap()
+      return
+    }
+    if (selectionMode) onToggleSelect?.()
+    else onSelect()
   }
-
-  const showDelete = offset < -8
 
   return (
     <div className="relative overflow-hidden border-b border-[var(--glass-border)]">
+      {showAck && onQuickAck && (
+        <SwipeInboxAckStrip onAck={onQuickAck} onDismiss={dismissSnap} />
+      )}
+
       {showDelete && (
         <div
           className="absolute inset-y-0 right-0 flex items-center justify-center bg-red-500/90 text-white transition-opacity"
-          style={{ width: deleteWidth, opacity: Math.min(1, Math.abs(offset) / deleteWidth) }}
+          style={{
+            width: INBOX_SWIPE_DELETE_WIDTH,
+            opacity: Math.min(1, Math.abs(offset) / INBOX_SWIPE_DELETE_WIDTH),
+          }}
         >
           <Trash2 size={18} />
         </div>
@@ -69,36 +83,9 @@ export function SwipeableEmailRow({
           transform: `translateX(${offset}px)`,
           transition: dragging ? 'none' : 'transform 0.2s ease-out',
         }}
-        onPointerDown={(e) => {
-          if (e.button !== 0) return
-          startX.current = e.clientX
-          setDragging(true)
-          ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-        }}
-        onPointerMove={(e) => {
-          if (!dragging) return
-          const dx = e.clientX - startX.current
-          setOffset(Math.min(0, Math.max(dx, -deleteWidth - 20)))
-        }}
-        onPointerUp={(e) => {
-          if (!dragging) return
-          try {
-            ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
-          } catch {
-            /* released */
-          }
-          if (offset < -threshold) {
-            onDelete()
-          }
-          reset()
-        }}
-        onPointerCancel={reset}
+        {...handlers}
       >
-        <button
-          type="button"
-          onClick={selectionMode ? onToggleSelect : onSelect}
-          className="w-full text-left p-2.5"
-        >
+        <button type="button" onClick={handleRowClick} className="w-full text-left p-2.5">
           <div className="flex items-center gap-2 mb-1">
             {selectionMode && (
               <input
@@ -141,6 +128,9 @@ export function SwipeableEmailRow({
               <CategoryBadge category={category} />
             )}
           </div>
+          {ackEnabled && snapped === 'none' && (
+            <p className="text-[9px] text-theme-muted/70 pl-4 mt-1 lg:hidden">Swipe right to ack · left to delete</p>
+          )}
         </button>
       </div>
     </div>

@@ -199,6 +199,8 @@ export interface ComposeDraft {
   accountId: string
   attachments?: ComposeAttachment[]
   scheduledAt?: string
+  /** Email being replied to / forwarded — powers vault-aware chips */
+  contextEmailId?: string
 }
 
 export interface GraphNodeMetadata {

@@ -670,12 +670,14 @@ export const useEtherMailStore = create<EtherMailState>()(
         let bcc = initial?.bcc ?? ''
         let subject = initial?.subject ?? ''
         let body = initial?.body ?? ''
+        let contextEmailId = initial?.contextEmailId
 
         if (initial?.replyTo) {
           const draft = buildReplyDraft(initial.replyTo)
           to = draft.to
           subject = draft.subject
           body = draft.body
+          contextEmailId = initial.replyTo.id
         }
 
         if (initial?.replyAllTo) {
@@ -684,12 +686,14 @@ export const useEtherMailStore = create<EtherMailState>()(
           cc = draft.cc ?? ''
           subject = draft.subject
           body = draft.body
+          contextEmailId = initial.replyAllTo.id
         }
 
         if (initial?.forwardEmail) {
           const draft = buildForwardDraft(initial.forwardEmail)
           subject = draft.subject
           body = draft.body
+          contextEmailId = initial.forwardEmail.id
         }
 
         set({
@@ -703,6 +707,7 @@ export const useEtherMailStore = create<EtherMailState>()(
             accountId: initial?.accountId ?? defaultAccount,
             attachments: initial?.attachments,
             scheduledAt: initial?.scheduledAt,
+            contextEmailId,
           },
           view: 'email',
           mobilePanel: 'list',
