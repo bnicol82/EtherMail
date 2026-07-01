@@ -11,6 +11,39 @@ export interface ForceLayoutOptions {
   height?: number
   iterations?: number
   seed?: number
+  forces?: GraphForceSettings
+}
+
+/** Slider values 10–200 (100 = default), like percentage tuning */
+export interface GraphForceSettings {
+  centerForce: number
+  repelForce: number
+  linkForce: number
+  linkDistance: number
+}
+
+export const DEFAULT_GRAPH_FORCE_SETTINGS: GraphForceSettings = {
+  centerForce: 100,
+  repelForce: 100,
+  linkForce: 100,
+  linkDistance: 100,
+}
+
+export const GRAPH_FORCE_SLIDERS: {
+  key: keyof GraphForceSettings
+  label: string
+  hint: string
+  min: number
+  max: number
+}[] = [
+  { key: 'centerForce', label: 'Center', hint: 'Pull toward middle — higher = tighter blob', min: 10, max: 200 },
+  { key: 'repelForce', label: 'Repel', hint: 'Push nodes apart', min: 10, max: 200 },
+  { key: 'linkForce', label: 'Link pull', hint: 'Spring tension on connections', min: 10, max: 200 },
+  { key: 'linkDistance', label: 'Link length', hint: 'Target distance between linked nodes', min: 40, max: 200 },
+]
+
+function forceMult(value: number | undefined): number {
+  return (value ?? 100) / 100
 }
 
 export type GraphLayoutView =
@@ -95,6 +128,11 @@ export function runForceLayout(
   const height = options.height ?? 600
   const iterations = options.iterations ?? 120
   const rand = seededRandom(options.seed ?? hashIds(nodes.map((n) => n.id)))
+  const forces = options.forces ?? DEFAULT_GRAPH_FORCE_SETTINGS
+  const centerPull = 0.0015 * forceMult(forces.centerForce)
+  const repelStrength = 900 * forceMult(forces.repelForce)
+  const linkStrength = 0.035 * forceMult(forces.linkForce)
+  const linkDistScale = forceMult(forces.linkDistance)
 
   const pos = new Map<string, GraphPosition & { vx: number; vy: number }>()
   nodes.forEach((n, i) => {
@@ -109,21 +147,24 @@ export function runForceLayout(
   })
 
   const linkDistance = (type: GraphEdge['type']) => {
-    switch (type) {
-      case 'links_to':
-        return 72
-      case 'tagged':
-        return 88
-      case 'references':
-        return 110
-      case 'from':
-      case 'emailed':
-        return 95
-      case 'attended':
-        return 100
-      default:
-        return 100
-    }
+    const base = (() => {
+      switch (type) {
+        case 'links_to':
+          return 72
+        case 'tagged':
+          return 88
+        case 'references':
+          return 110
+        case 'from':
+        case 'emailed':
+          return 95
+        case 'attended':
+          return 100
+        default:
+          return 100
+      }
+    })()
+    return base * linkDistScale
   }
 
   for (let iter = 0; iter < iterations; iter++) {
@@ -137,7 +178,7 @@ export function runForceLayout(
         const dx = b.x - a.x
         const dy = b.y - a.y
         const dist = Math.max(Math.hypot(dx, dy), 1)
-        const force = (900 * cooling) / (dist * dist)
+        const force = (repelStrength * cooling) / (dist * dist)
         a.vx -= (dx / dist) * force
         a.vy -= (dy / dist) * force
         b.vx += (dx / dist) * force
@@ -153,7 +194,7 @@ export function runForceLayout(
       const dy = b.y - a.y
       const dist = Math.max(Math.hypot(dx, dy), 1)
       const target = linkDistance(e.type)
-      const force = (dist - target) * 0.035 * cooling
+      const force = (dist - target) * linkStrength * cooling
       a.vx += (dx / dist) * force
       a.vy += (dy / dist) * force
       b.vx -= (dx / dist) * force
@@ -161,8 +202,8 @@ export function runForceLayout(
     })
 
     pos.forEach((p) => {
-      p.vx += (width / 2 - p.x) * 0.0015
-      p.vy += (height / 2 - p.y) * 0.0015
+      p.vx += (width / 2 - p.x) * centerPull
+      p.vy += (height / 2 - p.y) * centerPull
       p.vx *= 0.82
       p.vy *= 0.82
       p.x += p.vx
