@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
@@ -1864,7 +1865,10 @@ export function useGraph() {
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
   const accounts = useEtherMailStore((s) => s.accounts)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
-  return buildContactGraph(notes, emails, calendarEvents, accounts, activeVaultId)
+  return useMemo(
+    () => buildContactGraph(notes, emails, calendarEvents, accounts, activeVaultId),
+    [notes, emails, calendarEvents, accounts, activeVaultId],
+  )
 }
 
 export function useStats() {
