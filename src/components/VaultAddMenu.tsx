@@ -1,6 +1,7 @@
 import { useRef, useState, useEffect } from 'react'
 import { Plus, FileText, FolderPlus, Upload, Calendar, LayoutTemplate } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { EMAIL_FILES_WORK_FOLDER_ID } from '../data/seed'
 import { getTemplateNotes } from '../lib/noteFeatures'
@@ -21,6 +22,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
   const uploadVaultFile = useEtherMailStore((s) => s.uploadVaultFile)
   const notes = useEtherMailStore((s) => s.notes)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  const canUpload = useFeatureVisible('vault_file_upload')
 
   const [open, setOpen] = useState(false)
   const [folderPrompt, setFolderPrompt] = useState(false)
@@ -214,6 +216,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
                 <FolderPlus size={14} className="text-amber-400" />
                 New folder
               </button>
+              {canUpload && (
               <button
                 type="button"
                 onClick={() => fileRef.current?.click()}
@@ -223,6 +226,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
                 <Upload size={14} className="text-accent" />
                 Upload file
               </button>
+              )}
             </>
           )}
           {error && <p className="text-[10px] text-red-400 px-2 pt-1">{error}</p>}

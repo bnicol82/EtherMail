@@ -1,4 +1,4 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw, Sparkles, Vibrate } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw, Sparkles, Vibrate, LogOut, UserCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
@@ -8,6 +8,8 @@ import { clearWeatherCache } from '../lib/weather'
 import { getAvailableVoices, speakText, isListeningSupported, isSpeechSupported } from '../lib/voice'
 import { buttonClickFeedback } from '../lib/uiFeedback'
 import { useFeatureVisible } from '../hooks/useFeatureGate'
+import { buildSsoLoginUrl } from '../lib/sso'
+import { hasOrgApi } from '../lib/orgApi'
 import type { AssistantPersonality, Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -50,6 +52,9 @@ export function SettingsView() {
   const setFeedbackSettings = useEtherMailStore((s) => s.setFeedbackSettings)
   const userRole = useEtherMailStore((s) => s.userRole)
   const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
+  const orgSession = useEtherMailStore((s) => s.orgSession)
+  const ssoConfig = useEtherMailStore((s) => s.ssoConfig)
+  const logoutOrgSession = useEtherMailStore((s) => s.logoutOrgSession)
   const canExternalAi = useFeatureVisible('external_ai')
   const canBridge = useFeatureVisible('ai_bridge')
   const canOAuthByo = useFeatureVisible('oauth_byo_client')
@@ -80,6 +85,10 @@ export function SettingsView() {
   const connectedMailboxCount = accounts.filter((a) => a.connected).length
   const limits = planLimits(planTier)
   const mailboxLimitReached = !canConnectMailbox(connectedMailboxCount, planTier)
+  const ssoLoginUrl =
+    hasOrgApi() && ssoConfig.enabled
+      ? buildSsoLoginUrl(ssoConfig, `${window.location.origin}${import.meta.env.BASE_URL}`)
+      : null
 
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
@@ -92,6 +101,44 @@ export function SettingsView() {
 
       <h1 className="text-xl md:text-2xl font-bold text-theme mb-0.5">Settings</h1>
       <p className="text-xs md:text-sm text-theme-muted mb-6 md:mb-8">Configure appearance, AI providers, and accounts</p>
+
+      {hasOrgApi() && (
+        <section className="glass rounded-xl p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <UserCircle size={18} className="text-accent" />
+            <h2 className="font-semibold text-theme">Organization account</h2>
+          </div>
+          {orgSession ? (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-medium text-theme">{orgSession.email}</p>
+                <p className="text-xs text-theme-muted mt-0.5 capitalize">{orgSession.role} · signed in via SSO</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void logoutOrgSession()}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl glass text-sm text-theme-secondary hover-theme"
+              >
+                <LogOut size={14} />
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <p className="text-sm text-theme-muted">Not signed in to your organization.</p>
+              {ssoLoginUrl && (
+                <a
+                  href={ssoLoginUrl}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl btn-accent text-sm font-medium"
+                >
+                  <Shield size={14} />
+                  Sign in with SSO
+                </a>
+              )}
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Plan */}
       <section className="glass rounded-xl p-5 mb-6">

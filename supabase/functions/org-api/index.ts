@@ -250,6 +250,33 @@ Deno.serve(async (req) => {
       })
     }
 
+    if (req.method === 'POST' && pathname === '/org/auth/refresh') {
+      const body = await req.json()
+      const refreshToken = String(body?.refreshToken ?? '')
+      if (!refreshToken) return json(400, { error: 'refreshToken required' })
+
+      const authClient = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const { data, error } = await authClient.auth.refreshSession({ refresh_token: refreshToken })
+      if (error || !data.session) {
+        return json(401, { error: error?.message ?? 'Refresh failed' })
+      }
+      return json(200, {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresIn: data.session.expires_in ?? 3600,
+      })
+    }
+
+    if (req.method === 'POST' && pathname === '/org/auth/logout') {
+      const token = req.headers.get('x-ethermail-session')
+      if (token) {
+        await db.from('org_sessions').delete().eq('token', token)
+      }
+      return json(200, { ok: true })
+    }
+
     return json(404, { error: 'Not found' })
   } catch (err) {
     console.error(err)

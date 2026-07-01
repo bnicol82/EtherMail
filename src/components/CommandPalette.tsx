@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Search, Mail, FileText, Calendar, LayoutDashboard, Sparkles } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { globalSearch } from '../lib/globalSearch'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import type { SearchResult } from '../types'
 
 const TYPE_ICONS = {
@@ -20,6 +21,7 @@ export function CommandPalette() {
   const setView = useEtherMailStore((s) => s.setView)
   const selectNote = useEtherMailStore((s) => s.selectNote)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
+  const enabled = useFeatureVisible('command_palette')
 
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -28,6 +30,7 @@ export function CommandPalette() {
   const results = globalSearch(query, notes, emails, calendarEvents)
 
   useEffect(() => {
+    if (!enabled) return
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault()
@@ -39,7 +42,11 @@ export function CommandPalette() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [open, setCommandPaletteOpen])
+  }, [open, setCommandPaletteOpen, enabled])
+
+  useEffect(() => {
+    if (!enabled && open) setCommandPaletteOpen(false)
+  }, [enabled, open, setCommandPaletteOpen])
 
   useEffect(() => {
     if (open) {
@@ -53,7 +60,7 @@ export function CommandPalette() {
     setActiveIndex(0)
   }, [query])
 
-  if (!open) return null
+  if (!open || !enabled) return null
 
   const navigate = (result: SearchResult) => {
     if (result.view) setView(result.view)
