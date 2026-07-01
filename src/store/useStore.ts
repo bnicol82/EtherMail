@@ -29,6 +29,7 @@ import type {
   CalendarEvent,
   ChatMessage,
   ComposeDraft,
+  ComposeAttachment,
   Email,
   EmailAcknowledgement,
   EmailAttachment,
@@ -170,6 +171,7 @@ interface EtherMailState {
       forwardEmail?: Email
     },
   ) => void
+  openComposeFromEmail: (emailId: string) => void
   closeCompose: () => void
   sendComposedEmail: (draft: ComposeDraft) => void
   saveComposeDraft: (draft: ComposeDraft) => void
@@ -450,8 +452,19 @@ export const useEtherMailStore = create<EtherMailState>()(
           mobilePanel: 'detail',
         })
       },
-      selectEmail: (id) =>
-        set({ activeEmailId: id, view: 'email', mobilePanel: 'detail' }),
+      selectEmail: (id) => {
+        if (!id) {
+          set({ activeEmailId: null })
+          return
+        }
+        const email = get().emails.find((e) => e.id === id)
+        const folder = email?.folder ?? 'inbox'
+        if (email && (folder === 'drafts' || folder === 'scheduled')) {
+          get().openComposeFromEmail(id)
+          return
+        }
+        set({ activeEmailId: id, view: 'email', mobilePanel: 'detail' })
+      },
       selectAttachment: (id) =>
         set({
           activeAttachmentId: id,
@@ -693,6 +706,37 @@ export const useEtherMailStore = create<EtherMailState>()(
           },
           view: 'email',
           mobilePanel: 'list',
+        })
+      },
+
+      openComposeFromEmail: (emailId) => {
+        const state = get()
+        const email = state.emails.find((e) => e.id === emailId)
+        if (!email) return
+        const folder = email.folder ?? 'inbox'
+        if (folder !== 'drafts' && folder !== 'scheduled') return
+
+        const draftAttachments: ComposeAttachment[] = (email.attachmentIds ?? [])
+          .map((attId) => state.emailAttachments.find((a) => a.id === attId))
+          .filter((a): a is NonNullable<typeof a> => !!a && !!a.dataUrl)
+          .map((a) => ({
+            id: a.id,
+            filename: a.filename,
+            sizeBytes: a.sizeBytes,
+            mimeType: a.mimeType,
+            dataUrl: a.dataUrl!,
+          }))
+
+        get().openCompose({
+          id: email.id,
+          to: email.to,
+          cc: email.cc,
+          bcc: email.bcc,
+          subject: email.subject,
+          body: email.body,
+          accountId: email.accountId,
+          scheduledAt: email.scheduledAt,
+          attachments: draftAttachments.length > 0 ? draftAttachments : undefined,
         })
       },
 

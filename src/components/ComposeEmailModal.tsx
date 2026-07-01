@@ -70,6 +70,14 @@ export function ComposeEmailModal() {
 
   useEffect(() => {
     if (!composeDraft) return
+    const focusTimer = window.setTimeout(() => {
+      bodyRef.current?.focus()
+    }, 350)
+    return () => window.clearTimeout(focusTimer)
+  }, [composeDraft])
+
+  useEffect(() => {
+    if (!composeDraft) return
     setTo(composeDraft.to)
     setCc(composeDraft.cc ?? '')
     setBcc(composeDraft.bcc ?? '')
@@ -113,6 +121,15 @@ export function ComposeEmailModal() {
     },
     [buildDraft, saveComposeDraft, closeCompose],
   )
+
+  const handleSaveAndPreview = () => {
+    const draft = buildDraft()
+    if (isDraftWorthy(draft)) {
+      saveComposeDraft(draft)
+    } else {
+      closeCompose()
+    }
+  }
 
   if (!composeDraft) return null
 
@@ -261,10 +278,10 @@ export function ComposeEmailModal() {
             )}
             <button
               type="button"
-              onClick={() => dismiss(true)}
+              onClick={handleSaveAndPreview}
               className="p-2 rounded-xl hover-theme text-theme-muted shrink-0"
-              aria-label="Close and save draft"
-              title="Close (saves draft)"
+              aria-label="Save draft and preview"
+              title="Save draft & preview"
             >
               <Minimize2 size={18} />
             </button>
@@ -506,7 +523,12 @@ export function ComposeEmailModal() {
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Write your message…"
-            className="flex-1 w-full px-4 py-3 bg-transparent text-sm text-theme-secondary leading-relaxed outline-none resize-none min-h-0 sm:min-h-[10rem]"
+            autoComplete="off"
+            autoCorrect="on"
+            spellCheck
+            onTouchStart={(e) => e.currentTarget.focus()}
+            className="flex-1 w-full px-4 py-3 bg-transparent text-base text-theme-secondary leading-relaxed outline-none resize-none min-h-0 sm:min-h-[10rem] touch-manipulation"
+            style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
           />
 
           {/* Attachments strip */}

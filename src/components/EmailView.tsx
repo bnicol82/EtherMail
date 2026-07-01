@@ -12,6 +12,7 @@ import {
   Bot,
   Trash2,
   Archive,
+  Pencil,
   Send,
   Clock,
 } from 'lucide-react'
@@ -37,7 +38,7 @@ import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
 import { emailMatchesPerson } from '../lib/contactGraph'
 import { VAULT_PERSONAL_ID } from '../data/seed'
-import type { ComposeAttachment, EmailFolder } from '../types'
+import type { EmailFolder } from '../types'
 
 export function EmailView() {
   const emails = useEtherMailStore((s) => s.emails)
@@ -66,6 +67,8 @@ export function EmailView() {
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const emailAttachments = useEtherMailStore((s) => s.emailAttachments)
   const openCompose = useEtherMailStore((s) => s.openCompose)
+  const openComposeFromEmail = useEtherMailStore((s) => s.openComposeFromEmail)
+  const composeDraft = useEtherMailStore((s) => s.composeDraft)
   const cancelScheduledEmail = useEtherMailStore((s) => s.cancelScheduledEmail)
   const sendScheduledEmailNow = useEtherMailStore((s) => s.sendScheduledEmailNow)
   const snoozeEmail = useEtherMailStore((s) => s.snoozeEmail)
@@ -241,28 +244,9 @@ export function EmailView() {
 
   const handleSelectEmail = (id: string, threadEmailIds?: string[]) => {
     const email = emails.find((e) => e.id === id)
-    if (email && ((email.folder ?? 'inbox') === 'drafts' || email.folder === 'scheduled')) {
-      const draftAttachments: ComposeAttachment[] = (email.attachmentIds ?? [])
-        .map((id) => emailAttachments.find((a) => a.id === id))
-        .filter((a): a is NonNullable<typeof a> => !!a && !!a.dataUrl)
-        .map((a) => ({
-          id: a.id,
-          filename: a.filename,
-          sizeBytes: a.sizeBytes,
-          mimeType: a.mimeType,
-          dataUrl: a.dataUrl!,
-        }))
-      openCompose({
-        id: email.id,
-        to: email.to,
-        cc: email.cc,
-        bcc: email.bcc,
-        subject: email.subject,
-        body: email.body,
-        accountId: email.accountId,
-        scheduledAt: email.scheduledAt,
-        attachments: draftAttachments.length > 0 ? draftAttachments : undefined,
-      })
+    const folder = email?.folder ?? 'inbox'
+    if (email && (folder === 'drafts' || folder === 'scheduled')) {
+      openComposeFromEmail(id)
       return
     }
     selectEmail(id)
@@ -447,6 +431,22 @@ export function EmailView() {
         {activeEmail && !detailHidden ? (
           <>
             <div className="flex-1 flex flex-col min-w-0 min-h-0 order-2 lg:order-1">
+              {(activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled') &&
+                !composeDraft && (
+                  <div className="shrink-0 px-3 pt-3 lg:px-4">
+                    <button
+                      type="button"
+                      onClick={() => openComposeFromEmail(activeEmail.id)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl btn-accent text-sm font-semibold"
+                    >
+                      <Pencil size={16} />
+                      Continue editing draft
+                    </button>
+                    <p className="text-[10px] text-theme-muted text-center mt-2">
+                      Draft preview below — tap to open the editor and type your reply
+                    </p>
+                  </div>
+                )}
               <div className="p-3 lg:p-4 border-b border-[var(--glass-border)] glass shrink-0">
                 <button
                   className="lg:hidden text-theme-muted hover:text-theme text-sm mb-2"
@@ -501,17 +501,32 @@ export function EmailView() {
                     </>
                   )}
                   <button
-                    onClick={() => openCompose({ replyTo: activeEmail })}
+                    onClick={() =>
+                      (activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled')
+                        ? openComposeFromEmail(activeEmail.id)
+                        : openCompose({ replyTo: activeEmail })
+                    }
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg btn-accent text-xs"
                   >
-                    <Reply size={14} /> Reply
+                    {(activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled') ? (
+                      <>
+                        <Pencil size={14} /> Edit draft
+                      </>
+                    ) : (
+                      <>
+                        <Reply size={14} /> Reply
+                      </>
+                    )}
                   </button>
+                  {(activeEmail.folder ?? 'inbox') !== 'drafts' &&
+                    activeEmail.folder !== 'scheduled' && (
                   <button
                     onClick={() => openCompose({ replyAllTo: activeEmail })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
                     <ReplyAll size={14} /> Reply all
                   </button>
+                  )}
                   <button
                     onClick={() => openCompose({ forwardEmail: activeEmail })}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
@@ -606,9 +621,24 @@ export function EmailView() {
                   />
                 )}
                 {(!activeThread || activeThread.emails.length <= 1) && (
-                  <div className="whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (
+                        activeEmail.folder === 'drafts' ||
+                        activeEmail.folder === 'scheduled'
+                      ) {
+                        openComposeFromEmail(activeEmail.id)
+                      }
+                    }}
+                    className={`whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed w-full text-left ${
+                      activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled'
+                        ? 'rounded-xl glass p-3 hover-theme cursor-pointer'
+                        : ''
+                    }`}
+                  >
                     {activeEmail.body}
-                  </div>
+                  </button>
                 )}
                 {activeEmailAttachments.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-[var(--glass-border)]">
