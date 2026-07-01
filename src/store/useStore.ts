@@ -52,6 +52,7 @@ import type {
   View,
   Vault,
   WeatherSettings,
+  FeedbackSettings,
   Folder,
 } from '../types'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
@@ -153,6 +154,9 @@ interface EtherMailState {
 
   weatherSettings: WeatherSettings
   setWeatherSettings: (settings: Partial<WeatherSettings>) => void
+
+  feedbackSettings: FeedbackSettings
+  setFeedbackSettings: (settings: Partial<FeedbackSettings>) => void
 
   chatMessages: ChatMessage[]
   addChatMessage: (msg: Omit<ChatMessage, 'id' | 'timestamp'>) => void
@@ -445,6 +449,13 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
       setWeatherSettings: (settings) =>
         set((s) => ({ weatherSettings: { ...s.weatherSettings, ...settings } })),
+
+      feedbackSettings: {
+        hapticEnabled: true,
+        hapticSoundEnabled: true,
+      },
+      setFeedbackSettings: (settings) =>
+        set((s) => ({ feedbackSettings: { ...s.feedbackSettings, ...settings } })),
 
       chatMessages: SEED_CHAT_MESSAGES,
       addChatMessage: (msg) =>
@@ -1693,7 +1704,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 13,
+      version: 14,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1884,6 +1895,15 @@ export const useEtherMailStore = create<EtherMailState>()(
             emailFolderSort: normalizeEmailFolderSort(next.emailFolderSort),
           }
         }
+        if (version < 14) {
+          next = {
+            ...next,
+            feedbackSettings: {
+              hapticEnabled: true,
+              hapticSoundEnabled: true,
+            },
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1952,6 +1972,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         hiddenPanels: s.hiddenPanels,
         alertMeta: s.alertMeta,
         weatherSettings: s.weatherSettings,
+        feedbackSettings: s.feedbackSettings,
         assistantSettings: s.assistantSettings,
         completedTodos: s.completedTodos,
         announcedProactive: s.announcedProactive,

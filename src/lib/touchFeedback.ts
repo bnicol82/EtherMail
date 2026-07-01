@@ -1,5 +1,11 @@
+import { useEtherMailStore } from '../store/useStore'
+
 let audioCtx: AudioContext | null = null
 let audioUnlocked = false
+
+function getFeedbackSettings(): { hapticEnabled: boolean; hapticSoundEnabled: boolean } {
+  return useEtherMailStore.getState().feedbackSettings
+}
 
 function getAudioContext(): AudioContext | null {
   if (typeof window === 'undefined') return null
@@ -75,7 +81,9 @@ export function playTouchClick(strong = false): void {
 
 /** Touch feedback: vibrate on Android, audible tick on iOS / unsupported browsers */
 export function touchTick(strong = false): void {
-  if (canUseVibration()) {
+  const { hapticEnabled, hapticSoundEnabled } = getFeedbackSettings()
+
+  if (hapticEnabled && canUseVibration()) {
     try {
       navigator.vibrate(strong ? [10, 22, 10] : 12)
       return
@@ -83,7 +91,10 @@ export function touchTick(strong = false): void {
       /* fall through to audio */
     }
   }
-  playTouchClick(strong)
+
+  if (hapticSoundEnabled) {
+    playTouchClick(strong)
+  }
 }
 
 export function isFinePointerDevice(): boolean {
