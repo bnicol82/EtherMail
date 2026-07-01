@@ -1,4 +1,5 @@
 import { isFinePointerDevice, playTouchClick, touchTick, unlockTouchAudio } from './touchFeedback'
+import { useEtherMailStore } from '../store/useStore'
 
 export { unlockTouchAudio, isFinePointerDevice, touchTick }
 
@@ -9,6 +10,7 @@ export function menuHapticTick(): void {
 
 /** Subtle click for desktop hover */
 export function menuHoverClick(): void {
+  if (!useEtherMailStore.getState().feedbackSettings.hapticSoundEnabled) return
   playTouchClick()
 }
 
@@ -19,6 +21,12 @@ export function menuHoverFeedback(): void {
 
 /** Touch drag / scroll across menu items */
 export function menuTouchFeedback(): void {
+  unlockTouchAudio()
+  touchTick()
+}
+
+/** Tap feedback for header chrome buttons (menu, settings) */
+export function buttonClickFeedback(): void {
   unlockTouchAudio()
   touchTick()
 }

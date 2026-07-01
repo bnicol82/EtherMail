@@ -21,7 +21,7 @@ import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 import { useMenuScrollHaptic } from '../hooks/useMenuScrollHaptic'
-import { isFinePointerDevice, menuHoverFeedback } from '../lib/uiFeedback'
+import { isFinePointerDevice, menuHoverFeedback, buttonClickFeedback } from '../lib/uiFeedback'
 
 const NAV: { id: View; label: string; icon: typeof Mail }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -101,7 +101,11 @@ export function Sidebar() {
             Compose
           </button>
           <button
-            onClick={() => navigate('settings')}
+            onClick={() => {
+              buttonClickFeedback()
+              navigate('settings')
+            }}
+            onMouseEnter={onMenuHover}
             className="p-1.5 md:p-2 rounded-xl hover-theme text-theme-muted shrink-0"
             aria-label="Settings"
           >

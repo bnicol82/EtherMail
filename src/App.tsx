@@ -18,6 +18,7 @@ import { ProactiveAssistant } from './components/ProactiveAssistant'
 import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { unlockTouchAudio } from './lib/touchFeedback'
+import { buttonClickFeedback } from './lib/uiFeedback'
 import { Menu, SquarePen } from 'lucide-react'
 
 function MainContent() {
@@ -96,7 +97,10 @@ export default function App() {
       <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
         <header className="md:hidden flex items-center gap-2 px-3 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
           <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
+            onClick={() => {
+              buttonClickFeedback()
+              setSidebarOpen(!sidebarOpen)
+            }}
             className="p-1.5 rounded-lg hover-theme"
             aria-label="Toggle menu"
           >

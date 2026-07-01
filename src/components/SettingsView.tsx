@@ -1,4 +1,4 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw, Sparkles } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw, Sparkles, Vibrate } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
@@ -6,6 +6,7 @@ import { canUseRealOAuth } from '../lib/oauth/connect'
 import { canConnectMailbox, PLAN_LABELS, planLimits } from '../lib/plan'
 import { clearWeatherCache } from '../lib/weather'
 import { getAvailableVoices, speakText, isListeningSupported, isSpeechSupported } from '../lib/voice'
+import { buttonClickFeedback } from '../lib/uiFeedback'
 import type { AssistantPersonality, Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -44,6 +45,8 @@ export function SettingsView() {
   const clearInboxTraining = useEtherMailStore((s) => s.clearInboxTraining)
   const aiInboxEnabled = useEtherMailStore((s) => s.aiInboxEnabled)
   const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
+  const feedbackSettings = useEtherMailStore((s) => s.feedbackSettings)
+  const setFeedbackSettings = useEtherMailStore((s) => s.setFeedbackSettings)
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
@@ -130,6 +133,46 @@ export function SettingsView() {
             </button>
           ))}
         </div>
+      </section>
+
+      {/* Touch feedback */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Vibrate size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">Touch feedback</h2>
+        </div>
+        <p className="text-sm text-theme-muted mb-4">
+          Controls vibration and click sounds when scrolling the calendar, sidebar menu, and header buttons.
+          On iPhone, vibration is not available in the browser — use haptic sound instead.
+        </p>
+        <div className="space-y-3">
+          <label className="flex items-center gap-2 text-sm text-theme-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={feedbackSettings.hapticEnabled}
+              onChange={(e) => setFeedbackSettings({ hapticEnabled: e.target.checked })}
+              className="rounded border-[var(--glass-border)]"
+            />
+            Haptic vibration
+          </label>
+          <label className="flex items-center gap-2 text-sm text-theme-secondary cursor-pointer">
+            <input
+              type="checkbox"
+              checked={feedbackSettings.hapticSoundEnabled}
+              onChange={(e) => setFeedbackSettings({ hapticSoundEnabled: e.target.checked })}
+              className="rounded border-[var(--glass-border)]"
+            />
+            Haptic sound
+          </label>
+        </div>
+        <button
+          type="button"
+          onClick={() => buttonClickFeedback()}
+          className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl glass text-sm text-theme-secondary hover-theme"
+        >
+          <Vibrate size={16} />
+          Test feedback
+        </button>
       </section>
 
       {/* Weather */}

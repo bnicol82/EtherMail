@@ -246,6 +246,13 @@ export interface WeatherSettings {
   useGeolocation: boolean
 }
 
+export interface FeedbackSettings {
+  /** Device vibration on touch interactions (Android; not available on iOS Safari) */
+  hapticEnabled: boolean
+  /** Audible click on touch interactions (used on iOS and when vibration is off) */
+  hapticSoundEnabled: boolean
+}
+
 export type AIAlertSeverity = 'info' | 'warning' | 'urgent'
 
 export type AIAlertCategory = 'email' | 'calendar' | 'todo' | 'vault' | 'account'
