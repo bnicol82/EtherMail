@@ -3,19 +3,29 @@ import { Check, Loader2, Shield, X } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { getProviderConfig } from '../lib/oauth/providers'
 import { canUseRealOAuth, simulateOAuthDelay, startRealOAuth } from '../lib/oauth/connect'
+import { planLimits } from '../lib/plan'
 import { providerLabel } from '../lib/utils'
 
 type Step = 'consent' | 'syncing' | 'done' | 'error'
+
+interface ImportStats {
+  imported: number
+  inbox: number
+  sent: number
+}
 
 export function ConnectAccountModal() {
   const connectingAccountId = useEtherMailStore((s) => s.connectingAccountId)
   const accounts = useEtherMailStore((s) => s.accounts)
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
+  const planTier = useEtherMailStore((s) => s.planTier)
   const setConnectingAccountId = useEtherMailStore((s) => s.setConnectingAccountId)
   const finishConnectAccount = useEtherMailStore((s) => s.finishConnectAccount)
+  const connectGmailDemo = useEtherMailStore((s) => s.connectGmailDemo)
 
   const [step, setStep] = useState<Step>('consent')
   const [error, setError] = useState<string | null>(null)
+  const [importStats, setImportStats] = useState<ImportStats | null>(null)
 
   const account = accounts.find((a) => a.id === connectingAccountId)
 
@@ -23,6 +33,7 @@ export function ConnectAccountModal() {
     if (connectingAccountId) {
       setStep('consent')
       setError(null)
+      setImportStats(null)
     }
   }, [connectingAccountId])
 
@@ -30,11 +41,14 @@ export function ConnectAccountModal() {
 
   const config = getProviderConfig(account.provider)
   const useReal = canUseRealOAuth(account.provider, oauthSettings)
+  const isGmailDemo = account.provider === 'gmail' && !useReal
+  const limits = planLimits(planTier)
 
   const close = () => {
     setConnectingAccountId(null)
     setStep('consent')
     setError(null)
+    setImportStats(null)
   }
 
   const handleAllow = async () => {
@@ -49,9 +63,19 @@ export function ConnectAccountModal() {
     }
 
     setStep('syncing')
-    await simulateOAuthDelay()
-    finishConnectAccount(account.id, 'demo')
-    setStep('done')
+    try {
+      if (isGmailDemo) {
+        const result = await connectGmailDemo(account.id)
+        setImportStats(result)
+      } else {
+        await simulateOAuthDelay()
+        finishConnectAccount(account.id, 'demo')
+      }
+      setStep('done')
+    } catch {
+      setError('Demo sync failed. Please try again.')
+      setStep('error')
+    }
   }
 
   return (
@@ -102,8 +126,14 @@ export function ConnectAccountModal() {
                 </ul>
                 {!useReal && (
                   <p className="text-[10px] text-amber-600 dark:text-amber-400 pt-2 border-t border-[var(--glass-border)]">
-                    Demo mode — no client ID configured. Simulated OAuth will import demo data.
-                    Add OAuth client IDs in Settings for live sync.
+                    {isGmailDemo
+                      ? 'Gmail demo sync — imports a personal inbox with fresh dates (no Google sign-in required).'
+                      : 'Demo mode — no client ID configured. Simulated OAuth will import demo data. Add OAuth client IDs in Settings for live sync.'}
+                  </p>
+                )}
+                {useReal && account.provider === 'gmail' && (
+                  <p className="text-[10px] text-theme-muted pt-2 border-t border-[var(--glass-border)]">
+                    Free plan: manual sync only (up to {limits.maxMailboxes} mailboxes). Background sync is Pro.
                   </p>
                 )}
               </div>
@@ -129,7 +159,9 @@ export function ConnectAccountModal() {
           {step === 'syncing' && (
             <div className="text-center py-8">
               <Loader2 size={32} className="mx-auto text-accent animate-spin mb-3" />
-              <p className="text-sm font-medium text-theme">Syncing inbox & calendar…</p>
+              <p className="text-sm font-medium text-theme">
+                {isGmailDemo ? 'Importing Gmail demo inbox…' : 'Syncing inbox & calendar…'}
+              </p>
               <p className="text-xs text-theme-muted mt-1">{account.email}</p>
             </div>
           )}
@@ -140,9 +172,16 @@ export function ConnectAccountModal() {
                 <Check size={24} className="text-emerald-500" />
               </div>
               <p className="text-sm font-medium text-theme">Connected!</p>
-              <p className="text-xs text-theme-muted mt-1 mb-4">
-                Inbox and calendar events are now synced.
-              </p>
+              {importStats ? (
+                <p className="text-xs text-theme-muted mt-1 mb-4">
+                  Imported {importStats.imported} messages — {importStats.inbox} inbox, {importStats.sent}{' '}
+                  sent. Calendar events updated from invites.
+                </p>
+              ) : (
+                <p className="text-xs text-theme-muted mt-1 mb-4">
+                  Inbox and calendar events are now synced.
+                </p>
+              )}
               <button onClick={close} className="px-6 py-2 rounded-xl btn-accent text-sm">
                 Done
               </button>

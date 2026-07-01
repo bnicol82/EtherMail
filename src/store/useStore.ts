@@ -18,8 +18,10 @@ import {
   getDemoEmailsForAccount,
 } from '../data/seed'
 import { buildContactGraph } from '../lib/contactGraph'
-import { getClientIdForProvider } from '../lib/oauth/connect'
+import { getClientIdForProvider, simulateOAuthDelay } from '../lib/oauth/connect'
 import { GmailSyncError, syncGmailAccount } from '../lib/sync/gmail'
+import { syncGmailDemoInbox } from '../lib/sync/gmailDemo'
+import { canConnectMailbox, type PlanTier } from '../lib/plan'
 import type {
   AISettings,
   AckStatus,
@@ -242,7 +244,9 @@ interface EtherMailState {
   disconnectAccount: (accountId: string) => void
   completeOAuthConnect: (accountId: string, tokens: OAuthConnectTokens) => Promise<void>
   syncGmailInbox: (accountId: string) => Promise<void>
+  connectGmailDemo: (accountId: string) => Promise<{ imported: number; inbox: number; sent: number }>
   gmailSyncingAccountId: string | null
+  planTier: PlanTier
 
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -1314,10 +1318,58 @@ export const useEtherMailStore = create<EtherMailState>()(
       connectingAccountId: null,
       setConnectingAccountId: (connectingAccountId) => set({ connectingAccountId }),
 
-      startConnectAccount: (accountId) => set({ connectingAccountId: accountId }),
+      startConnectAccount: (accountId) => {
+        const state = get()
+        const account = state.accounts.find((a) => a.id === accountId)
+        if (!account || account.connected) return
+        const connectedCount = state.accounts.filter((a) => a.connected).length
+        if (!canConnectMailbox(connectedCount, state.planTier)) return
+        set({ connectingAccountId: accountId })
+      },
+
+      connectGmailDemo: async (accountId) => {
+        const state = get()
+        set({ gmailSyncingAccountId: accountId })
+        await simulateOAuthDelay(900)
+
+        const result = syncGmailDemoInbox(accountId)
+        const otherEmails = state.emails.filter((e) => e.accountId !== accountId)
+        const allEmails = [...otherEmails, ...result.emails]
+
+        set({
+          accounts: get().accounts.map((a) =>
+            a.id === accountId
+              ? {
+                  ...a,
+                  connected: true,
+                  connectedAt: new Date().toISOString(),
+                  syncMode: 'demo',
+                  lastSyncedAt: new Date().toISOString(),
+                  syncError: null,
+                }
+              : a,
+          ),
+          emails: allEmails,
+          calendarEvents: syncCalendarFromEmails(
+            allEmails,
+            state.emailAttachments,
+            state.calendarEvents,
+          ),
+          connectingAccountId: null,
+          gmailSyncingAccountId: null,
+        })
+
+        return { imported: result.imported, inbox: result.inbox, sent: result.sent }
+      },
 
       finishConnectAccount: (accountId, syncMode) => {
         const state = get()
+        const account = state.accounts.find((a) => a.id === accountId)
+        if (account?.provider === 'gmail' && syncMode === 'demo') {
+          void get().connectGmailDemo(accountId)
+          return
+        }
+
         const demoEmails = getDemoEmailsForAccount(accountId)
         const existingIds = new Set(state.emails.map((e) => e.id))
         const newEmails = demoEmails.filter((e) => !existingIds.has(e.id))
@@ -1413,14 +1465,19 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       gmailSyncingAccountId: null,
+      planTier: 'free',
 
       disconnectAccount: (accountId) => {
         const state = get()
         const account = state.accounts.find((a) => a.id === accountId)
-        const emails =
-          account?.syncMode === 'oauth'
-            ? state.emails.filter((e) => e.accountId !== accountId)
-            : state.emails
+        let emails = state.emails
+        if (account?.syncMode === 'oauth') {
+          emails = state.emails.filter((e) => e.accountId !== accountId)
+        } else if (account?.provider === 'gmail' && account.syncMode === 'demo') {
+          const otherEmails = state.emails.filter((e) => e.accountId !== accountId)
+          const seedGmail = SEED_EMAILS.filter((e) => e.accountId === accountId)
+          emails = [...otherEmails, ...seedGmail]
+        }
         const connectedEmails = emails.filter((e) => {
           const acc = state.accounts.find((a) => a.id === e.accountId)
           return acc?.connected && e.accountId !== accountId
@@ -1460,7 +1517,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 11,
+      version: 12,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1642,6 +1699,9 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (version < 11) {
           next = { ...next, gmailSyncingAccountId: null }
         }
+        if (version < 12) {
+          next = { ...next, planTier: 'free' as PlanTier }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1726,6 +1786,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         inboxTraining: s.inboxTraining,
         emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,
+        planTier: s.planTier,
       }),
     },
   ),

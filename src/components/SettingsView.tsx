@@ -1,8 +1,9 @@
-import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw, Sparkles } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
 import { canUseRealOAuth } from '../lib/oauth/connect'
+import { canConnectMailbox, PLAN_LABELS, planLimits } from '../lib/plan'
 import { clearWeatherCache } from '../lib/weather'
 import { getAvailableVoices, speakText, isListeningSupported, isSpeechSupported } from '../lib/voice'
 import type { AssistantPersonality, Theme } from '../types'
@@ -30,7 +31,9 @@ export function SettingsView() {
   const startConnectAccount = useEtherMailStore((s) => s.startConnectAccount)
   const disconnectAccount = useEtherMailStore((s) => s.disconnectAccount)
   const syncGmailInbox = useEtherMailStore((s) => s.syncGmailInbox)
+  const connectGmailDemo = useEtherMailStore((s) => s.connectGmailDemo)
   const gmailSyncingAccountId = useEtherMailStore((s) => s.gmailSyncingAccountId)
+  const planTier = useEtherMailStore((s) => s.planTier)
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const setOAuthSettings = useEtherMailStore((s) => s.setOAuthSettings)
   const weatherSettings = useEtherMailStore((s) => s.weatherSettings)
@@ -65,6 +68,10 @@ export function SettingsView() {
     ).catch(() => {})
   }
 
+  const connectedMailboxCount = accounts.filter((a) => a.connected).length
+  const limits = planLimits(planTier)
+  const mailboxLimitReached = !canConnectMailbox(connectedMailboxCount, planTier)
+
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
       <button
@@ -76,6 +83,32 @@ export function SettingsView() {
 
       <h1 className="text-xl md:text-2xl font-bold text-theme mb-0.5">Settings</h1>
       <p className="text-xs md:text-sm text-theme-muted mb-6 md:mb-8">Configure appearance, AI providers, and accounts</p>
+
+      {/* Plan */}
+      <section className="glass rounded-xl p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Sparkles size={18} className="text-accent" />
+          <h2 className="font-semibold text-theme">Plan</h2>
+        </div>
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <div>
+            <p className="text-sm font-medium text-theme">{PLAN_LABELS[planTier]} plan</p>
+            <p className="text-xs text-theme-muted mt-0.5">
+              {connectedMailboxCount} of {limits.maxMailboxes === Number.POSITIVE_INFINITY ? '∞' : limits.maxMailboxes}{' '}
+              mailboxes · {limits.aiQueriesPerMonth === Number.POSITIVE_INFINITY ? 'Unlimited' : limits.aiQueriesPerMonth}{' '}
+              AI queries/mo
+            </p>
+          </div>
+          <span className="text-xs px-2.5 py-1 rounded-full bg-accent/15 text-accent font-medium">
+            {PLAN_LABELS[planTier]}
+          </span>
+        </div>
+        {mailboxLimitReached && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">
+            Mailbox limit reached on the Free plan. Upgrade to Pro to connect more accounts.
+          </p>
+        )}
+      </section>
 
       {/* Theme */}
       <section className="glass rounded-xl p-5 mb-6">
@@ -442,6 +475,7 @@ export function SettingsView() {
         <div className="space-y-3">
           {accounts.map((acc) => {
             const isGmailOAuth = acc.provider === 'gmail' && acc.syncMode === 'oauth'
+            const isGmailDemo = acc.provider === 'gmail' && acc.syncMode === 'demo' && acc.connected
             const isSyncing = gmailSyncingAccountId === acc.id
             return (
             <div
@@ -453,7 +487,8 @@ export function SettingsView() {
                 <p className="text-xs text-theme-muted">
                   {providerLabel(acc.provider)}
                   {acc.syncMode === 'oauth' && ' · Live Gmail sync'}
-                  {acc.syncMode === 'demo' && acc.connected && ' · Demo sync'}
+                  {acc.syncMode === 'demo' && acc.connected && acc.provider === 'gmail' && ' · Gmail demo inbox'}
+                  {acc.syncMode === 'demo' && acc.connected && acc.provider !== 'gmail' && ' · Demo sync'}
                 </p>
                 {acc.lastSyncedAt && (
                   <p className="text-[10px] text-theme-muted mt-0.5">
@@ -466,10 +501,12 @@ export function SettingsView() {
               </div>
               {acc.connected ? (
                 <div className="flex items-center gap-2 shrink-0">
-                  {isGmailOAuth && (
+                  {(isGmailOAuth || isGmailDemo) && (
                     <button
                       type="button"
-                      onClick={() => void syncGmailInbox(acc.id)}
+                      onClick={() =>
+                        void (isGmailDemo ? connectGmailDemo(acc.id) : syncGmailInbox(acc.id))
+                      }
                       disabled={isSyncing}
                       className="text-xs px-2 py-1 rounded-lg glass text-theme-secondary hover-theme inline-flex items-center gap-1 disabled:opacity-50"
                     >
@@ -490,7 +527,9 @@ export function SettingsView() {
               ) : (
                 <button
                   onClick={() => startConnectAccount(acc.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg btn-accent shrink-0"
+                  disabled={mailboxLimitReached}
+                  className="text-xs px-3 py-1.5 rounded-lg btn-accent shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={mailboxLimitReached ? 'Upgrade to Pro to connect more mailboxes' : undefined}
                 >
                   {canUseRealOAuth(acc.provider, oauthSettings) ? 'Connect' : 'Connect (demo)'}
                 </button>
