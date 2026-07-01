@@ -97,6 +97,12 @@ export function providerLabel(provider: string): string {
   return map[provider] ?? provider
 }
 
+export function startOfDay(date: Date): Date {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
 export function startOfWeek(date: Date): Date {
   const d = new Date(date)
   const day = d.getDay()

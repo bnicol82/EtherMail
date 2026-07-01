@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Calendar, Users, Download, Upload } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
@@ -10,15 +10,21 @@ import {
   getMonthGridDays,
   isSameDay,
   isSameMonth,
+  startOfDay,
   startOfMonth,
-  startOfWeek,
 } from '../lib/utils'
-import { useSwipe } from '../hooks/useSwipe'
+import { useSnapScrollFeedback } from '../hooks/useSnapScrollFeedback'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { EventDetailBox } from './EventDetailBox'
-import { EventChip, WeekCalendarGrid, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
+import { EventChip, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
+import { DayCalendarCarousel } from './DayCalendarCarousel'
+import { calendarHapticTick } from '../lib/calendarFeedback'
 
 const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function monthKey(month: Date): string {
+  return `${month.getFullYear()}-${month.getMonth()}`
+}
 
 function MonthGrid({
   month,
@@ -34,9 +40,14 @@ function MonthGrid({
   onSelectEvent: (event: CalendarEvent) => void
 }) {
   const days = getMonthGridDays(month)
+  const isCurrentMonth = isSameMonth(month, today)
 
   return (
-    <div className="mb-6 last:mb-0">
+    <div
+      className="mb-6 last:mb-0"
+      data-month-key={monthKey(month)}
+      {...(isCurrentMonth ? { 'data-scroll-anchor': 'current' } : {})}
+    >
       <h3 className="text-sm font-semibold text-theme mb-3 sticky top-0 glass py-1 z-10">
         {month.toLocaleDateString([], { month: 'long', year: 'numeric' })}
       </h3>
@@ -98,29 +109,49 @@ export function CalendarView() {
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
   const importCalendarEvents = useEtherMailStore((s) => s.importCalendarEvents)
   const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()))
+  const today = useMemo(() => startOfDay(new Date()), [])
+  const [focusDay, setFocusDay] = useState(() => startOfDay(new Date()))
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [importHint, setImportHint] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const fullCalScrollRef = useRef<HTMLDivElement>(null)
+  const skipMonthFeedback = useRef(false)
 
   const weekHidden = hiddenPanels['calendar-week'] ?? false
   const upcomingHidden = hiddenPanels['calendar-upcoming'] ?? false
 
-  const weekSwipe = useSwipe(
-    () => setWeekStart((w) => addDays(w, 7)),
-    () => setWeekStart((w) => addDays(w, -7)),
-  )
-
-  const weekDays = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)),
-    [weekStart],
-  )
-
   const scrollMonths = useMemo(() => {
-    const anchor = startOfMonth(weekStart)
-    return Array.from({ length: 12 }, (_, i) => addMonths(anchor, i - 3))
-  }, [weekStart])
+    const anchor = startOfMonth(today)
+    return Array.from({ length: 24 }, (_, i) => addMonths(anchor, i - 12))
+  }, [today])
+
+  useEffect(() => {
+    if (!fullCalendarOpen) return
+    skipMonthFeedback.current = true
+    const frame = requestAnimationFrame(() => {
+      fullCalScrollRef.current
+        ?.querySelector('[data-scroll-anchor="current"]')
+        ?.scrollIntoView({ block: 'start' })
+    })
+    const timer = window.setTimeout(() => {
+      skipMonthFeedback.current = false
+    }, 450)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.clearTimeout(timer)
+    }
+  }, [fullCalendarOpen])
+
+  useSnapScrollFeedback(
+    fullCalScrollRef,
+    fullCalendarOpen,
+    '[data-month-key]',
+    (el) => el.getAttribute('data-month-key') ?? '',
+    undefined,
+    () => !skipMonthFeedback.current,
+    'month',
+  )
 
   const sortedEvents = useMemo(
     () => [...calendarEvents].sort((a, b) => a.start.localeCompare(b.start)),
@@ -132,11 +163,11 @@ export function CalendarView() {
     return sortedEvents.filter((e) => new Date(e.end) >= now)
   }, [sortedEvents])
 
-  const today = new Date()
-  const monthTitle = weekDays[0].toLocaleDateString([], { month: 'long', year: 'numeric' })
+  const todayDate = today
+  const monthTitle = focusDay.toLocaleDateString([], { month: 'long', year: 'numeric' })
 
   const selectDayFromMonth = (day: Date) => {
-    setWeekStart(startOfWeek(day))
+    setFocusDay(startOfDay(day))
     setFullCalendarOpen(false)
   }
 
@@ -178,19 +209,22 @@ export function CalendarView() {
           <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
             <div className="flex items-center gap-2">
               <button
-                onClick={() =>
-                  fullCalendarOpen
-                    ? setFullCalendarOpen(false)
-                    : setWeekStart((w) => addDays(w, -7))
-                }
+                onClick={() => {
+                  if (fullCalendarOpen) {
+                    setFullCalendarOpen(false)
+                  } else {
+                    calendarHapticTick()
+                    setFocusDay((d) => addDays(d, -1))
+                  }
+                }}
                 className="p-2 rounded-lg glass hover-theme text-theme-secondary"
-                aria-label={fullCalendarOpen ? 'Close month view' : 'Previous week'}
+                aria-label={fullCalendarOpen ? 'Close month view' : 'Previous day'}
               >
                 <ChevronLeft size={18} />
               </button>
               <button
                 onClick={() => {
-                  setWeekStart(startOfWeek(new Date()))
+                  setFocusDay(todayDate)
                   setFullCalendarOpen(false)
                 }}
                 className="px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
@@ -198,13 +232,16 @@ export function CalendarView() {
                 Today
               </button>
               <button
-                onClick={() =>
-                  fullCalendarOpen
-                    ? setFullCalendarOpen(false)
-                    : setWeekStart((w) => addDays(w, 7))
-                }
+                onClick={() => {
+                  if (fullCalendarOpen) {
+                    setFullCalendarOpen(false)
+                  } else {
+                    calendarHapticTick()
+                    setFocusDay((d) => addDays(d, 1))
+                  }
+                }}
                 className="p-2 rounded-lg glass hover-theme text-theme-secondary"
-                aria-label={fullCalendarOpen ? 'Close month view' : 'Next week'}
+                aria-label={fullCalendarOpen ? 'Close month view' : 'Next day'}
               >
                 <ChevronRight size={18} />
               </button>
@@ -258,46 +295,40 @@ export function CalendarView() {
                 <span className="text-theme-muted font-normal group-hover:text-accent/80">
                   {fullCalendarOpen
                     ? ' · full calendar'
-                    : ` · Week of ${weekDays[0].toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
+                    : ` · ${focusDay.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`}
                 </span>
               </button>
               <PanelHideButton panelId="calendar-week" label="week view" />
             </div>
             <p className="text-[10px] text-theme-muted mb-3">
               {fullCalendarOpen
-                ? 'Scroll through months · tap an event for details'
-                : 'Tap month for full calendar · tap an event for details'}
+                ? 'Scroll months — short vibration on each month'
+                : 'Swipe day by day — vibration on each day'}
             </p>
 
             {fullCalendarOpen ? (
-              <div className="max-h-[min(45vh,400px)] overflow-y-auto overscroll-contain pr-1">
+              <div
+                ref={fullCalScrollRef}
+                className="max-h-[min(45vh,400px)] overflow-y-auto overscroll-contain pr-1"
+              >
                 {scrollMonths.map((month) => (
                   <MonthGrid
-                    key={`${month.getFullYear()}-${month.getMonth()}`}
+                    key={monthKey(month)}
                     month={month}
                     events={sortedEvents}
-                    today={today}
+                    today={todayDate}
                     onSelectDay={selectDayFromMonth}
                     onSelectEvent={setSelectedEvent}
                   />
                 ))}
               </div>
             ) : (
-              <WeekCalendarGrid
-                weekDays={weekDays}
+              <DayCalendarCarousel
+                focusDay={focusDay}
                 events={sortedEvents}
+                today={todayDate}
                 onSelectEvent={setSelectedEvent}
-                today={today}
-                className="select-none cursor-grab active:cursor-grabbing"
-                swipeProps={{
-                  style: { touchAction: 'pan-y pinch-zoom' },
-                  ...weekSwipe.handlers,
-                }}
-                swipeStyle={{
-                  transform: `translateX(${weekSwipe.offset}px)`,
-                  transition: weekSwipe.isDragging ? 'none' : 'transform 0.25s ease-out',
-                  opacity: weekSwipe.isDragging ? 0.92 : 1,
-                }}
+                onFocusDayChange={setFocusDay}
               />
             )}
           </div>
