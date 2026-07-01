@@ -16,6 +16,7 @@ import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { EventEditModal } from './components/EventEditModal'
 import { CommandPalette } from './components/CommandPalette'
 import { ProactiveAssistant } from './components/ProactiveAssistant'
+import { PolicyToast } from './components/PolicyToast'
 import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { unlockTouchAudio } from './lib/touchFeedback'
@@ -157,6 +158,7 @@ export default function App() {
       {showDock && <BottomBar />}
       <CommandPalette />
       <ProactiveAssistant />
+      <PolicyToast />
       <ConnectAccountModal />
       <ComposeEmailModal />
       <EventEditModal />

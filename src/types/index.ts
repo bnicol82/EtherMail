@@ -10,6 +10,8 @@ export interface Vault {
   id: string
   name: string
   kind: VaultKind
+  /** Team vault shared with org members */
+  shared?: boolean
 }
 
 export interface CalendarEvent {

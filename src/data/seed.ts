@@ -9,11 +9,39 @@ import type {
   Note,
   Vault,
 } from '../types'
+import type { OrgMember } from '../types/orgApi'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 
 export const SEED_VAULTS: Vault[] = [
   { id: 'vault-personal', name: 'Personal', kind: 'personal' },
-  { id: 'vault-work', name: 'Work', kind: 'work' },
+  { id: 'vault-work', name: 'Work', kind: 'work', shared: true },
+]
+
+export const SEED_ORG_MEMBERS: OrgMember[] = [
+  {
+    id: 'member-sarah',
+    email: 'sarah@acme.com',
+    name: 'Sarah Johnson',
+    role: 'admin',
+    status: 'active',
+    joinedAt: '2025-01-15T00:00:00.000Z',
+  },
+  {
+    id: 'member-mike',
+    email: 'mike@acme.com',
+    name: 'Mike Chen',
+    role: 'member',
+    status: 'active',
+    joinedAt: '2025-02-01T00:00:00.000Z',
+  },
+  {
+    id: 'member-pending',
+    email: 'pending@acme.com',
+    name: 'Pending User',
+    role: 'member',
+    status: 'invited',
+    invitedAt: '2025-06-01T00:00:00.000Z',
+  },
 ]
 
 export const VAULT_PERSONAL_ID = 'vault-personal'
