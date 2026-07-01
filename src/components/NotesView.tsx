@@ -129,16 +129,18 @@ export function NotesView() {
           {mode === 'preview' && <Eye size={16} />}
         </button>
       ))}
-      <PanelHideButton panelId="notes-editor" label="editor" />
+      <PanelHideButton panelId="notes-editor" label="editor" className="hidden md:inline-flex" />
     </>
   ) : null
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="hidden md:flex shrink-0 flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
-        <PanelRestoreTab panelId="notes-list" label="Notes list" />
-        <PanelRestoreTab panelId="notes-editor" label="Editor" />
-      </div>
+      {(listHidden || editorHidden) && (
+        <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+          <PanelRestoreTab panelId="notes-list" label="Notes list" />
+          <PanelRestoreTab panelId="notes-editor" label="Editor" />
+        </div>
+      )}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
       {!listHidden && (
@@ -166,7 +168,7 @@ export function NotesView() {
             >
               <Calendar size={14} />
             </button>
-            <PanelHideButton panelId="notes-list" label="notes list" />
+            <PanelHideButton panelId="notes-list" label="notes list" className="hidden md:inline-flex" />
           </div>
           <div className="flex-1 overflow-y-auto p-2">
             {filteredNotes.map((n) => (
