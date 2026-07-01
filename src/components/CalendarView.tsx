@@ -15,6 +15,7 @@ import {
   startOfWeek,
 } from '../lib/utils'
 import { useSnapScrollFeedback } from '../hooks/useSnapScrollFeedback'
+import { useFeatureGate } from '../hooks/useFeatureGate'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { EventDetailBox } from './EventDetailBox'
 import { EventChip, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
@@ -115,6 +116,7 @@ export function CalendarView() {
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [importHint, setImportHint] = useState<string | null>(null)
+  const canCalendarImportExport = useFeatureGate('calendar_import_export')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fullCalScrollRef = useRef<HTMLDivElement>(null)
   const skipMonthFeedback = useRef(false)
@@ -178,7 +180,7 @@ export function CalendarView() {
   }
 
   const handleImport = async (files: FileList | null) => {
-    if (!files?.[0]) return
+    if (!files?.[0] || !canCalendarImportExport) return
     try {
       const parsed = await readIcsFile(files[0])
       const added = importCalendarEvents(parsed)
@@ -250,31 +252,35 @@ export function CalendarView() {
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => downloadIcsFile(sortedEvents)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-                title="Export all events as .ics"
-              >
-                <Download size={14} />
-                Export
-              </button>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-                title="Import .ics file"
-              >
-                <Upload size={14} />
-                Import
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".ics,text/calendar"
-                className="hidden"
-                onChange={(e) => handleImport(e.target.files)}
-              />
+              {canCalendarImportExport && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => downloadIcsFile(sortedEvents)}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                    title="Export all events as .ics"
+                  >
+                    <Download size={14} />
+                    Export
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                    title="Import .ics file"
+                  >
+                    <Upload size={14} />
+                    Import
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".ics,text/calendar"
+                    className="hidden"
+                    onChange={(e) => handleImport(e.target.files)}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>

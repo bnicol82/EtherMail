@@ -1,4 +1,5 @@
 import { Link2, Sparkles, Wand2 } from 'lucide-react'
+import { useFeatureGate } from '../hooks/useFeatureGate'
 import type { AutoLinkSuggestion } from '../lib/noteAssist'
 
 interface Props {
@@ -26,6 +27,7 @@ export function NoteAssistPanel({
   onAiFormat,
   compact,
 }: Props) {
+  const canAiAssist = useFeatureGate('note_ai_assist')
   const formatHandlers: Record<string, () => void> = {
     headings: onFormatHeadings,
     bullets: onFormatBullets,
@@ -46,13 +48,15 @@ export function NoteAssistPanel({
             {action.label}
           </button>
         ))}
-        <button
-          type="button"
-          onClick={() => onAiFormat('Polish wording and formatting for this note')}
-          className="text-[10px] px-2 py-1 rounded-full glass hover-theme text-accent flex items-center gap-1 whitespace-nowrap shrink-0"
-        >
-          <Sparkles size={10} /> AI
-        </button>
+        {canAiAssist && (
+          <button
+            type="button"
+            onClick={() => onAiFormat('Polish wording and formatting for this note')}
+            className="text-[10px] px-2 py-1 rounded-full glass hover-theme text-accent flex items-center gap-1 whitespace-nowrap shrink-0"
+          >
+            <Sparkles size={10} /> AI
+          </button>
+        )}
         {suggestions.length > 0 && (
           <>
             <span className="w-px h-4 bg-[var(--glass-border)] shrink-0 mx-0.5" />
@@ -91,13 +95,15 @@ export function NoteAssistPanel({
               {action.label}
             </button>
           ))}
-          <button
-            type="button"
-            onClick={() => onAiFormat('Polish wording and formatting for this note')}
-            className="text-[10px] px-2 py-1 rounded-full glass hover-theme text-accent flex items-center gap-1"
-          >
-            <Sparkles size={10} /> AI polish
-          </button>
+          {canAiAssist && (
+            <button
+              type="button"
+              onClick={() => onAiFormat('Polish wording and formatting for this note')}
+              className="text-[10px] px-2 py-1 rounded-full glass hover-theme text-accent flex items-center gap-1"
+            >
+              <Sparkles size={10} /> AI polish
+            </button>
+          )}
         </div>
       </div>
 
