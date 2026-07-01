@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import {
   ChevronRight,
   ChevronDown,
@@ -23,7 +23,17 @@ import { AccountDot } from './AccountDot'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { ShareNoteButton } from './ShareNoteButton'
 import { VaultAddMenu } from './VaultAddMenu'
+import { VaultNoteHeader } from './VaultNoteHeader'
+import { NoteAssistPanel } from './NoteAssistPanel'
 import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
+import {
+  applyWikiLink,
+  formatNoteBullets,
+  formatNoteHeadings,
+  formatNoteStructure,
+  getAutoLinkSuggestions,
+  type AutoLinkSuggestion,
+} from '../lib/noteAssist'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { EMAIL_FILES_WORK_FOLDER_ID, VAULT_PERSONAL_ID } from '../data/seed'
 
@@ -202,6 +212,45 @@ export function VaultView() {
 
   const backlinks = activeNote ? getBacklinks(activeNote.title, notes) : []
 
+  const autoLinkSuggestions = useMemo(
+    () => (activeNote ? getAutoLinkSuggestions(activeNote, notes) : []),
+    [activeNote, notes],
+  )
+
+  const applyAutoLink = (suggestion: AutoLinkSuggestion) => {
+    if (!activeNote) return
+    updateNote(activeNote.id, {
+      content: applyWikiLink(activeNote.content, suggestion.title, suggestion.matchText),
+    })
+  }
+
+  const applyFormat = (formatter: (content: string) => string) => {
+    if (!activeNote) return
+    updateNote(activeNote.id, { content: formatter(activeNote.content) })
+  }
+
+  const editorActions = (
+    <>
+      {(editorMode === 'preview' || editorMode === 'split') && activeNote && (
+        <ShareNoteButton note={activeNote} />
+      )}
+      {(['edit', 'split', 'preview'] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => setEditorMode(mode)}
+          className={`p-1.5 rounded-lg ${editorMode === mode ? 'bg-accent-soft text-theme' : 'text-theme-muted hover:text-theme hover-theme'}`}
+          title={mode}
+        >
+          {mode === 'edit' && <Edit3 size={16} />}
+          {mode === 'split' && <Columns size={16} />}
+          {mode === 'preview' && <Eye size={16} />}
+        </button>
+      ))}
+      <PanelHideButton panelId="vault-editor" label="editor" />
+    </>
+  )
+
   const aiAction = (action: string) => {
     const ctx = getAIContext('vault', { activeNote, emails, notes })
     setAiAssistantOpen(true)
@@ -326,24 +375,12 @@ export function VaultView() {
       >
         {isEmailFiles && activeAttachment ? (
           <>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
-              <button
-                className="md:hidden text-theme-secondary hover:text-theme text-sm"
-                onClick={() => setMobilePanel('list')}
-              >
-                ← Back
-              </button>
-              <div className="flex items-center gap-1 text-xs text-theme-muted flex-1 min-w-0">
-                {breadcrumbs().map((c, i) => (
-                  <span key={i} className="flex items-center gap-1">
-                    {i > 0 && <ChevronRight size={12} />}
-                    <span className="truncate">{c}</span>
-                  </span>
-                ))}
-                <ChevronRight size={12} />
-                <span className="text-theme truncate">{activeAttachment.filename}</span>
-              </div>
-            </div>
+            <VaultNoteHeader
+              showBack
+              onBack={() => setMobilePanel('list')}
+              breadcrumbs={[...breadcrumbs(), activeAttachment.filename]}
+              title={activeAttachment.filename}
+            />
 
             <div className="flex-1 overflow-y-auto p-6">
               <div className="max-w-xl">
@@ -406,24 +443,12 @@ export function VaultView() {
           </div>
         ) : activeVaultFile ? (
           <>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
-              <button
-                className="md:hidden text-theme-secondary hover:text-theme text-sm"
-                onClick={() => setMobilePanel('list')}
-              >
-                ← Back
-              </button>
-              <div className="flex items-center gap-1 text-xs text-theme-muted flex-1 min-w-0">
-                {breadcrumbs().map((c, i) => (
-                  <span key={i} className="flex items-center gap-1">
-                    {i > 0 && <ChevronRight size={12} />}
-                    <span className="truncate">{c}</span>
-                  </span>
-                ))}
-                <ChevronRight size={12} />
-                <span className="text-theme truncate">{activeVaultFile.filename}</span>
-              </div>
-            </div>
+            <VaultNoteHeader
+              showBack
+              onBack={() => setMobilePanel('list')}
+              breadcrumbs={[...breadcrumbs(), activeVaultFile.filename]}
+              title={activeVaultFile.filename}
+            />
             <div className="flex-1 overflow-y-auto p-6">
               <div className="max-w-xl">
                 <div className="flex items-start gap-4 mb-6">
@@ -466,41 +491,24 @@ export function VaultView() {
           </>
         ) : activeNote ? (
           <>
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0 flex-wrap">
-              <button
-                className="md:hidden text-theme-secondary hover:text-theme text-sm"
-                onClick={() => setMobilePanel('list')}
-              >
-                ← Back
-              </button>
-              <div className="flex items-center gap-1 text-xs text-theme-muted flex-1 min-w-0">
-                {breadcrumbs().map((c, i) => (
-                  <span key={i} className="flex items-center gap-1">
-                    {i > 0 && <ChevronRight size={12} />}
-                    <span className="truncate">{c}</span>
-                  </span>
-                ))}
-                <ChevronRight size={12} />
-                <span className="text-theme truncate">{activeNote.title}</span>
-              </div>
-              <div className="flex gap-1">
-                {(editorMode === 'preview' || editorMode === 'split') && (
-                  <ShareNoteButton note={activeNote} />
-                )}
-                {(['edit', 'split', 'preview'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setEditorMode(mode)}
-                    className={`p-1.5 rounded ${editorMode === mode ? 'bg-accent-soft text-theme' : 'text-theme-muted hover:text-theme'}`}
-                    title={mode}
-                  >
-                    {mode === 'edit' && <Edit3 size={16} />}
-                    {mode === 'split' && <Columns size={16} />}
-                    {mode === 'preview' && <Eye size={16} />}
-                  </button>
-                ))}
-                <PanelHideButton panelId="vault-editor" label="editor" />
-              </div>
+            <VaultNoteHeader
+              showBack
+              onBack={() => setMobilePanel('list')}
+              breadcrumbs={breadcrumbs()}
+              title={activeNote.title}
+              actions={editorActions}
+            />
+
+            <div className="lg:hidden shrink-0 border-b border-[var(--glass-border)] glass px-3 py-2">
+              <NoteAssistPanel
+                compact
+                suggestions={autoLinkSuggestions}
+                onApplyLink={applyAutoLink}
+                onFormatHeadings={() => applyFormat(formatNoteHeadings)}
+                onFormatBullets={() => applyFormat(formatNoteBullets)}
+                onFormatStructure={() => applyFormat(formatNoteStructure)}
+                onAiFormat={aiAction}
+              />
             </div>
 
             <div className="flex-1 flex min-h-0 overflow-hidden">
@@ -538,10 +546,22 @@ export function VaultView() {
                   <PanelHideButton panelId="vault-rail" label="insights" />
                 </div>
                 <div className="p-3 border-b border-[var(--glass-border)]">
+                  <NoteAssistPanel
+                    suggestions={autoLinkSuggestions}
+                    onApplyLink={applyAutoLink}
+                    onFormatHeadings={() => applyFormat(formatNoteHeadings)}
+                    onFormatBullets={() => applyFormat(formatNoteBullets)}
+                    onFormatStructure={() => applyFormat(formatNoteStructure)}
+                    onAiFormat={aiAction}
+                  />
+                </div>
+
+                <div className="p-3 border-b border-[var(--glass-border)]">
                   <div className="space-y-1">
-                    {['Refine Wording', 'Find Similar Note', 'Find Similar Link'].map((a) => (
+                    {['Find similar notes', 'Suggest tags'].map((a) => (
                       <button
                         key={a}
+                        type="button"
                         onClick={() => aiAction(a)}
                         className="w-full text-left text-xs px-2 py-1.5 rounded hover-theme text-theme-secondary hover:text-theme"
                       >

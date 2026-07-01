@@ -3,6 +3,12 @@ import { buildContextPacket, formatPacketForExternal } from './aiBridge'
 import { detectFollowUps } from './followUp'
 import { generateMeetingBrief, getNextMeeting } from './meetingPrep'
 import { findFreeSlots, formatProposalEmail, hasConflict } from './smartPropose'
+import {
+  formatNoteBullets,
+  formatNoteHeadings,
+  formatNoteStructure,
+  getAutoLinkSuggestions,
+} from './noteAssist'
 
 interface RetrievalResult {
   type: 'note' | 'email'
@@ -192,6 +198,56 @@ Best regards
     const ctxResults = retrieveContext(query, notes, emails, 4)
     if (ctxResults.length === 0) return 'No similar notes or emails found in your vault.'
     return `**Similar items in your vault:**\n\n${ctxResults.map((c, i) => `${i + 1}. **${c.title}** (${c.type}) — ${c.excerpt.slice(0, 100)}...`).join('\n')}`
+  }
+
+  if (
+    q.includes('wiki link') ||
+    q.includes('suggest link') ||
+    (q.includes('link') && q.includes('suggest'))
+  ) {
+    const activeTitleMatch = query.match(/note "([^"]+)"/i)
+    const activeNote = activeTitleMatch
+      ? notes.find((n) => n.title === activeTitleMatch[1])
+      : notes[0]
+    if (!activeNote) return 'Open a note to get auto-link suggestions.'
+    const suggestions = getAutoLinkSuggestions(activeNote, notes)
+    if (suggestions.length === 0) {
+      return 'No auto-link suggestions right now. Mention other note titles in your text (e.g. "Q3 Marketing Strategy") and I will suggest `[[wiki links]]`.'
+    }
+    return `**Auto-link suggestions for "${activeNote.title}":**\n\n${suggestions
+      .map(
+        (s, i) =>
+          `${i + 1}. Link **[[${s.title}]]** where you wrote "${s.matchText}" (${s.reason})`,
+      )
+      .join('\n')}\n\n_Use the Auto-link panel in the vault rail or bottom dock to insert links in one tap._`
+  }
+
+  if (
+    q.includes('format') ||
+    q.includes('heading') ||
+    q.includes('bullet') ||
+    q.includes('structure') ||
+    q.includes('polish')
+  ) {
+    const activeTitleMatch = query.match(/note "([^"]+)"/i)
+    const activeNote = activeTitleMatch
+      ? notes.find((n) => n.title === activeTitleMatch[1])
+      : notes.find((n) => n.content.length > 20) ?? notes[0]
+    if (!activeNote) return 'Open a note to format it.'
+    let formatted = activeNote.content
+    if (q.includes('bullet')) formatted = formatNoteBullets(formatted)
+    else if (q.includes('heading')) formatted = formatNoteHeadings(formatted)
+    else formatted = formatNoteStructure(formatted)
+
+    return `**Formatting suggestion for "${activeNote.title}":**
+
+Use **Quick format** in the vault panel for one-tap apply, or copy this markdown:
+
+\`\`\`markdown
+${formatted.slice(0, 1200)}${formatted.length > 1200 ? '\n…' : ''}
+\`\`\`
+
+_Tip: Headings use \`##\`, lists use \`-\`, and wiki links use \`[[Note Title]]\`._`
   }
 
   if (q.includes('reminder') || q.includes('expense')) {

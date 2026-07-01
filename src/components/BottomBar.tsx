@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import {
   Bot,
   Calendar,
@@ -9,9 +9,11 @@ import {
   MessageSquare,
   CloudSun,
   X,
+  Link2,
 } from 'lucide-react'
 import { useEtherMailStore, useStats, useUpcomingMeetings } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
+import { applyWikiLink, getAutoLinkSuggestions } from '../lib/noteAssist'
 import { MarkdownContent } from './MarkdownContent'
 import { WeatherChip } from './WeatherChip'
 
@@ -55,6 +57,7 @@ export function BottomBar() {
   const aiLoading = useEtherMailStore((s) => s.aiLoading)
   const aiContextResponse = useEtherMailStore((s) => s.aiContextResponse)
   const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
+  const updateNote = useEtherMailStore((s) => s.updateNote)
   const setView = useEtherMailStore((s) => s.setView)
   const clearAiContextResponse = useEtherMailStore((s) => s.clearAiContextResponse)
   const meetings = useUpcomingMeetings(2)
@@ -67,6 +70,14 @@ export function BottomBar() {
   const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
   const ctx = getAIContext(view, { activeEmail, activeNote, emails, notes })
   const hasResponse = aiLoading || aiContextResponse
+
+  const autoLinkSuggestions = useMemo(
+    () =>
+      activeNote && (view === 'vault' || view === 'notes')
+        ? getAutoLinkSuggestions(activeNote, notes).slice(0, 4)
+        : [],
+    [activeNote, notes, view],
+  )
 
   const submit = async () => {
     if (!input.trim() || aiLoading) return
@@ -145,6 +156,34 @@ export function BottomBar() {
           ))}
         </div>
       </div>
+
+      {autoLinkSuggestions.length > 0 && (
+        <div className="px-2 sm:px-3 py-1 border-b border-[var(--glass-border)] flex items-center gap-2 overflow-x-auto">
+          <span className="text-[10px] text-theme-muted flex items-center gap-1 shrink-0">
+            <Link2 size={10} className="text-accent" />
+            Auto-link
+          </span>
+          <div className="flex gap-1 flex-1 min-w-0 overflow-x-auto">
+            {autoLinkSuggestions.map((s) => (
+              <button
+                key={`${s.noteId}-${s.matchText}`}
+                type="button"
+                onClick={() => {
+                  if (!activeNote) return
+                  updateNote(activeNote.id, {
+                    content: applyWikiLink(activeNote.content, s.title, s.matchText),
+                  })
+                }}
+                disabled={aiLoading}
+                className="text-[10px] px-2 py-0.5 rounded-full border border-[var(--accent-border)] bg-accent-soft text-accent disabled:opacity-50 whitespace-nowrap shrink-0"
+                title={`Insert [[${s.title}]] for "${s.matchText}"`}
+              >
+                [[{s.title.length > 18 ? `${s.title.slice(0, 16)}…` : s.title}]]
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main dock row */}
       <div className="flex items-stretch gap-0 max-w-[100vw] overflow-x-auto">
