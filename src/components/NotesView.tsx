@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import {
   Search,
   FileText,
@@ -6,7 +7,6 @@ import {
   Columns,
   Tag,
   Link2,
-  Sparkles,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { getBacklinks } from '../lib/utils'
@@ -14,6 +14,16 @@ import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { ShareNoteButton } from './ShareNoteButton'
+import { VaultNoteHeader } from './VaultNoteHeader'
+import { NoteAssistPanel } from './NoteAssistPanel'
+import {
+  applyWikiLink,
+  formatNoteBullets,
+  formatNoteHeadings,
+  formatNoteStructure,
+  getAutoLinkSuggestions,
+  type AutoLinkSuggestion,
+} from '../lib/noteAssist'
 
 export function NotesView() {
   const notes = useEtherMailStore((s) => s.notes)
@@ -48,6 +58,42 @@ export function NotesView() {
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
 
   const backlinks = activeNote ? getBacklinks(activeNote.title, notes) : []
+
+  const autoLinkSuggestions = useMemo(
+    () => (activeNote ? getAutoLinkSuggestions(activeNote, notes) : []),
+    [activeNote, notes],
+  )
+
+  const applyAutoLink = (suggestion: AutoLinkSuggestion) => {
+    if (!activeNote) return
+    updateNote(activeNote.id, {
+      content: applyWikiLink(activeNote.content, suggestion.title, suggestion.matchText),
+    })
+  }
+
+  const applyFormat = (formatter: (content: string) => string) => {
+    if (!activeNote) return
+    updateNote(activeNote.id, { content: formatter(activeNote.content) })
+  }
+
+  const editorActions = activeNote ? (
+    <>
+      {(editorMode === 'preview' || editorMode === 'split') && <ShareNoteButton note={activeNote} />}
+      {(['edit', 'split', 'preview'] as const).map((mode) => (
+        <button
+          key={mode}
+          type="button"
+          onClick={() => setEditorMode(mode)}
+          className={`p-1.5 rounded-lg ${editorMode === mode ? 'bg-accent-soft text-theme' : 'text-theme-muted hover-theme'}`}
+        >
+          {mode === 'edit' && <Edit3 size={16} />}
+          {mode === 'split' && <Columns size={16} />}
+          {mode === 'preview' && <Eye size={16} />}
+        </button>
+      ))}
+      <PanelHideButton panelId="notes-editor" label="editor" />
+    </>
+  ) : null
 
   const aiAction = (action: string) => {
     const ctx = getAIContext('notes', { activeNote, emails, notes })
@@ -108,31 +154,24 @@ export function NotesView() {
         >
           {activeNote ? (
             <>
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-[var(--glass-border)] glass shrink-0">
-                <button
-                  className="md:hidden text-theme-secondary text-sm"
-                  onClick={() => setMobilePanel('list')}
-                >
-                  ← Back
-                </button>
-                <span className="text-theme font-semibold truncate flex-1">{activeNote.title}</span>
-                <div className="flex gap-1">
-                  {(editorMode === 'preview' || editorMode === 'split') && (
-                    <ShareNoteButton note={activeNote} />
-                  )}
-                  {(['edit', 'split', 'preview'] as const).map((mode) => (
-                    <button
-                      key={mode}
-                      onClick={() => setEditorMode(mode)}
-                      className={`p-1.5 rounded ${editorMode === mode ? 'bg-accent-soft text-theme' : 'text-theme-muted'}`}
-                    >
-                      {mode === 'edit' && <Edit3 size={16} />}
-                      {mode === 'split' && <Columns size={16} />}
-                      {mode === 'preview' && <Eye size={16} />}
-                    </button>
-                  ))}
-                </div>
-                <PanelHideButton panelId="notes-editor" label="editor" />
+              <VaultNoteHeader
+                showBack
+                onBack={() => setMobilePanel('list')}
+                breadcrumbs={['Notes']}
+                title={activeNote.title}
+                actions={editorActions}
+              />
+
+              <div className="shrink-0 border-b border-[var(--glass-border)] glass px-3 py-2">
+                <NoteAssistPanel
+                  compact
+                  suggestions={autoLinkSuggestions}
+                  onApplyLink={applyAutoLink}
+                  onFormatHeadings={() => applyFormat(formatNoteHeadings)}
+                  onFormatBullets={() => applyFormat(formatNoteBullets)}
+                  onFormatStructure={() => applyFormat(formatNoteStructure)}
+                  onAiFormat={aiAction}
+                />
               </div>
 
               <div className="flex-1 flex min-h-0 overflow-hidden">
@@ -171,12 +210,6 @@ export function NotesView() {
                     {backlinks.length} backlink{backlinks.length > 1 ? 's' : ''}
                   </div>
                 )}
-                <button
-                  onClick={() => aiAction('Refine wording')}
-                  className="ml-auto flex items-center gap-1 text-accent hover:underline"
-                >
-                  <Sparkles size={12} /> Vault AI
-                </button>
               </div>
             </>
           ) : (

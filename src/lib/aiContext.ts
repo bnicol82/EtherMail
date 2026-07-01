@@ -57,8 +57,15 @@ export function getAIContext(
     return {
       label: `Vault · ${activeNote.title}`,
       placeholder: `Ask about ${activeNote.title}...`,
-      suggestions: ['Refine wording', 'Find similar notes', 'Suggest tags', 'Expand this section', 'Link related email'],
-      contextPrefix: `User is editing note "${activeNote.title}". `,
+      suggestions: [
+        'Format headings',
+        'Bulletize lists',
+        'Suggest wiki links',
+        'Polish wording',
+        'Find similar notes',
+        'Suggest tags',
+      ],
+      contextPrefix: `User is editing note "${activeNote.title}". Content preview: ${activeNote.content.slice(0, 400)}. `,
     }
   }
 
@@ -66,9 +73,17 @@ export function getAIContext(
     return {
       label: activeNote ? `Notes · ${activeNote.title}` : 'Notes',
       placeholder: 'Ask about your notes...',
-      suggestions: ['Summarize this note', 'Suggest tags', 'Find related emails', 'Extract action items', 'Create follow-up email'],
+      suggestions: activeNote
+        ? [
+            'Format headings',
+            'Suggest wiki links',
+            'Polish wording',
+            'Extract action items',
+            'Find related emails',
+          ]
+        : ['Summarize recent notes', 'Find orphaned notes', 'Suggest tags'],
       contextPrefix: activeNote
-        ? `User is editing note "${activeNote.title}". `
+        ? `User is editing note "${activeNote.title}". Content preview: ${activeNote.content.slice(0, 400)}. `
         : 'User is browsing notes. ',
     }
   }
