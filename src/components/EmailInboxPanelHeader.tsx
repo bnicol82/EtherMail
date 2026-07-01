@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useState, useEffect, type ReactNode } from 'react'
 import {
   Search,
   X,
@@ -138,6 +138,15 @@ export function EmailInboxPanelHeader({
   const isInbox = activeEmailFolder === 'inbox'
   const [labelsOpen, setLabelsOpen] = useState(!!activeLabelFilter)
   const [aiDetailsOpen, setAiDetailsOpen] = useState(aiOutboxEnabled)
+  const [confirmDeleteOutbox, setConfirmDeleteOutbox] = useState(false)
+
+  useEffect(() => {
+    if (aiOutboxEnabled) setAiDetailsOpen(true)
+  }, [aiOutboxEnabled])
+
+  useEffect(() => {
+    if (!aiOutboxEnabled) setConfirmDeleteOutbox(false)
+  }, [aiOutboxEnabled])
 
   const aiActive = isInbox && (aiInboxEnabled || aiOutboxEnabled)
   const labelsActive = !!activeLabelFilter
@@ -250,6 +259,17 @@ export function EmailInboxPanelHeader({
             >
               <ShieldOff size={12} />
             </ToolButton>
+            {aiOutboxEnabled && inboxStats.hidden > 0 && (
+              <ToolButton
+                active={confirmDeleteOutbox}
+                onClick={() => setConfirmDeleteOutbox((c) => !c)}
+                title={`Delete all ${inboxStats.hidden} filtered emails`}
+                label={String(inboxStats.hidden)}
+                activeClass="bg-red-500/90 text-white"
+              >
+                <Trash2 size={12} />
+              </ToolButton>
+            )}
             <ToolButton
               active={followUpFilterEnabled}
               onClick={onToggleFollowUp}
@@ -307,6 +327,34 @@ export function EmailInboxPanelHeader({
           </span>
         )}
       </div>
+
+      {confirmDeleteOutbox && aiOutboxEnabled && inboxStats.hidden > 0 && (
+        <div className="glass rounded-lg p-2 border border-red-500/30 space-y-2">
+          <p className="text-[10px] text-theme-secondary text-center">
+            Delete all {inboxStats.hidden} filtered email{inboxStats.hidden === 1 ? '' : 's'}? They
+            will move to Trash.
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmDeleteOutbox(false)}
+              className="flex-1 px-2 py-1.5 rounded-lg glass text-[10px] text-theme-muted hover-theme"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onDeleteAllOutbox()
+                setConfirmDeleteOutbox(false)
+              }}
+              className="flex-1 px-2 py-1.5 rounded-lg bg-red-500/90 text-white text-[10px] font-medium hover:opacity-90"
+            >
+              Delete all
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Expandable: AI details */}
       {isInbox && aiDetailsOpen && (aiInboxEnabled || aiOutboxEnabled) && (
