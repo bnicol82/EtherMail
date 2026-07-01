@@ -38,6 +38,8 @@ interface Props {
   compact?: boolean
 }
 
+type CompactTab = 'tags' | 'links' | 'actions'
+
 const CALLOUT_TYPES = ['note', 'tip', 'warning', 'info'] as const
 
 export function NoteSidebar({
@@ -54,6 +56,7 @@ export function NoteSidebar({
   compact,
 }: Props) {
   const [tagInput, setTagInput] = useState('')
+  const [compactTab, setCompactTab] = useState<CompactTab>('tags')
 
   const backlinks = getBacklinks(note.title, notes)
   const outgoing = getOutgoingLinks(note, notes)
@@ -85,131 +88,117 @@ export function NoteSidebar({
     onUpdateContent(toggleNoteTodo(note, lineIndex))
   }
 
-  const sectionClass = compact ? 'space-y-2' : 'space-y-3'
+  const sectionClass = compact ? 'space-y-3' : 'space-y-3'
   const headingClass =
     'text-[10px] font-semibold uppercase tracking-wide text-theme-muted mb-1.5 flex items-center gap-1'
 
-  return (
-    <div className={sectionClass}>
-      {toc.length > 1 && (
-        <section>
-          <p className={headingClass}>
-            <ListTree size={10} /> Contents
-          </p>
-          <ul className="space-y-0.5">
-            {toc.map((entry) => (
-              <li key={`${entry.slug}-${entry.text}`}>
-                <a
-                  href={`#${entry.slug}`}
-                  className="block text-[11px] text-theme-secondary hover:text-accent truncate"
-                  style={{ paddingLeft: `${(entry.level - 1) * 8}px` }}
-                >
-                  {entry.text}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
-      <section>
-        <p className={headingClass}>
-          <Hash size={10} /> Tags
-        </p>
-        <div className="flex flex-wrap gap-1 mb-1.5">
-          {note.tags.map((t) => (
-            <span
-              key={t}
-              className="inline-flex items-center gap-0.5 text-[10px] px-2 py-0.5 rounded-full bg-accent-soft text-accent"
+  const tagsSection = (
+    <section>
+      <p className={headingClass}>
+        <Hash size={10} /> Tags
+      </p>
+      <div className="flex flex-wrap gap-1 mb-1.5">
+        {note.tags.map((t) => (
+          <span
+            key={t}
+            className="inline-flex items-center gap-0.5 text-[10px] px-2 py-0.5 rounded-full bg-accent-soft text-accent"
+          >
+            {t}
+            <button
+              type="button"
+              onClick={() => removeTag(t)}
+              className="hover:text-theme"
+              aria-label={`Remove tag ${t}`}
             >
-              {t}
-              <button
-                type="button"
-                onClick={() => removeTag(t)}
-                className="hover:text-theme"
-                aria-label={`Remove tag ${t}`}
-              >
-                <X size={10} />
-              </button>
-            </span>
-          ))}
-        </div>
-        <div className="flex gap-1">
-          <input
-            value={tagInput}
-            onChange={(e) => setTagInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && addTag()}
-            placeholder="Add tag…"
-            className="flex-1 min-w-0 px-2 py-1 rounded-lg input-theme text-[10px] outline-none"
-          />
-          <button
-            type="button"
-            onClick={addTag}
-            className="p-1 rounded-lg glass hover-theme text-theme-muted"
-            aria-label="Add tag"
-          >
-            <Plus size={12} />
-          </button>
-        </div>
-      </section>
+              <X size={10} />
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="flex gap-1">
+        <input
+          value={tagInput}
+          onChange={(e) => setTagInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && addTag()}
+          placeholder="Add tag…"
+          className="flex-1 min-w-0 px-2 py-1 rounded-lg input-theme text-[10px] outline-none"
+        />
+        <button
+          type="button"
+          onClick={addTag}
+          className="p-1 rounded-lg glass hover-theme text-theme-muted"
+          aria-label="Add tag"
+        >
+          <Plus size={12} />
+        </button>
+      </div>
+    </section>
+  )
 
-      <section>
-        <p className={headingClass}>Properties</p>
-        <div className="space-y-1">
-          {propertyKeys.map((key) => (
-            <label key={key} className="block text-[10px]">
-              <span className="text-theme-muted capitalize">{key}</span>
-              <input
-                value={properties[key] ?? ''}
-                onChange={(e) => setProperty(key, e.target.value)}
-                className="mt-0.5 w-full px-2 py-1 rounded-lg input-theme text-[11px] outline-none"
-              />
-            </label>
-          ))}
-          <button
-            type="button"
-            onClick={() => {
-              const key = prompt('Property name')
-              if (key?.trim()) setProperty(key.trim(), '')
-            }}
-            className="text-[10px] text-accent hover:underline"
-          >
-            + Add property
-          </button>
-        </div>
-      </section>
+  const propertiesSection = propertyKeys.length > 0 || !compact ? (
+    <section>
+      <p className={headingClass}>Properties</p>
+      <div className="space-y-1">
+        {propertyKeys.map((key) => (
+          <label key={key} className="block text-[10px]">
+            <span className="text-theme-muted capitalize">{key}</span>
+            <input
+              value={properties[key] ?? ''}
+              onChange={(e) => setProperty(key, e.target.value)}
+              className="mt-0.5 w-full px-2 py-1 rounded-lg input-theme text-[11px] outline-none"
+            />
+          </label>
+        ))}
+        <button
+          type="button"
+          onClick={() => {
+            const key = prompt('Property name')
+            if (key?.trim()) setProperty(key.trim(), '')
+          }}
+          className="text-[10px] text-accent hover:underline"
+        >
+          + Add property
+        </button>
+      </div>
+    </section>
+  ) : null
 
-      {todos.length > 0 && (
-        <section>
-          <p className={headingClass}>
-            <CheckSquare size={10} /> Tasks ({todos.filter((t) => !t.done).length})
-          </p>
-          <ul className="space-y-1">
-            {todos.map((todo) => (
-              <li key={todo.lineIndex}>
-                <label className="flex items-start gap-1.5 text-[11px] cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={todo.done}
-                    onChange={() => toggleTodo(todo.lineIndex)}
-                    className="mt-0.5 accent-[var(--accent)]"
-                  />
-                  <span className={todo.done ? 'line-through text-theme-muted' : 'text-theme-secondary'}>
-                    {todo.text}
-                  </span>
-                </label>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
-
+  const tasksSection =
+    todos.length > 0 ? (
       <section>
         <p className={headingClass}>
-          <ArrowUpRight size={10} /> Outgoing links ({outgoing.length})
+          <CheckSquare size={10} /> Tasks ({todos.filter((t) => !t.done).length})
+        </p>
+        <ul className="space-y-1">
+          {todos.map((todo) => (
+            <li key={todo.lineIndex}>
+              <label className="flex items-start gap-1.5 text-[11px] cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={todo.done}
+                  onChange={() => toggleTodo(todo.lineIndex)}
+                  className="mt-0.5 accent-[var(--accent)]"
+                />
+                <span className={todo.done ? 'line-through text-theme-muted' : 'text-theme-secondary'}>
+                  {todo.text}
+                </span>
+              </label>
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null
+
+  const linksSection = (
+    <>
+      <section>
+        <p className={headingClass}>
+          <ArrowUpRight size={10} /> Outgoing ({outgoing.length})
         </p>
         {outgoing.length === 0 ? (
-          <p className="text-[10px] text-theme-muted">No wiki links yet. Use [[Note Title]].</p>
+          !compact && (
+            <p className="text-[10px] text-theme-muted">No wiki links yet. Use [[Note Title]].</p>
+          )
         ) : (
           <div className="space-y-0.5">
             {outgoing.map((link) => (
@@ -224,7 +213,7 @@ export function NoteSidebar({
           <Link2 size={10} /> Backlinks ({backlinks.length})
         </p>
         {backlinks.length === 0 ? (
-          <p className="text-[10px] text-theme-muted">No backlinks</p>
+          !compact && <p className="text-[10px] text-theme-muted">No backlinks</p>
         ) : (
           <div className="space-y-0.5">
             {backlinks.map((b) => (
@@ -261,45 +250,117 @@ export function NoteSidebar({
           </div>
         </section>
       )}
+    </>
+  )
 
-      <section>
-        <p className={headingClass}>
-          <Sparkles size={10} /> Actions
-        </p>
-        <div className="space-y-1">
+  const actionsSection = (
+    <section>
+      <p className={headingClass}>
+        <Sparkles size={10} /> Actions
+      </p>
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={onComposeFromNote}
+          className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg glass hover-theme text-theme-secondary"
+        >
+          Compose email from note
+        </button>
+        {onMeetingPrepNote && (
           <button
             type="button"
-            onClick={onComposeFromNote}
+            onClick={onMeetingPrepNote}
+            className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg glass hover-theme text-theme-secondary flex items-center gap-1"
+          >
+            <Calendar size={10} /> Save meeting prep note
+          </button>
+        )}
+        {['Find similar notes', 'Suggest tags'].map((action) => (
+          <button
+            key={action}
+            type="button"
+            onClick={() => onAiAction(action)}
             className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg glass hover-theme text-theme-secondary"
           >
-            Compose email from note
+            {action}
           </button>
-          {onMeetingPrepNote && (
+        ))}
+      </div>
+      {!compact && (
+        <p className="text-[9px] text-theme-muted mt-2 leading-relaxed">
+          Callouts: {CALLOUT_TYPES.map((t) => `> [!${t}]`).join(' · ')}
+        </p>
+      )}
+    </section>
+  )
+
+  if (compact) {
+    const tabs: { id: CompactTab; label: string }[] = [
+      { id: 'tags', label: 'Tags' },
+      { id: 'links', label: 'Links' },
+      { id: 'actions', label: 'Actions' },
+    ]
+
+    return (
+      <div className="space-y-3">
+        <div className="flex gap-1 p-0.5 rounded-lg glass">
+          {tabs.map((tab) => (
             <button
+              key={tab.id}
               type="button"
-              onClick={onMeetingPrepNote}
-              className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg glass hover-theme text-theme-secondary flex items-center gap-1"
+              onClick={() => setCompactTab(tab.id)}
+              className={`flex-1 text-[11px] py-1.5 rounded-md transition-colors ${
+                compactTab === tab.id
+                  ? 'bg-accent-soft text-accent font-medium'
+                  : 'text-theme-muted hover:text-theme-secondary'
+              }`}
             >
-              <Calendar size={10} /> Save meeting prep note
-            </button>
-          )}
-          {['Find similar notes', 'Suggest tags'].map((action) => (
-            <button
-              key={action}
-              type="button"
-              onClick={() => onAiAction(action)}
-              className="w-full text-left text-[11px] px-2 py-1.5 rounded-lg glass hover-theme text-theme-secondary"
-            >
-              {action}
+              {tab.label}
             </button>
           ))}
         </div>
-        {!compact && (
-          <p className="text-[9px] text-theme-muted mt-2 leading-relaxed">
-            Callouts: {CALLOUT_TYPES.map((t) => `> [!${t}]`).join(' · ')}
-          </p>
+
+        {compactTab === 'tags' && (
+          <div className="space-y-3">
+            {tagsSection}
+            {propertiesSection}
+            {tasksSection}
+          </div>
         )}
-      </section>
+        {compactTab === 'links' && <div className="space-y-3">{linksSection}</div>}
+        {compactTab === 'actions' && actionsSection}
+      </div>
+    )
+  }
+
+  return (
+    <div className={sectionClass}>
+      {toc.length > 1 && (
+        <section>
+          <p className={headingClass}>
+            <ListTree size={10} /> Contents
+          </p>
+          <ul className="space-y-0.5">
+            {toc.map((entry) => (
+              <li key={`${entry.slug}-${entry.text}`}>
+                <a
+                  href={`#${entry.slug}`}
+                  className="block text-[11px] text-theme-secondary hover:text-accent truncate"
+                  style={{ paddingLeft: `${(entry.level - 1) * 8}px` }}
+                >
+                  {entry.text}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {tagsSection}
+      {propertiesSection}
+      {tasksSection}
+      {linksSection}
+      {actionsSection}
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Search,
   FileText,
@@ -6,6 +6,7 @@ import {
   Edit3,
   Columns,
   Calendar,
+  PanelRight,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
@@ -16,6 +17,7 @@ import { ShareNoteButton } from './ShareNoteButton'
 import { VaultNoteHeader } from './VaultNoteHeader'
 import { NoteAssistPanel } from './NoteAssistPanel'
 import { NoteSidebar } from './NoteSidebar'
+import { NoteDetailsSheet } from './NoteDetailsSheet'
 import {
   applyWikiLink,
   formatNoteBullets,
@@ -45,6 +47,8 @@ export function NotesView() {
   const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
+
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   const activeNote = notes.find((n) => n.id === activeNoteId)
   const listHidden = hiddenPanels['notes-list'] ?? false
@@ -79,15 +83,46 @@ export function NotesView() {
     updateNote(activeNote.id, { content: formatter(activeNote.content) })
   }
 
+  const aiAction = (action: string) => {
+    const ctx = getAIContext('notes', { activeNote, emails, notes })
+    setAiAssistantOpen(true)
+    submitAiQuery(action, ctx.contextPrefix)
+  }
+
+  const sidebarProps = activeNote
+    ? {
+        note: activeNote,
+        notes,
+        emails,
+        onSelectNote: (id: string) => selectNote(id, { view: 'notes' }),
+        onSelectEmail: selectEmail,
+        onUpdateTags: (tags: string[]) => updateNoteTags(activeNote.id, tags),
+        onUpdateContent: (content: string) => updateNote(activeNote.id, { content }),
+        onComposeFromNote: () => openComposeFromNote(activeNote.id),
+        onMeetingPrepNote: createMeetingPrepNote,
+        onAiAction: aiAction,
+      }
+    : null
+
   const editorActions = activeNote ? (
     <>
-      {activeNote && <ShareNoteButton note={activeNote} />}
+      <button
+        type="button"
+        onClick={() => setDetailsOpen(true)}
+        className="p-1.5 rounded-lg text-theme-muted hover-theme xl:hidden"
+        aria-label="Note details"
+        title="Tags, links, actions"
+      >
+        <PanelRight size={16} />
+      </button>
+      <ShareNoteButton note={activeNote} />
       {(['edit', 'split', 'preview'] as const).map((mode) => (
         <button
           key={mode}
           type="button"
           onClick={() => setEditorMode(mode)}
           className={`p-1.5 rounded-lg ${editorMode === mode ? 'bg-accent-soft text-theme' : 'text-theme-muted hover-theme'}`}
+          aria-label={mode === 'edit' ? 'Edit' : mode === 'split' ? 'Split view' : 'Preview'}
         >
           {mode === 'edit' && <Edit3 size={16} />}
           {mode === 'split' && <Columns size={16} />}
@@ -98,15 +133,9 @@ export function NotesView() {
     </>
   ) : null
 
-  const aiAction = (action: string) => {
-    const ctx = getAIContext('notes', { activeNote, emails, notes })
-    setAiAssistantOpen(true)
-    submitAiQuery(action, ctx.contextPrefix)
-  }
-
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+      <div className="hidden md:flex shrink-0 flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
         <PanelRestoreTab panelId="notes-list" label="Notes list" />
         <PanelRestoreTab panelId="notes-editor" label="Editor" />
       </div>
@@ -160,7 +189,7 @@ export function NotesView() {
         <div
           className={`
             ${mobilePanel !== 'detail' && !listHidden ? 'hidden md:flex' : mobilePanel !== 'detail' && listHidden ? 'hidden' : 'flex'}
-            flex-1 flex-col min-w-0
+            flex-1 flex-col min-w-0 min-h-0
           `}
         >
           {activeNote ? (
@@ -170,10 +199,11 @@ export function NotesView() {
                 onBack={() => setMobilePanel('list')}
                 breadcrumbs={['Notes']}
                 title={activeNote.title}
+                showTitle={false}
                 actions={editorActions}
               />
 
-              <div className="shrink-0 border-b border-[var(--glass-border)] glass px-3 py-2">
+              <div className="hidden md:block shrink-0 border-b border-[var(--glass-border)] glass px-3 py-2">
                 <NoteAssistPanel
                   compact
                   suggestions={autoLinkSuggestions}
@@ -205,36 +235,17 @@ export function NotesView() {
                 </div>
 
                 <aside className="hidden xl:flex w-60 shrink-0 border-l border-[var(--glass-border)] glass overflow-y-auto p-3">
-                  <NoteSidebar
-                    note={activeNote}
-                    notes={notes}
-                    emails={emails}
-                    onSelectNote={(id) => selectNote(id, { view: 'notes' })}
-                    onSelectEmail={selectEmail}
-                    onUpdateTags={(tags) => updateNoteTags(activeNote.id, tags)}
-                    onUpdateContent={(content) => updateNote(activeNote.id, { content })}
-                    onComposeFromNote={() => openComposeFromNote(activeNote.id)}
-                    onMeetingPrepNote={createMeetingPrepNote}
-                    onAiAction={aiAction}
-                  />
+                  {sidebarProps && <NoteSidebar {...sidebarProps} />}
                 </aside>
               </div>
 
-              <div className="xl:hidden shrink-0 border-t border-[var(--glass-border)] glass p-3 max-h-48 overflow-y-auto">
-                <NoteSidebar
-                  compact
-                  note={activeNote}
-                  notes={notes}
-                  emails={emails}
-                  onSelectNote={(id) => selectNote(id, { view: 'notes' })}
-                  onSelectEmail={selectEmail}
-                  onUpdateTags={(tags) => updateNoteTags(activeNote.id, tags)}
-                  onUpdateContent={(content) => updateNote(activeNote.id, { content })}
-                  onComposeFromNote={() => openComposeFromNote(activeNote.id)}
-                  onMeetingPrepNote={createMeetingPrepNote}
-                  onAiAction={aiAction}
+              {sidebarProps && (
+                <NoteDetailsSheet
+                  open={detailsOpen}
+                  onClose={() => setDetailsOpen(false)}
+                  {...sidebarProps}
                 />
-              </div>
+              )}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-theme-muted">

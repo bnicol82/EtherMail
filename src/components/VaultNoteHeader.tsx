@@ -6,13 +6,21 @@ interface Props {
   title: string
   onBack?: () => void
   showBack?: boolean
+  /** When false, title is shown only in the editor (avoids duplicate on mobile) */
+  showTitle?: boolean
   actions?: ReactNode
 }
 
-/** Two-row note header — breadcrumbs on line 1, title + actions on line 2 */
-export function VaultNoteHeader({ breadcrumbs, title, onBack, showBack, actions }: Props) {
+export function VaultNoteHeader({
+  breadcrumbs,
+  title,
+  onBack,
+  showBack,
+  showTitle = true,
+  actions,
+}: Props) {
   return (
-    <div className="shrink-0 flex flex-col gap-2 px-3 sm:px-4 py-2.5 border-b border-[var(--glass-border)] glass">
+    <div className="shrink-0 flex flex-col gap-1.5 px-3 sm:px-4 py-2 border-b border-[var(--glass-border)] glass">
       <div className="flex items-center gap-2 min-w-0">
         {showBack && onBack && (
           <button
@@ -34,14 +42,21 @@ export function VaultNoteHeader({ breadcrumbs, title, onBack, showBack, actions 
             </span>
           ))}
         </nav>
+        {!showTitle && actions && (
+          <div className="flex items-center gap-1 shrink-0">{actions}</div>
+        )}
       </div>
 
-      <div className="flex items-center justify-between gap-3 min-w-0">
-        <h2 className="text-sm sm:text-base font-semibold text-theme truncate min-w-0 flex-1">
-          {title}
-        </h2>
-        {actions && <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">{actions}</div>}
-      </div>
+      {showTitle && (
+        <div className="flex items-center justify-between gap-3 min-w-0">
+          <h2 className="text-sm sm:text-base font-semibold text-theme truncate min-w-0 flex-1">
+            {title}
+          </h2>
+          {actions && (
+            <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">{actions}</div>
+          )}
+        </div>
+      )}
     </div>
   )
 }

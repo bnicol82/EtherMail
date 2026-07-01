@@ -12,6 +12,7 @@ import {
   Paperclip,
   Mail,
   ExternalLink,
+  PanelRight,
 } from 'lucide-react'
 import { useNexusStore, useGraph } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
@@ -25,6 +26,7 @@ import { VaultAddMenu } from './VaultAddMenu'
 import { VaultNoteHeader } from './VaultNoteHeader'
 import { NoteAssistPanel } from './NoteAssistPanel'
 import { NoteSidebar } from './NoteSidebar'
+import { NoteDetailsSheet } from './NoteDetailsSheet'
 import { formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import {
   applyWikiLink,
@@ -76,6 +78,7 @@ export function VaultView() {
   const [expanded, setExpanded] = useState<Set<string>>(
     new Set(['root', 'root-work', 'projects', 'athena', EMAIL_FILES_FOLDER_ID, EMAIL_FILES_WORK_FOLDER_ID]),
   )
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const activeNote = notes.find((n) => n.id === activeNoteId)
   const activeAttachment = emailAttachments.find((a) => a.id === activeAttachmentId)
   const activeVaultFile = vaultFiles.find((f) => f.id === activeVaultFileId)
@@ -233,6 +236,17 @@ export function VaultView() {
 
   const editorActions = (
     <>
+      {activeNote && (
+        <button
+          type="button"
+          onClick={() => setDetailsOpen(true)}
+          className="p-1.5 rounded-lg text-theme-muted hover-theme lg:hidden"
+          aria-label="Note details"
+          title="Tags, links, actions"
+        >
+          <PanelRight size={16} />
+        </button>
+      )}
       {(editorMode === 'preview' || editorMode === 'split' || editorMode === 'edit') && activeNote && (
         <ShareNoteButton note={activeNote} />
       )}
@@ -265,7 +279,7 @@ export function VaultView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+      <div className="hidden md:flex shrink-0 flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
         <PanelRestoreTab panelId="vault-tree" label="Folders" />
         <PanelRestoreTab panelId="vault-editor" label="Editor" />
         <PanelRestoreTab panelId="vault-rail" label="Insights" />
@@ -498,10 +512,11 @@ export function VaultView() {
               onBack={() => setMobilePanel('list')}
               breadcrumbs={breadcrumbs()}
               title={activeNote.title}
+              showTitle={false}
               actions={editorActions}
             />
 
-            <div className="lg:hidden shrink-0 border-b border-[var(--glass-border)] glass px-3 py-2">
+            <div className="hidden md:block lg:hidden shrink-0 border-b border-[var(--glass-border)] glass px-3 py-2">
               <NoteAssistPanel
                 compact
                 suggestions={autoLinkSuggestions}
@@ -585,6 +600,23 @@ export function VaultView() {
               </div>
               )}
             </div>
+
+            {activeNote && (
+              <NoteDetailsSheet
+                open={detailsOpen}
+                onClose={() => setDetailsOpen(false)}
+                note={activeNote}
+                notes={notes}
+                emails={emails}
+                onSelectNote={(id) => selectNote(id)}
+                onSelectEmail={(id) => selectEmail(id)}
+                onUpdateTags={(tags) => updateNoteTags(activeNote.id, tags)}
+                onUpdateContent={(content) => updateNote(activeNote.id, { content })}
+                onComposeFromNote={() => openComposeFromNote(activeNote.id)}
+                onMeetingPrepNote={createMeetingPrepNote}
+                onAiAction={aiAction}
+              />
+            )}
           </>
         ) : (
           <div className="flex-1 flex items-center justify-center text-theme-muted">
