@@ -96,7 +96,7 @@ export function BottomBar() {
                 className="text-[10px] text-accent hover:underline flex items-center gap-1"
               >
                 <MessageSquare size={10} />
-                Open chat
+                Full chat
               </button>
               {!aiLoading && aiContextResponse && (
                 <button
@@ -144,13 +144,6 @@ export function BottomBar() {
             </button>
           ))}
         </div>
-        <button
-          onClick={openFullChat}
-          className="text-[10px] px-2 py-1 rounded-full btn-accent shrink-0 flex items-center gap-1"
-        >
-          <MessageSquare size={10} />
-          <span className="hidden sm:inline">Chat</span>
-        </button>
       </div>
 
       {/* Main dock row */}
@@ -216,7 +209,8 @@ export function BottomBar() {
             onClick={submit}
             disabled={aiLoading || !input.trim()}
             className="p-1.5 sm:p-2 rounded-lg btn-accent disabled:opacity-40 shrink-0"
-            aria-label="Send to AI"
+            aria-label="Ask AI"
+            title="Ask AI"
           >
             <Send size={16} />
           </button>
