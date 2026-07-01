@@ -2,13 +2,11 @@ import { useState, useMemo } from 'react'
 import {
   Star,
   Link2,
-  Unlink,
   Reply,
   ReplyAll,
   Forward,
   Sparkles,
   Paperclip,
-  ChevronDown,
   Bot,
   Trash2,
   Archive,
@@ -29,6 +27,7 @@ import { summarizeEmail } from '../lib/emailSummary'
 import { getAIContext } from '../lib/aiContext'
 import { EmailQuickAck } from './EmailQuickAck'
 import { SnoozeMenu } from './SnoozeMenu'
+import { EmailLinkNoteMenu } from './EmailLinkNoteMenu'
 import { EmailInboxPanelHeader } from './EmailInboxPanelHeader'
 import { EmailLabelPicker } from './EmailLabelsBar'
 import { EmailInboxTraining } from './EmailInboxTraining'
@@ -108,7 +107,6 @@ export function EmailView() {
   const setThreadViewEnabled = useEtherMailStore((s) => s.setThreadViewEnabled)
 
   const [filter, setFilter] = useState('')
-  const [showLinkMenu, setShowLinkMenu] = useState(false)
   const [batchConfirmDelete, setBatchConfirmDelete] = useState(false)
   const [batchLabelId, setBatchLabelId] = useState('')
 
@@ -477,7 +475,7 @@ export function EmailView() {
                     </p>
                   </div>
                 )}
-              <div className="p-3 lg:p-4 border-b border-[var(--glass-border)] glass shrink-0">
+              <div className="relative z-20 p-3 lg:p-4 border-b border-[var(--glass-border)] glass shrink-0">
                 <button
                   className="lg:hidden text-theme-muted hover:text-theme text-sm mb-2"
                   onClick={() => setMobilePanel('list')}
@@ -513,7 +511,7 @@ export function EmailView() {
                     </span>
                   </div>
                 </div>
-                <div className="flex gap-2 mt-2.5 flex-wrap relative">
+                <div className="flex gap-2 mt-2.5 flex-wrap">
                   {activeEmail.folder === 'scheduled' && activeEmail.scheduledAt && (
                     <>
                       <button
@@ -603,43 +601,11 @@ export function EmailView() {
                     <Trash2 size={14} />
                     {(activeEmail.folder ?? 'inbox') === 'trash' ? 'Delete forever' : 'Delete'}
                   </button>
-                  <button
-                    onClick={() => setShowLinkMenu(!showLinkMenu)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
-                  >
-                    <Link2 size={14} />
-                    {linkedNote ? 'Change Link' : 'Link to Note'}
-                    <ChevronDown size={12} />
-                  </button>
-
-                  {showLinkMenu && (
-                    <div className="absolute top-full left-0 mt-1 z-10 glass-frost rounded-xl p-2 w-64 shadow-xl">
-                      {notes.map((n) => (
-                        <button
-                          key={n.id}
-                          onClick={() => {
-                            linkEmailToNote(activeEmail.id, n.id)
-                            setShowLinkMenu(false)
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-sm hover-theme text-theme-secondary"
-                        >
-                          <Paperclip size={12} className="inline mr-2 text-accent" />
-                          {n.title}
-                        </button>
-                      ))}
-                      {linkedNote && (
-                        <button
-                          onClick={() => {
-                            linkEmailToNote(activeEmail.id, null)
-                            setShowLinkMenu(false)
-                          }}
-                          className="w-full text-left px-3 py-2 rounded-lg text-sm hover-theme text-red-400 flex items-center gap-2"
-                        >
-                          <Unlink size={12} /> Remove link
-                        </button>
-                      )}
-                    </div>
-                  )}
+                  <EmailLinkNoteMenu
+                    notes={notes}
+                    linkedNote={linkedNote}
+                    onLink={(noteId) => linkEmailToNote(activeEmail.id, noteId)}
+                  />
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 min-h-0">
