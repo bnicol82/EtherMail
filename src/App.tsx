@@ -17,6 +17,7 @@ import { CommandPalette } from './components/CommandPalette'
 import { ProactiveAssistant } from './components/ProactiveAssistant'
 import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
+import { unlockTouchAudio } from './lib/touchFeedback'
 import { Menu, SquarePen } from 'lucide-react'
 
 function MainContent() {
@@ -78,6 +79,16 @@ export default function App() {
       }
     })
   }, [oauthSettings, completeOAuthConnect])
+
+  useEffect(() => {
+    const unlock = () => unlockTouchAudio()
+    document.addEventListener('pointerdown', unlock, { passive: true })
+    document.addEventListener('touchstart', unlock, { passive: true })
+    return () => {
+      document.removeEventListener('pointerdown', unlock)
+      document.removeEventListener('touchstart', unlock)
+    }
+  }, [])
 
   return (
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
