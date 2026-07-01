@@ -1,4 +1,4 @@
-import type { OrgPolicy, OrgRole } from '../types/admin'
+import type { OrgPolicy, OrgRole, FeatureId } from '../types/admin'
 import type { AuditEvent } from '../types/audit'
 import type {
   OrgApiAuditResponse,
@@ -165,10 +165,26 @@ export async function apiUpdateSsoConfig(config: SsoConfig): Promise<SsoConfig> 
   return res.json() as Promise<SsoConfig>
 }
 
+/** Server-side policy gate — authoritative when org API is connected. */
+export async function checkServerGate(
+  featureId: FeatureId,
+  actionLabel?: string,
+): Promise<{ allowed: boolean; message?: string }> {
+  if (!hasOrgApi()) return { allowed: true }
+  const res = await fetch(`${API_BASE}/org/gate/check`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: apiHeaders(true),
+    body: JSON.stringify({ featureId, actionLabel }),
+  })
+  if (!res.ok) throw new Error(await parseError(res))
+  return res.json() as Promise<{ allowed: boolean; message?: string }>
+}
+
 /** Exchange SSO authorization code for org session (demo API accepts any code). */
 export async function exchangeSsoCode(
   code: string,
-  opts?: { email?: string },
+  opts?: { email?: string; redirectUri?: string },
 ): Promise<SsoCallbackResponse> {
   if (!hasOrgApi()) {
     return {
@@ -188,7 +204,7 @@ export async function exchangeSsoCode(
     method: 'POST',
     credentials: 'include',
     headers: apiHeaders(true),
-    body: JSON.stringify({ code, email: opts?.email }),
+    body: JSON.stringify({ code, email: opts?.email, redirectUri: opts?.redirectUri }),
   })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json() as Promise<SsoCallbackResponse>

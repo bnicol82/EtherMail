@@ -57,6 +57,15 @@ npm run dev
 
 `.env.development` sets `VITE_ORG_API_URL=/api` (proxied to `localhost:8787`). Admin → **Sync policy from API** pulls policy, members, vault shares, and audit events.
 
+Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement.
+
+## Supabase deployment (production)
+
+1. `supabase link` and `supabase db push` (migrations `001` + `002`)
+2. `supabase functions deploy org-api`
+3. Set secrets: `SSO_ENTRA_CLIENT_SECRET`, `SSO_OKTA_CLIENT_SECRET`, or `SSO_GOOGLE_CLIENT_SECRET`
+4. Point `VITE_ORG_API_URL` at `https://<project>.supabase.co/functions/v1/org-api`
+
 ## Roadmap
 
 | Phase | Features |

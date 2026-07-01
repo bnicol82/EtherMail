@@ -1,0 +1,11 @@
+# EtherMail Supabase project config
+# Docs: https://supabase.com/docs/guides/cli/config
+
+[api]
+enabled = true
+
+[db]
+major_version = 15
+
+[functions.org-api]
+verify_jwt = false

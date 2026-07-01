@@ -8,6 +8,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
+import { checkServerGate } from './lib/gate-check.mjs'
+import { exchangeSsoAuthorizationCode } from './lib/sso-exchange.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.ORG_API_PORT || 8787)
@@ -94,6 +96,30 @@ const server = http.createServer(async (req, res) => {
   let store = loadStore()
 
   try {
+    if (req.method === 'POST' && url.pathname === '/org/gate/check') {
+      const body = await readBody(req)
+      const session = sessionFromReq(req)
+      const role = session?.role ?? 'member'
+      const result = checkServerGate({
+        features: store.policy?.features ?? {},
+        role,
+        featureId: body?.featureId,
+        actionLabel: body?.actionLabel,
+      })
+      if (!result.allowed) {
+        store.auditEvents.push(
+          auditRow(store, 'policy', 'feature_denied_server', {
+            featureId: body?.featureId,
+            detail: body?.actionLabel,
+            actorEmail: session?.email,
+          }),
+        )
+        saveStore(store)
+      }
+      json(res, 200, { allowed: result.allowed, message: result.message ?? null })
+      return
+    }
+
     if (req.method === 'GET' && url.pathname === '/org/policy') {
       json(res, 200, policyResponse(store))
       return
@@ -227,7 +253,30 @@ const server = http.createServer(async (req, res) => {
         json(res, 400, { error: 'code required' })
         return
       }
-      const email = String(body?.email ?? 'demo@acme.com').toLowerCase()
+
+      let email = String(body?.email ?? '').toLowerCase()
+      try {
+        if (store.sso?.enabled && store.sso.provider !== 'none') {
+          const exchanged = await exchangeSsoAuthorizationCode({
+            code,
+            provider: store.sso.provider,
+            tenantId: store.sso.tenantId,
+            clientId: store.sso.clientId,
+            redirectUri: body?.redirectUri,
+            domain: store.sso.domain,
+            demoEmail: body?.email,
+          })
+          email = exchanged.email
+        } else if (!email) {
+          email = 'demo@acme.com'
+        }
+      } catch (err) {
+        json(res, 400, {
+          error: err instanceof Error ? err.message : 'SSO exchange failed',
+        })
+        return
+      }
+
       let member = store.members.find((m) => m.email.toLowerCase() === email)
       if (!member) {
         member = {
