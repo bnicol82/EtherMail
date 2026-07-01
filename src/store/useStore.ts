@@ -30,9 +30,10 @@ import {
   mergeOrgPolicy,
   setOrgFeatureAllowed,
 } from '../lib/orgPolicy'
-import { canUseFeatureFromStore, getFeatureDenialReason } from '../lib/featureGates'
+import { canUseFeatureFromStore } from '../lib/featureGates'
 import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
 import { appendAudit, auditAiQuery, gateOrToast } from '../lib/storePolicy'
+import { gateClientAndServer } from '../lib/serverGate'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
@@ -486,10 +487,11 @@ export const useEtherMailStore = create<EtherMailState>()(
         const state = get()
         const mode = state.aiMode
         const aiFeature = mode === 'vault' ? 'vault_ai' : 'external_ai'
-        if (!canUseFeatureFromStore(aiFeature, state)) {
-          const denial = getFeatureDenialReason(aiFeature)
+        const gate = await gateClientAndServer(state, aiFeature, 'AI query')
+        if (!gate.ok) {
+          const denial = gate.patch.policyToast
           state.addChatMessage({ role: 'assistant', content: denial, mode })
-          set({ aiContextResponse: denial, aiAssistantOpen: true })
+          set({ ...gate.patch, aiContextResponse: denial, aiAssistantOpen: true })
           return
         }
         const bridgeOk = canUseFeatureFromStore('ai_bridge', state)
@@ -1038,88 +1040,91 @@ export const useEtherMailStore = create<EtherMailState>()(
       closeCompose: () => set({ composeDraft: null }),
 
       sendComposedEmail: (draft) => {
-        const state = get()
-        const gate = gateOrToast(state, 'compose_email', 'Send email')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        const account = state.accounts.find((a) => a.id === draft.accountId)
-        const now = new Date().toISOString()
-        const preview = draft.body.trim().slice(0, 120) || '(no content)'
+        void (async () => {
+          const state = get()
+          const gate = await gateClientAndServer(state, 'compose_email', 'Send email')
+          if (!gate.ok) {
+            set(gate.patch)
+            return
+          }
+          const current = get()
+          const account = current.accounts.find((a) => a.id === draft.accountId)
+          const now = new Date().toISOString()
+          const preview = draft.body.trim().slice(0, 120) || '(no content)'
 
-        if (draft.id) {
-          const { records, ids } = materializeEmailAttachments(
-            draft.attachments,
-            draft.id,
-            draft.accountId,
-          )
-          const attachmentIds = draft.attachments?.length
-            ? ids
-            : state.emails.find((e) => e.id === draft.id)?.attachmentIds
+          if (draft.id) {
+            const { records, ids } = materializeEmailAttachments(
+              draft.attachments,
+              draft.id,
+              draft.accountId,
+            )
+            const attachmentIds = draft.attachments?.length
+              ? ids
+              : current.emails.find((e) => e.id === draft.id)?.attachmentIds
 
+            set({
+              emails: current.emails.map((e) =>
+                e.id === draft.id
+                  ? {
+                      ...e,
+                      to: draft.to,
+                      cc: draft.cc,
+                      bcc: draft.bcc,
+                      subject: draft.subject,
+                      body: draft.body,
+                      preview,
+                      date: now,
+                      folder: 'sent' as EmailFolder,
+                      read: true,
+                      scheduledAt: undefined,
+                      attachmentIds,
+                    }
+                  : e,
+              ),
+              emailAttachments: draft.attachments?.length
+                ? [
+                    ...current.emailAttachments.filter((a) => a.emailId !== draft.id),
+                    ...records,
+                  ]
+                : current.emailAttachments,
+              activeEmailId: draft.id,
+              activeEmailFolder: 'sent',
+              composeDraft: null,
+              mobilePanel: 'detail',
+            })
+            return
+          }
+
+          const id = `email-${Date.now()}`
+          const { records, ids } = materializeEmailAttachments(draft.attachments, id, draft.accountId)
+          const email: Email = {
+            id,
+            accountId: draft.accountId,
+            from: account?.email ?? 'you@example.com',
+            fromName: 'Me',
+            to: draft.to,
+            cc: draft.cc,
+            bcc: draft.bcc,
+            subject: draft.subject || '(no subject)',
+            body: draft.body,
+            preview,
+            date: now,
+            read: true,
+            starred: false,
+            linkedNoteId: null,
+            attachmentIds: ids.length > 0 ? ids : undefined,
+            folder: 'sent',
+            scheduledAt: undefined,
+          }
           set({
-            emails: state.emails.map((e) =>
-              e.id === draft.id
-                ? {
-                    ...e,
-                    to: draft.to,
-                    cc: draft.cc,
-                    bcc: draft.bcc,
-                    subject: draft.subject,
-                    body: draft.body,
-                    preview,
-                    date: now,
-                    folder: 'sent' as EmailFolder,
-                    read: true,
-                    scheduledAt: undefined,
-                    attachmentIds,
-                  }
-                : e,
-            ),
-            emailAttachments: draft.attachments?.length
-              ? [
-                  ...state.emailAttachments.filter((a) => a.emailId !== draft.id),
-                  ...records,
-                ]
-              : state.emailAttachments,
-            activeEmailId: draft.id,
+            emails: [...current.emails, email],
+            emailAttachments: [...current.emailAttachments, ...records],
+            activeEmailId: id,
             activeEmailFolder: 'sent',
             composeDraft: null,
             mobilePanel: 'detail',
           })
-          return
-        }
-
-        const id = `email-${Date.now()}`
-        const { records, ids } = materializeEmailAttachments(draft.attachments, id, draft.accountId)
-        const email: Email = {
-          id,
-          accountId: draft.accountId,
-          from: account?.email ?? 'you@example.com',
-          fromName: 'Me',
-          to: draft.to,
-          cc: draft.cc,
-          bcc: draft.bcc,
-          subject: draft.subject || '(no subject)',
-          body: draft.body,
-          preview,
-          date: now,
-          read: true,
-          starred: false,
-          linkedNoteId: null,
-          attachmentIds: ids.length > 0 ? ids : undefined,
-          folder: 'sent',
-          scheduledAt: undefined,
-        }
-        set({
-          emails: [...state.emails, email],
-          emailAttachments: [...state.emailAttachments, ...records],
-          activeEmailId: id,
-          activeEmailFolder: 'sent',
-          composeDraft: null,
-          mobilePanel: 'detail',
-        })
+        })()
       },
 
       saveComposeDraft: (draft) => {
@@ -2061,7 +2066,10 @@ export const useEtherMailStore = create<EtherMailState>()(
       completeSsoLogin: async (code, email) => {
         const state = get()
         try {
-          const res = await exchangeSsoCode(code, { email })
+          const res = await exchangeSsoCode(code, {
+            email,
+            redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
+          })
           setOrgSessionToken(res.sessionToken)
           const session: OrgSession = {
             sessionToken: res.sessionToken,
