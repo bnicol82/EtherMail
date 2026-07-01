@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
   SEED_ACCOUNTS,
-  SEED_AI_CONTEXT_RESPONSE,
   SEED_ATTACHMENTS,
   SEED_CALENDAR,
   SEED_CHAT_MESSAGES,
@@ -352,7 +351,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       setAiAssistantOpen: (aiAssistantOpen) => set({ aiAssistantOpen }),
 
       aiLoading: false,
-      aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
+      aiContextResponse: null,
       submitAiQuery: async (query, contextPrefix = '', opts) => {
         const state = get()
         const mode = state.aiMode
@@ -1706,15 +1705,10 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
       onRehydrateStorage: () => (state) => {
         if (!state) return
-        const hasSeedThread = state.chatMessages.some((m) => m.id === 'msg-seed-quick-1')
-        const last = state.chatMessages[state.chatMessages.length - 1]
         if (state.chatMessages.length === 0) {
           useEtherMailStore.setState({
             chatMessages: SEED_CHAT_MESSAGES,
-            aiContextResponse: SEED_AI_CONTEXT_RESPONSE,
           })
-        } else if (hasSeedThread && last?.role === 'assistant') {
-          useEtherMailStore.setState({ aiContextResponse: SEED_AI_CONTEXT_RESPONSE })
         }
 
         const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
