@@ -15,6 +15,7 @@ import {
   Search,
   Briefcase,
   Home,
+  Shield,
 } from 'lucide-react'
 import { useRef } from 'react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
@@ -49,6 +50,8 @@ export function Sidebar() {
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
   const setActiveVault = useEtherMailStore((s) => s.setActiveVault)
   const unreadAlertCount = useUnreadAlertCount()
+  const userRole = useEtherMailStore((s) => s.userRole)
+  const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
   const navRef = useRef<HTMLElement>(null)
   const menuScrollHaptic = useMenuScrollHaptic(navRef)
 
@@ -219,6 +222,22 @@ export function Sidebar() {
             </span>
           )}
         </button>
+
+        {canAccessAdmin && (
+          <button
+            data-menu-item="nav-admin"
+            onMouseEnter={onMenuHover}
+            onClick={() => navigate('admin')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mt-2 ${
+              view === 'admin'
+                ? 'nav-active'
+                : 'text-theme-muted hover-theme hover:text-theme'
+            }`}
+          >
+            <Shield size={18} />
+            <span className="flex-1 text-left">Admin</span>
+          </button>
+        )}
 
         <div className="pt-2">
           <p className="px-3 text-xs font-medium text-theme-muted uppercase tracking-wider mb-2">

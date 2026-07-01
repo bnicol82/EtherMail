@@ -10,6 +10,7 @@ import { AIView } from './components/AIView'
 import { NotesView } from './components/NotesView'
 import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
+import { AdminView } from './components/AdminView'
 import { ConnectAccountModal } from './components/ConnectAccountModal'
 import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { EventEditModal } from './components/EventEditModal'
@@ -41,6 +42,8 @@ function MainContent() {
       return <AIView />
     case 'settings':
       return <SettingsView />
+    case 'admin':
+      return <AdminView />
     default:
       return <Dashboard />
   }

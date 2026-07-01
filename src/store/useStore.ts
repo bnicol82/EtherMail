@@ -23,6 +23,15 @@ import { GmailSyncError, syncGmailAccount } from '../lib/sync/gmail'
 import { syncGmailDemoInbox } from '../lib/sync/gmailDemo'
 import { canConnectMailbox, type PlanTier } from '../lib/plan'
 import {
+  DEFAULT_ORG_POLICY,
+  applyStrictEnterpriseDefaults,
+  buildFeaturePolicy,
+  mergeOrgPolicy,
+  setOrgFeatureAllowed,
+} from '../lib/orgPolicy'
+import { canUseFeatureFromStore, getFeatureDenialReason } from '../lib/featureGates'
+import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
+import {
   DEFAULT_EMAIL_FOLDER_SORT,
   normalizeEmailFolderSort,
   type EmailSortKey,
@@ -273,6 +282,17 @@ interface EtherMailState {
   connectGmailDemo: (accountId: string) => Promise<{ imported: number; inbox: number; sent: number }>
   gmailSyncingAccountId: string | null
   planTier: PlanTier
+  setPlanTier: (tier: PlanTier) => void
+
+  orgPolicy: OrgPolicy
+  userRole: OrgRole
+  setOrgPolicy: (policy: Partial<OrgPolicy>) => void
+  setOrgFeature: (featureId: FeatureId, allowed: boolean) => void
+  setUserRole: (role: OrgRole) => void
+  applyStrictEnterprisePolicy: () => void
+  resetOrgPolicy: () => void
+  allowAllFeatures: () => void
+  denyAllFeatures: () => void
 
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -287,7 +307,10 @@ export const useEtherMailStore = create<EtherMailState>()(
       setView: (view) => set({ view, mobilePanel: 'list' }),
 
       theme: 'glass',
-      setTheme: (theme) => set({ theme }),
+      setTheme: (theme) => {
+        if (!canUseFeatureFromStore('theme_customization', get())) return
+        set({ theme })
+      },
 
       setActiveVault: (activeVaultId) => {
         if (!activeVaultId) {
@@ -383,6 +406,14 @@ export const useEtherMailStore = create<EtherMailState>()(
       submitAiQuery: async (query, contextPrefix = '', opts) => {
         const state = get()
         const mode = state.aiMode
+        const aiFeature = mode === 'vault' ? 'vault_ai' : 'external_ai'
+        if (!canUseFeatureFromStore(aiFeature, state)) {
+          const denial = getFeatureDenialReason(aiFeature)
+          state.addChatMessage({ role: 'assistant', content: denial, mode })
+          set({ aiContextResponse: denial, aiAssistantOpen: true })
+          return
+        }
+        const bridgeOk = canUseFeatureFromStore('ai_bridge', state)
         set({ aiLoading: true })
         state.addChatMessage({ role: 'user', content: query, mode })
         const fullQuery = contextPrefix ? `${contextPrefix}${query}` : query
@@ -397,10 +428,10 @@ export const useEtherMailStore = create<EtherMailState>()(
                 fullQuery,
                 state.aiSettings.externalApiKey,
                 state.aiSettings.externalProvider,
-                state.aiSettings.bridgeEnabled,
-                state.aiSettings.bridgeEnabled ? state.notes : [],
-                state.aiSettings.bridgeEnabled ? state.emails : [],
-                state.aiSettings.bridgeEnabled ? state.calendarEvents : [],
+                bridgeOk && state.aiSettings.bridgeEnabled,
+                bridgeOk && state.aiSettings.bridgeEnabled ? state.notes : [],
+                bridgeOk && state.aiSettings.bridgeEnabled ? state.emails : [],
+                bridgeOk && state.aiSettings.bridgeEnabled ? state.calendarEvents : [],
               )
 
         state.addChatMessage({ role: 'assistant', content: reply, mode })
@@ -441,7 +472,15 @@ export const useEtherMailStore = create<EtherMailState>()(
         bridgeEnabled: false,
       },
       setAISettings: (settings) =>
-        set((s) => ({ aiSettings: { ...s.aiSettings, ...settings } })),
+        set((s) => {
+          const filtered = { ...settings }
+          if (!canUseFeatureFromStore('ai_bridge', s)) delete filtered.bridgeEnabled
+          if (!canUseFeatureFromStore('external_ai', s)) {
+            delete filtered.externalApiKey
+            delete filtered.externalProvider
+          }
+          return { aiSettings: { ...s.aiSettings, ...filtered } }
+        }),
 
       weatherSettings: {
         fallbackCity: 'San Francisco',
@@ -1499,8 +1538,10 @@ export const useEtherMailStore = create<EtherMailState>()(
         microsoftClientId: '',
         yahooClientId: '',
       },
-      setOAuthSettings: (settings) =>
-        set((s) => ({ oauthSettings: { ...s.oauthSettings, ...settings } })),
+      setOAuthSettings: (settings) => {
+        if (!canUseFeatureFromStore('oauth_byo_client', get())) return
+        set((s) => ({ oauthSettings: { ...s.oauthSettings, ...settings } }))
+      },
 
       connectingAccountId: null,
       setConnectingAccountId: (connectingAccountId) => set({ connectingAccountId }),
@@ -1509,6 +1550,16 @@ export const useEtherMailStore = create<EtherMailState>()(
         const state = get()
         const account = state.accounts.find((a) => a.id === accountId)
         if (!account || account.connected) return
+        if (!canUseFeatureFromStore('connect_mailbox', state)) return
+        const providerFeature: FeatureId =
+          account.provider === 'gmail'
+            ? 'provider_gmail'
+            : account.provider === 'outlook'
+              ? 'provider_outlook'
+              : account.provider === 'yahoo'
+                ? 'provider_yahoo'
+                : 'provider_enterprise'
+        if (!canUseFeatureFromStore(providerFeature, state)) return
         const connectedCount = state.accounts.filter((a) => a.connected).length
         if (!canConnectMailbox(connectedCount, state.planTier)) return
         set({ connectingAccountId: accountId })
@@ -1652,7 +1703,26 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       gmailSyncingAccountId: null,
-      planTier: 'free',
+      planTier: 'team',
+      setPlanTier: (planTier) => set({ planTier }),
+
+      orgPolicy: DEFAULT_ORG_POLICY,
+      userRole: 'owner',
+      setOrgPolicy: (patch) => set((s) => ({ orgPolicy: mergeOrgPolicy(s.orgPolicy, patch) })),
+      setOrgFeature: (featureId, allowed) =>
+        set((s) => ({ orgPolicy: setOrgFeatureAllowed(s.orgPolicy, featureId, allowed) })),
+      setUserRole: (userRole) => set({ userRole }),
+      applyStrictEnterprisePolicy: () =>
+        set((s) => ({ orgPolicy: applyStrictEnterpriseDefaults(s.orgPolicy) })),
+      resetOrgPolicy: () => set({ orgPolicy: DEFAULT_ORG_POLICY }),
+      allowAllFeatures: () =>
+        set((s) => ({
+          orgPolicy: { ...s.orgPolicy, features: buildFeaturePolicy(true) },
+        })),
+      denyAllFeatures: () =>
+        set((s) => ({
+          orgPolicy: { ...s.orgPolicy, features: buildFeaturePolicy(false) },
+        })),
 
       disconnectAccount: (accountId) => {
         const state = get()
@@ -1704,7 +1774,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 14,
+      version: 15,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1904,6 +1974,13 @@ export const useEtherMailStore = create<EtherMailState>()(
             },
           }
         }
+        if (version < 15) {
+          next = {
+            ...next,
+            orgPolicy: DEFAULT_ORG_POLICY,
+            userRole: 'owner',
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1986,6 +2063,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         emailInboxOverrides: s.emailInboxOverrides,
         view: s.view,
         planTier: s.planTier,
+        orgPolicy: s.orgPolicy,
+        userRole: s.userRole,
       }),
     },
   ),
