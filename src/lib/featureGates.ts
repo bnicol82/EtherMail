@@ -70,3 +70,20 @@ export function canUseFeatureFromStore(
 ): boolean {
   return canUseFeature(featureId, featureGateFromStore(state))
 }
+
+/**
+ * When enforceLocks is on, denied features are hidden from members.
+ * Admins always see controls for configuration.
+ */
+export function isFeatureVisible(featureId: FeatureId, ctx: FeatureGateContext): boolean {
+  if (isOrgAdmin(ctx.userRole)) return true
+  if (canUseFeature(featureId, ctx)) return true
+  return !ctx.orgPolicy.enforceLocks
+}
+
+export function isFeatureVisibleFromStore(
+  featureId: FeatureId,
+  state: { orgPolicy: OrgPolicy; userRole: OrgRole; planTier: PlanTier },
+): boolean {
+  return isFeatureVisible(featureId, featureGateFromStore(state))
+}

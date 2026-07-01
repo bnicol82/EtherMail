@@ -31,7 +31,7 @@ export function appendAudit(
   state: PolicySlice,
   category: AuditCategory,
   action: string,
-  opts?: { featureId?: FeatureId; detail?: string; metadata?: Record<string, string> },
+  opts?: { featureId?: FeatureId; detail?: string; actorEmail?: string; metadata?: Record<string, string> },
 ): AuditEvent[] {
   return trimAuditLog([...state.auditLog, createAuditEvent(category, action, opts)])
 }

@@ -38,6 +38,7 @@ import { formatScheduledAt } from '../lib/scheduledSend'
 import { emailMatchesPerson } from '../lib/contactGraph'
 import { sortEmails, sortEmailThreads } from '../lib/emailListSort'
 import { VAULT_PERSONAL_ID } from '../data/seed'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import type { EmailFolder } from '../types'
 
 export function EmailView() {
@@ -105,6 +106,13 @@ export function EmailView() {
   const batchApplyEmailLabel = useEtherMailStore((s) => s.batchApplyEmailLabel)
   const threadViewEnabled = useEtherMailStore((s) => s.threadViewEnabled)
   const setThreadViewEnabled = useEtherMailStore((s) => s.setThreadViewEnabled)
+
+  const showThreadView = useFeatureVisible('thread_view')
+  const showFollowUp = useFeatureVisible('follow_up_filter')
+  const showBatchSelect = useFeatureVisible('batch_email_actions')
+  const showLabels = useFeatureVisible('email_labels')
+  const showAiInbox = useFeatureVisible('ai_inbox')
+  const showAiOutbox = useFeatureVisible('ai_outbox')
 
   const [filter, setFilter] = useState('')
   const [batchConfirmDelete, setBatchConfirmDelete] = useState(false)
@@ -373,6 +381,12 @@ export function EmailView() {
             onBatchConfirmDelete={setBatchConfirmDelete}
             batchLabelId={batchLabelId}
             onBatchLabelIdChange={setBatchLabelId}
+            showThreadView={showThreadView}
+            showFollowUp={showFollowUp}
+            showBatchSelect={showBatchSelect}
+            showLabels={showLabels}
+            showAiInbox={showAiInbox}
+            showAiOutbox={showAiOutbox}
           />
           <div className="flex-1 overflow-y-auto">
             {(threadViewEnabled ? threadedList.length : filtered.length) === 0 ? (

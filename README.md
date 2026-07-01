@@ -43,6 +43,20 @@ npm run preview
 
 The site will be live at **https://bnicol82.github.io/EtherMail/** after a successful deploy.
 
+## Enterprise API (local dev)
+
+Run the org policy API alongside Vite for server-backed admin sync:
+
+```bash
+# Terminal 1
+npm run org-api
+
+# Terminal 2
+npm run dev
+```
+
+`.env.development` sets `VITE_ORG_API_URL=/api` (proxied to `localhost:8787`). Admin → **Sync policy from API** pulls policy, members, vault shares, and audit events.
+
 ## Roadmap
 
 | Phase | Features |

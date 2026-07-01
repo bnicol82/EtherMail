@@ -1,5 +1,5 @@
 import { Link2, Sparkles, Wand2 } from 'lucide-react'
-import { useFeatureGate } from '../hooks/useFeatureGate'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import type { AutoLinkSuggestion } from '../lib/noteAssist'
 
 interface Props {
@@ -27,7 +27,7 @@ export function NoteAssistPanel({
   onAiFormat,
   compact,
 }: Props) {
-  const canAiAssist = useFeatureGate('note_ai_assist')
+  const canAiAssist = useFeatureVisible('note_ai_assist')
   const formatHandlers: Record<string, () => void> = {
     headings: onFormatHeadings,
     bullets: onFormatBullets,
