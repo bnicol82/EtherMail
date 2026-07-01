@@ -51,10 +51,19 @@ export interface OrgSession {
   memberId: string
   email: string
   role: OrgRole
+  authUserId?: string
+}
+
+export interface SupabaseAuthSession {
+  accessToken: string
+  refreshToken: string
+  expiresIn: number
+  authUserId?: string
 }
 
 export interface SsoCallbackResponse {
   sessionToken: string
   member: OrgMember
   role: OrgRole
+  supabaseAuth?: SupabaseAuthSession | null
 }

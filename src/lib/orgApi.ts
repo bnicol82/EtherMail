@@ -12,6 +12,14 @@ import { DEFAULT_ORG_POLICY } from './orgPolicy'
 
 const API_BASE = import.meta.env.VITE_ORG_API_URL ?? ''
 const SESSION_KEY = 'ethermail-org-session'
+const SUPABASE_AUTH_KEY = 'ethermail-supabase-auth'
+
+export interface StoredSupabaseAuth {
+  accessToken: string
+  refreshToken: string
+  expiresAt: number
+  authUserId?: string
+}
 
 /** True when a remote org policy API is configured */
 export function hasOrgApi(): boolean {
@@ -29,9 +37,30 @@ export function setOrgSessionToken(token: string | null): void {
   else localStorage.removeItem(SESSION_KEY)
 }
 
+export function getSupabaseAuth(): StoredSupabaseAuth | null {
+  if (typeof localStorage === 'undefined') return null
+  const raw = localStorage.getItem(SUPABASE_AUTH_KEY)
+  if (!raw) return null
+  try {
+    return JSON.parse(raw) as StoredSupabaseAuth
+  } catch {
+    return null
+  }
+}
+
+export function setSupabaseAuth(tokens: StoredSupabaseAuth | null): void {
+  if (typeof localStorage === 'undefined') return
+  if (tokens) localStorage.setItem(SUPABASE_AUTH_KEY, JSON.stringify(tokens))
+  else localStorage.removeItem(SUPABASE_AUTH_KEY)
+}
+
 function apiHeaders(json = false): HeadersInit {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (json) headers['Content-Type'] = 'application/json'
+  const supa = getSupabaseAuth()
+  if (supa?.accessToken && supa.expiresAt > Date.now()) {
+    headers.Authorization = `Bearer ${supa.accessToken}`
+  }
   const token = getOrgSessionToken()
   if (token) headers['X-EtherMail-Session'] = token
   return headers
