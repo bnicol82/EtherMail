@@ -48,6 +48,18 @@ export interface EmailAccount {
   syncMode?: 'demo' | 'oauth'
   /** Default vault for this account's mail and attachments */
   defaultVaultId?: string
+  /** OAuth tokens for live Gmail sync (stored locally in this demo SPA) */
+  oauthAccessToken?: string
+  oauthRefreshToken?: string
+  oauthExpiresAt?: string
+  lastSyncedAt?: string
+  syncError?: string | null
+}
+
+export interface OAuthConnectTokens {
+  accessToken: string
+  refreshToken?: string
+  expiresIn: number
 }
 
 export interface OAuthSettings {
