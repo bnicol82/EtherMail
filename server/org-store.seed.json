@@ -1,0 +1,55 @@
+{
+  "organizationId": "org-demo",
+  "planTier": "enterprise",
+  "policy": {
+    "organizationId": "org-demo",
+    "organizationName": "Demo Organization",
+    "enforceLocks": true,
+    "features": {}
+  },
+  "members": [
+    {
+      "id": "member-sarah",
+      "email": "sarah@acme.com",
+      "name": "Sarah Johnson",
+      "role": "admin",
+      "status": "active",
+      "joinedAt": "2025-01-15T00:00:00.000Z"
+    },
+    {
+      "id": "member-mike",
+      "email": "mike@acme.com",
+      "name": "Mike Chen",
+      "role": "member",
+      "status": "active",
+      "joinedAt": "2025-02-01T00:00:00.000Z"
+    },
+    {
+      "id": "member-pending",
+      "email": "pending@acme.com",
+      "name": "Pending User",
+      "role": "member",
+      "status": "invited",
+      "invitedAt": "2025-06-01T00:00:00.000Z"
+    }
+  ],
+  "vaultShares": [
+    {
+      "vaultId": "vault-work",
+      "memberIds": ["member-sarah", "member-mike"],
+      "permission": "write"
+    }
+  ],
+  "vaultShared": {
+    "vault-work": true
+  },
+  "sso": {
+    "enabled": false,
+    "provider": "none",
+    "tenantId": "",
+    "clientId": "",
+    "domain": "acme.com",
+    "enforceSso": false
+  },
+  "auditEvents": []
+}

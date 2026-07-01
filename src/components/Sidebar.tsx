@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import { useRef, useMemo } from 'react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
-import { canUseFeatureFromStore } from '../lib/featureGates'
+import { isFeatureVisibleFromStore } from '../lib/featureGates'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 import { useMenuScrollHaptic } from '../hooks/useMenuScrollHaptic'
@@ -53,7 +53,7 @@ export function Sidebar() {
   const unreadAlertCount = useUnreadAlertCount()
   const userRole = useEtherMailStore((s) => s.userRole)
   const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
-  const canGraph = useEtherMailStore((s) => canUseFeatureFromStore('graph_view', s))
+  const canGraph = useEtherMailStore((s) => isFeatureVisibleFromStore('graph_view', s))
   const navItems = useMemo(
     () => NAV.filter(({ id }) => id !== 'graph' || canGraph),
     [canGraph],

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import {
   ArrowLeft,
   Shield,
@@ -29,6 +29,7 @@ import { AuditLogPanel } from './admin/AuditLogPanel'
 import { MembersPanel } from './admin/MembersPanel'
 import { SharedVaultsPanel } from './admin/SharedVaultsPanel'
 import { SsoConfigPanel } from './admin/SsoConfigPanel'
+import { hasOrgApi } from '../lib/orgApi'
 
 const ROLES: { id: OrgRole; label: string }[] = [
   { id: 'member', label: 'Member' },
@@ -67,10 +68,15 @@ export function AdminView() {
   const resetOrgPolicy = useEtherMailStore((s) => s.resetOrgPolicy)
   const allowAllFeatures = useEtherMailStore((s) => s.allowAllFeatures)
   const denyAllFeatures = useEtherMailStore((s) => s.denyAllFeatures)
+  const syncOrgFromApi = useEtherMailStore((s) => s.syncOrgFromApi)
 
   const [search, setSearch] = useState('')
   const [activeCategory, setActiveCategory] = useState<FeatureCategory | 'all'>('all')
   const [tab, setTab] = useState<AdminTab>('policy')
+
+  useEffect(() => {
+    if (hasOrgApi()) void syncOrgFromApi()
+  }, [syncOrgFromApi])
 
   const gateCtx = useMemo(
     () => featureGateFromStore({ orgPolicy, userRole: 'member', planTier }),

@@ -37,9 +37,24 @@ export interface OrgApiPolicyResponse {
   vaultShares: VaultShare[]
   sso: SsoConfig
   syncedAt: string
+  planTier?: string
+  vaultShared?: Record<string, boolean>
 }
 
 export interface OrgApiAuditResponse {
   events: AuditEvent[]
   cursor?: string
+}
+
+export interface OrgSession {
+  sessionToken: string
+  memberId: string
+  email: string
+  role: OrgRole
+}
+
+export interface SsoCallbackResponse {
+  sessionToken: string
+  member: OrgMember
+  role: OrgRole
 }

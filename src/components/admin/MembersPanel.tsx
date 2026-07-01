@@ -18,7 +18,7 @@ export function MembersPanel() {
   const invite = () => {
     const trimmed = email.trim()
     if (!trimmed) return
-    inviteOrgMember({ email: trimmed, name: name.trim() || trimmed.split('@')[0], role })
+    void inviteOrgMember({ email: trimmed, name: name.trim() || trimmed.split('@')[0], role })
     setEmail('')
     setName('')
     setRole('member')

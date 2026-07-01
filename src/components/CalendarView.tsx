@@ -15,7 +15,7 @@ import {
   startOfWeek,
 } from '../lib/utils'
 import { useSnapScrollFeedback } from '../hooks/useSnapScrollFeedback'
-import { useFeatureGate } from '../hooks/useFeatureGate'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { EventDetailBox } from './EventDetailBox'
 import { EventChip, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
@@ -116,7 +116,7 @@ export function CalendarView() {
   const [fullCalendarOpen, setFullCalendarOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [importHint, setImportHint] = useState<string | null>(null)
-  const canCalendarImportExport = useFeatureGate('calendar_import_export')
+  const canCalendarImportExport = useFeatureVisible('calendar_import_export')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const fullCalScrollRef = useRef<HTMLDivElement>(null)
   const skipMonthFeedback = useRef(false)

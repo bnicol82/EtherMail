@@ -87,6 +87,14 @@ interface Props {
   onBatchConfirmDelete: (confirm: boolean) => void
   batchLabelId: string
   onBatchLabelIdChange: (id: string) => void
+
+  /** Hide toolbar controls when enforceLocks denies a feature */
+  showThreadView?: boolean
+  showFollowUp?: boolean
+  showBatchSelect?: boolean
+  showLabels?: boolean
+  showAiInbox?: boolean
+  showAiOutbox?: boolean
 }
 
 export function EmailInboxPanelHeader({
@@ -134,6 +142,12 @@ export function EmailInboxPanelHeader({
   onBatchConfirmDelete,
   batchLabelId,
   onBatchLabelIdChange,
+  showThreadView = true,
+  showFollowUp = true,
+  showBatchSelect = true,
+  showLabels = true,
+  showAiInbox = true,
+  showAiOutbox = true,
 }: Props) {
   const isInbox = activeEmailFolder === 'inbox'
   const [labelsOpen, setLabelsOpen] = useState(!!activeLabelFilter)
@@ -242,24 +256,28 @@ export function EmailInboxPanelHeader({
       <div className="flex items-center gap-0.5 flex-wrap">
         {isInbox && (
           <>
-            <ToolButton
-              active={aiInboxEnabled}
-              onClick={onToggleAiInbox}
-              title="AI Inbox — show important mail only"
-              label="AI In"
-            >
-              <Bot size={12} />
-            </ToolButton>
-            <ToolButton
-              active={aiOutboxEnabled}
-              onClick={onToggleAiOutbox}
-              title="AI Outbox — review filtered junk"
-              label="AI Out"
-              activeClass="bg-red-500/90 text-white"
-            >
-              <ShieldOff size={12} />
-            </ToolButton>
-            {aiOutboxEnabled && inboxStats.hidden > 0 && (
+            {showAiInbox && (
+              <ToolButton
+                active={aiInboxEnabled}
+                onClick={onToggleAiInbox}
+                title="AI Inbox — show important mail only"
+                label="AI In"
+              >
+                <Bot size={12} />
+              </ToolButton>
+            )}
+            {showAiOutbox && (
+              <ToolButton
+                active={aiOutboxEnabled}
+                onClick={onToggleAiOutbox}
+                title="AI Outbox — review filtered junk"
+                label="AI Out"
+                activeClass="bg-red-500/90 text-white"
+              >
+                <ShieldOff size={12} />
+              </ToolButton>
+            )}
+            {showAiOutbox && aiOutboxEnabled && inboxStats.hidden > 0 && (
               <ToolButton
                 active={confirmDeleteOutbox}
                 onClick={() => setConfirmDeleteOutbox((c) => !c)}
@@ -270,35 +288,41 @@ export function EmailInboxPanelHeader({
                 <Trash2 size={12} />
               </ToolButton>
             )}
-            <ToolButton
-              active={followUpFilterEnabled}
-              onClick={onToggleFollowUp}
-              title="Needs follow-up"
-              label={followUpCount > 0 ? String(followUpCount) : undefined}
-              activeClass="bg-amber-500/20 text-amber-400 border border-amber-500/30"
-            >
-              <MailWarning size={12} />
-            </ToolButton>
+            {showFollowUp && (
+              <ToolButton
+                active={followUpFilterEnabled}
+                onClick={onToggleFollowUp}
+                title="Needs follow-up"
+                label={followUpCount > 0 ? String(followUpCount) : undefined}
+                activeClass="bg-amber-500/20 text-amber-400 border border-amber-500/30"
+              >
+                <MailWarning size={12} />
+              </ToolButton>
+            )}
           </>
         )}
-        <ToolButton
-          active={threadViewEnabled}
-          onClick={onToggleThreadView}
-          title={threadViewEnabled ? 'Thread view' : 'List view'}
-        >
-          {threadViewEnabled ? <MessagesSquare size={12} /> : <List size={12} />}
-        </ToolButton>
-        <ToolButton
-          active={emailSelectionMode}
-          onClick={() => {
-            if (emailSelectionMode) onClearSelection()
-            else onToggleSelectionMode()
-          }}
-          title="Select messages"
-        >
-          {emailSelectionMode ? <CheckSquare size={12} /> : <Square size={12} />}
-        </ToolButton>
-        {emailLabels.length > 0 && (
+        {showThreadView && (
+          <ToolButton
+            active={threadViewEnabled}
+            onClick={onToggleThreadView}
+            title={threadViewEnabled ? 'Thread view' : 'List view'}
+          >
+            {threadViewEnabled ? <MessagesSquare size={12} /> : <List size={12} />}
+          </ToolButton>
+        )}
+        {showBatchSelect && (
+          <ToolButton
+            active={emailSelectionMode}
+            onClick={() => {
+              if (emailSelectionMode) onClearSelection()
+              else onToggleSelectionMode()
+            }}
+            title="Select messages"
+          >
+            {emailSelectionMode ? <CheckSquare size={12} /> : <Square size={12} />}
+          </ToolButton>
+        )}
+        {showLabels && emailLabels.length > 0 && (
           <ToolButton
             active={labelsOpen || labelsActive}
             onClick={() => setLabelsOpen((o) => !o)}
@@ -328,7 +352,7 @@ export function EmailInboxPanelHeader({
         )}
       </div>
 
-      {confirmDeleteOutbox && aiOutboxEnabled && inboxStats.hidden > 0 && (
+      {confirmDeleteOutbox && showAiOutbox && aiOutboxEnabled && inboxStats.hidden > 0 && (
         <div className="glass rounded-lg p-2 border border-red-500/30 space-y-2">
           <p className="text-[10px] text-theme-secondary text-center">
             Delete all {inboxStats.hidden} filtered email{inboxStats.hidden === 1 ? '' : 's'}? They
@@ -357,7 +381,7 @@ export function EmailInboxPanelHeader({
       )}
 
       {/* Expandable: AI details */}
-      {isInbox && aiDetailsOpen && (aiInboxEnabled || aiOutboxEnabled) && (
+      {isInbox && aiDetailsOpen && (aiInboxEnabled || aiOutboxEnabled) && (showAiInbox || showAiOutbox) && (
         <AIInboxBar
           compact
           inboxEnabled={aiInboxEnabled}
@@ -370,7 +394,7 @@ export function EmailInboxPanelHeader({
       )}
 
       {/* Expandable: labels */}
-      {labelsOpen && (
+      {labelsOpen && showLabels && (
         <EmailLabelsBar
           compact
           labels={emailLabels}
@@ -383,7 +407,7 @@ export function EmailInboxPanelHeader({
       )}
 
       {/* Batch actions */}
-      {emailSelectionMode && selectedCount > 0 && (
+      {showBatchSelect && emailSelectionMode && selectedCount > 0 && (
         <div className="glass rounded-lg p-1.5 space-y-1">
           <div className="flex items-center justify-between gap-2 px-0.5">
             <span className="text-[10px] text-theme-muted">{selectedCount} selected</span>

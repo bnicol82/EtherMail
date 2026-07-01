@@ -33,9 +33,10 @@ import {
 import { canUseFeatureFromStore, getFeatureDenialReason } from '../lib/featureGates'
 import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
 import { appendAudit, auditAiQuery, gateOrToast } from '../lib/storePolicy'
+import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
-import type { OrgMember, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
-import { fetchOrgPolicy, hasOrgApi, pushOrgPolicy } from '../lib/orgApi'
+import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
+import { fetchOrgPolicy, hasOrgApi, pushOrgPolicy, fetchAuditLog, pushAuditEvents, apiInviteMember, apiUpdateMember, apiRemoveMember, apiUpdateVaultShares, apiUpdateSsoConfig, exchangeSsoCode, setOrgSessionToken } from '../lib/orgApi'
 import {
   DEFAULT_EMAIL_FOLDER_SORT,
   normalizeEmailFolderSort,
@@ -94,6 +95,24 @@ import {
 import { DAILY_FOLDER_ID } from '../data/seed'
 import { findFreeSlots, formatProposalEmail } from '../lib/smartPropose'
 import { materializeEmailAttachments } from '../lib/composeAttachments'
+
+function mergeAuditLogs(local: AuditEvent[], remote: AuditEvent[]): AuditEvent[] {
+  const byId = new Map<string, AuditEvent>()
+  for (const event of [...local, ...remote]) byId.set(event.id, event)
+  return trimAuditLog(
+    [...byId.values()].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+  )
+}
+
+async function pushVaultSharesToApi(state: {
+  vaults: Vault[]
+  vaultShares: VaultShare[]
+}) {
+  const vaultShared = Object.fromEntries(
+    state.vaults.filter((v) => v.shared).map((v) => [v.id, true]),
+  )
+  await apiUpdateVaultShares({ vaultShares: state.vaultShares, vaultShared })
+}
 
 function uniquePush(arr: string[], value: string): string[] {
   const v = value.toLowerCase()
@@ -308,13 +327,20 @@ interface EtherMailState {
   policySyncStatus: string | null
   syncOrgFromApi: () => Promise<void>
   orgMembers: OrgMember[]
-  inviteOrgMember: (member: { email: string; name: string; role: OrgRole }) => void
-  updateOrgMemberRole: (memberId: string, role: OrgRole) => void
-  removeOrgMember: (memberId: string) => void
+  inviteOrgMember: (member: { email: string; name: string; role: OrgRole }) => Promise<void>
+  updateOrgMemberRole: (memberId: string, role: OrgRole) => Promise<void>
+  removeOrgMember: (memberId: string) => Promise<void>
   vaultShares: VaultShare[]
   setVaultShared: (vaultId: string, shared: boolean) => void
   setVaultSharePermission: (vaultId: string, permission: VaultSharePermission) => void
   toggleVaultShareMember: (vaultId: string, memberId: string) => void
+
+  orgSession: OrgSession | null
+  completeSsoLogin: (code: string, email?: string) => Promise<void>
+  clearOrgSession: () => void
+  auditSyncCursor: string | null
+  flushAuditToApi: () => Promise<void>
+  syncAuditFromApi: () => Promise<void>
 
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
@@ -1987,43 +2013,134 @@ export const useEtherMailStore = create<EtherMailState>()(
         domain: '',
         enforceSso: false,
       },
-      setSsoConfig: (config) =>
+      setSsoConfig: (config) => {
         set((s) => ({
           ssoConfig: { ...s.ssoConfig, ...config },
           auditLog: appendAudit(s, 'admin', 'sso_config_updated', {
             detail: config.provider ?? s.ssoConfig.provider,
           }),
-        })),
+        }))
+        if (hasOrgApi()) {
+          const next = { ...get().ssoConfig, ...config }
+          void apiUpdateSsoConfig(next).catch(() => {})
+        }
+      },
       policySyncStatus: null,
       syncOrgFromApi: async () => {
         const state = get()
         set({ policySyncStatus: 'Syncing…' })
         try {
+          await get().flushAuditToApi()
           const res = await fetchOrgPolicy(state.orgPolicy)
+          const vaultShared = res.vaultShared ?? {}
           set({
             orgPolicy: res.policy,
             orgMembers: res.members.length > 0 ? res.members : state.orgMembers,
             vaultShares: res.vaultShares.length > 0 ? res.vaultShares : state.vaultShares,
             ssoConfig: res.sso,
+            planTier: (res.planTier as PlanTier) ?? state.planTier,
+            vaults: state.vaults.map((v) => ({
+              ...v,
+              shared: vaultShared[v.id] ?? v.shared,
+            })),
             policySyncStatus: `Synced at ${new Date(res.syncedAt).toLocaleTimeString()}`,
             auditLog: appendAudit(state, 'admin', 'policy_synced', {
               detail: res.organizationId,
             }),
           })
+          await get().syncAuditFromApi()
         } catch (err) {
           const message = err instanceof Error ? err.message : 'Sync failed'
           set({
             policySyncStatus: message,
-            auditLog: appendAudit(state, 'admin', 'policy_sync_failed', { detail: message }),
+            auditLog: appendAudit(get(), 'admin', 'policy_sync_failed', { detail: message }),
           })
         }
       },
+      orgSession: null,
+      completeSsoLogin: async (code, email) => {
+        const state = get()
+        try {
+          const res = await exchangeSsoCode(code, { email })
+          setOrgSessionToken(res.sessionToken)
+          const session: OrgSession = {
+            sessionToken: res.sessionToken,
+            memberId: res.member.id,
+            email: res.member.email,
+            role: res.role,
+          }
+          set({
+            orgSession: session,
+            userRole: res.role,
+            auditLog: appendAudit(state, 'auth', 'sso_login', {
+              detail: res.member.email,
+              actorEmail: res.member.email,
+            }),
+          })
+          await get().flushAuditToApi()
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'SSO login failed'
+          set({
+            policyToast: message,
+            auditLog: appendAudit(state, 'auth', 'sso_login_failed', { detail: message }),
+          })
+        }
+      },
+      clearOrgSession: () => {
+        setOrgSessionToken(null)
+        set({ orgSession: null })
+      },
+      auditSyncCursor: null,
+      flushAuditToApi: async () => {
+        if (!hasOrgApi()) return
+        const state = get()
+        const pending = state.auditSyncCursor
+          ? state.auditLog.filter((e) => e.timestamp > state.auditSyncCursor!)
+          : state.auditLog
+        if (pending.length === 0) return
+        await pushAuditEvents(pending)
+        set({ auditSyncCursor: pending.at(-1)?.timestamp ?? state.auditSyncCursor })
+      },
+      syncAuditFromApi: async () => {
+        if (!hasOrgApi()) return
+        const state = get()
+        const res = await fetchAuditLog(state.auditSyncCursor)
+        if (res.events.length === 0) return
+        set({
+          auditLog: mergeAuditLogs(state.auditLog, res.events),
+          auditSyncCursor: res.cursor ?? res.events.at(-1)?.timestamp ?? state.auditSyncCursor,
+        })
+      },
       orgMembers: SEED_ORG_MEMBERS,
-      inviteOrgMember: ({ email, name, role }) => {
+      inviteOrgMember: async ({ email, name, role }) => {
         const state = get()
         const trimmed = email.trim().toLowerCase()
         if (!trimmed) return
         if (state.orgMembers.some((m) => m.email.toLowerCase() === trimmed)) return
+
+        if (hasOrgApi()) {
+          try {
+            const member = await apiInviteMember({
+              email: trimmed,
+              name: name.trim() || trimmed.split('@')[0],
+              role,
+            })
+            set({
+              orgMembers: [...state.orgMembers, member],
+              auditLog: appendAudit(state, 'admin', 'member_invited', {
+                detail: `${member.name} <${trimmed}>`,
+              }),
+            })
+            void get().flushAuditToApi()
+            return
+          } catch (err) {
+            set({
+              policyToast: err instanceof Error ? err.message : 'Invite failed',
+            })
+            return
+          }
+        }
+
         const member: OrgMember = {
           id: `member-${Date.now()}`,
           email: trimmed,
@@ -2039,7 +2156,24 @@ export const useEtherMailStore = create<EtherMailState>()(
           }),
         })
       },
-      updateOrgMemberRole: (memberId, role) =>
+      updateOrgMemberRole: async (memberId, role) => {
+        const state = get()
+        if (hasOrgApi()) {
+          try {
+            const updated = await apiUpdateMember(memberId, { role })
+            set({
+              orgMembers: state.orgMembers.map((m) => (m.id === memberId ? updated : m)),
+              auditLog: appendAudit(state, 'admin', 'member_role_updated', {
+                detail: `${updated.email} → ${role}`,
+              }),
+            })
+            void get().flushAuditToApi()
+            return
+          } catch (err) {
+            set({ policyToast: err instanceof Error ? err.message : 'Update failed' })
+            return
+          }
+        }
         set((s) => {
           const member = s.orgMembers.find((m) => m.id === memberId)
           return {
@@ -2048,8 +2182,17 @@ export const useEtherMailStore = create<EtherMailState>()(
               detail: member ? `${member.email} → ${role}` : memberId,
             }),
           }
-        }),
-      removeOrgMember: (memberId) =>
+        })
+      },
+      removeOrgMember: async (memberId) => {
+        if (hasOrgApi()) {
+          try {
+            await apiRemoveMember(memberId)
+          } catch (err) {
+            set({ policyToast: err instanceof Error ? err.message : 'Remove failed' })
+            return
+          }
+        }
         set((s) => {
           const member = s.orgMembers.find((m) => m.id === memberId)
           return {
@@ -2062,7 +2205,9 @@ export const useEtherMailStore = create<EtherMailState>()(
               detail: member?.email ?? memberId,
             }),
           }
-        }),
+        })
+        if (hasOrgApi()) void get().flushAuditToApi()
+      },
       vaultShares: [
         {
           vaultId: VAULT_WORK_ID,
@@ -2097,8 +2242,12 @@ export const useEtherMailStore = create<EtherMailState>()(
             detail: vaultId,
           }),
         }))
+        if (hasOrgApi()) {
+          void pushVaultSharesToApi(get()).catch(() => {})
+          void get().flushAuditToApi()
+        }
       },
-      setVaultSharePermission: (vaultId, permission) =>
+      setVaultSharePermission: (vaultId, permission) => {
         set((s) => ({
           vaultShares: s.vaultShares.map((vs) =>
             vs.vaultId === vaultId ? { ...vs, permission } : vs,
@@ -2106,8 +2255,13 @@ export const useEtherMailStore = create<EtherMailState>()(
           auditLog: appendAudit(s, 'vault', 'vault_permission_updated', {
             detail: `${vaultId}: ${permission}`,
           }),
-        })),
-      toggleVaultShareMember: (vaultId, memberId) =>
+        }))
+        if (hasOrgApi()) {
+          void pushVaultSharesToApi(get()).catch(() => {})
+          void get().flushAuditToApi()
+        }
+      },
+      toggleVaultShareMember: (vaultId, memberId) => {
         set((s) => ({
           vaultShares: s.vaultShares.map((vs) => {
             if (vs.vaultId !== vaultId) return vs
@@ -2120,7 +2274,12 @@ export const useEtherMailStore = create<EtherMailState>()(
             }
           }),
           auditLog: appendAudit(s, 'vault', 'vault_member_toggled', { detail: vaultId }),
-        })),
+        }))
+        if (hasOrgApi()) {
+          void pushVaultSharesToApi(get()).catch(() => {})
+          void get().flushAuditToApi()
+        }
+      },
 
       disconnectAccount: (accountId) => {
         const state = get()
@@ -2172,7 +2331,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 16,
+      version: 17,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -2406,6 +2565,13 @@ export const useEtherMailStore = create<EtherMailState>()(
             ),
           }
         }
+        if (version < 17) {
+          next = {
+            ...next,
+            orgSession: null,
+            auditSyncCursor: null,
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -2494,6 +2660,8 @@ export const useEtherMailStore = create<EtherMailState>()(
         ssoConfig: s.ssoConfig,
         orgMembers: s.orgMembers,
         vaultShares: s.vaultShares,
+        orgSession: s.orgSession,
+        auditSyncCursor: s.auditSyncCursor,
       }),
     },
   ),

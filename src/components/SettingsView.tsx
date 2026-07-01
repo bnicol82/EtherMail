@@ -7,7 +7,7 @@ import { canConnectMailbox, PLAN_LABELS, planLimits } from '../lib/plan'
 import { clearWeatherCache } from '../lib/weather'
 import { getAvailableVoices, speakText, isListeningSupported, isSpeechSupported } from '../lib/voice'
 import { buttonClickFeedback } from '../lib/uiFeedback'
-import { useFeatureGate } from '../hooks/useFeatureGate'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import type { AssistantPersonality, Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -50,9 +50,9 @@ export function SettingsView() {
   const setFeedbackSettings = useEtherMailStore((s) => s.setFeedbackSettings)
   const userRole = useEtherMailStore((s) => s.userRole)
   const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
-  const canExternalAi = useFeatureGate('external_ai')
-  const canBridge = useFeatureGate('ai_bridge')
-  const canOAuthByo = useFeatureGate('oauth_byo_client')
+  const canExternalAi = useFeatureVisible('external_ai')
+  const canBridge = useFeatureVisible('ai_bridge')
+  const canOAuthByo = useFeatureVisible('oauth_byo_client')
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 

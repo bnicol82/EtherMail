@@ -19,6 +19,7 @@ import { ProactiveAssistant } from './components/ProactiveAssistant'
 import { PolicyToast } from './components/PolicyToast'
 import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
+import { validateSsoCallback } from './lib/sso'
 import { unlockTouchAudio } from './lib/touchFeedback'
 import { buttonClickFeedback } from './lib/uiFeedback'
 import { Menu, SquarePen } from 'lucide-react'
@@ -57,6 +58,7 @@ export default function App() {
   const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const completeOAuthConnect = useEtherMailStore((s) => s.completeOAuthConnect)
+  const completeSsoLogin = useEtherMailStore((s) => s.completeSsoLogin)
   const openCompose = useEtherMailStore((s) => s.openCompose)
   const composeDraft = useEtherMailStore((s) => s.composeDraft)
 
@@ -74,6 +76,14 @@ export default function App() {
     const state = params.get('state')
     if (!code || !state) return
 
+    if (validateSsoCallback(state)) {
+      void completeSsoLogin(code).then(() => {
+        const path = window.location.pathname
+        window.history.replaceState({}, '', path)
+      })
+      return
+    }
+
     handleOAuthCallback(code, state, oauthSettings).then((result) => {
       if (result) {
         void completeOAuthConnect(result.accountId, {
@@ -83,7 +93,7 @@ export default function App() {
         })
       }
     })
-  }, [oauthSettings, completeOAuthConnect])
+  }, [oauthSettings, completeOAuthConnect, completeSsoLogin])
 
   useEffect(() => {
     const unlock = () => unlockTouchAudio()
