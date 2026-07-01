@@ -7,6 +7,7 @@ import { canConnectMailbox, PLAN_LABELS, planLimits } from '../lib/plan'
 import { clearWeatherCache } from '../lib/weather'
 import { getAvailableVoices, speakText, isListeningSupported, isSpeechSupported } from '../lib/voice'
 import { buttonClickFeedback } from '../lib/uiFeedback'
+import { useFeatureGate } from '../hooks/useFeatureGate'
 import type { AssistantPersonality, Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -47,6 +48,11 @@ export function SettingsView() {
   const setAiInboxEnabled = useEtherMailStore((s) => s.setAiInboxEnabled)
   const feedbackSettings = useEtherMailStore((s) => s.feedbackSettings)
   const setFeedbackSettings = useEtherMailStore((s) => s.setFeedbackSettings)
+  const userRole = useEtherMailStore((s) => s.userRole)
+  const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
+  const canExternalAi = useFeatureGate('external_ai')
+  const canBridge = useFeatureGate('ai_bridge')
+  const canOAuthByo = useFeatureGate('oauth_byo_client')
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
@@ -112,6 +118,29 @@ export function SettingsView() {
           </p>
         )}
       </section>
+
+      {canAccessAdmin && (
+        <section className="glass rounded-xl p-5 mb-6 border border-[var(--accent-border)]/30">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <Shield size={18} className="text-accent" />
+                <h2 className="font-semibold text-theme">Organization admin</h2>
+              </div>
+              <p className="text-xs text-theme-muted">
+                Manage feature allow/deny policy for all members.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setView('admin')}
+              className="shrink-0 px-4 py-2 rounded-xl btn-accent text-sm font-medium"
+            >
+              Open admin
+            </button>
+          </div>
+        </section>
+      )}
 
       {/* Theme */}
       <section className="glass rounded-xl p-5 mb-6">
@@ -399,6 +428,10 @@ export function SettingsView() {
           Keys are stored locally in your browser and never sent to our servers.
         </p>
 
+        {!canExternalAi ? (
+          <p className="text-xs text-amber-500">External AI is disabled by your organization admin.</p>
+        ) : (
+        <>
         <label className="block text-sm text-theme-muted mb-2">Provider</label>
         <select
           value={aiSettings.externalProvider}
@@ -425,6 +458,8 @@ export function SettingsView() {
         <p className="text-xs text-theme-muted mt-2 opacity-70">
           Demo mode: responses are simulated on GitHub Pages. Production will call your provider directly.
         </p>
+        </>
+        )}
       </section>
 
       {/* Bridge mode */}
@@ -436,6 +471,9 @@ export function SettingsView() {
         <p className="text-sm text-theme-muted mb-4">
           When enabled, External AI receives curated vault excerpts (notes, emails, calendar) as a context packet — never your full vault.
         </p>
+        {!canBridge ? (
+          <p className="text-xs text-amber-500">Bridge mode is disabled by your organization admin.</p>
+        ) : (
         <label className="flex items-center gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -445,6 +483,7 @@ export function SettingsView() {
           />
           <span className="text-sm text-theme-secondary">Enable Bridge mode</span>
         </label>
+        )}
       </section>
 
       {/* AI modes explainer */}
@@ -481,6 +520,9 @@ export function SettingsView() {
           Leave blank to use demo connect with simulated data. Gmail sync requires a Google client ID
           with Gmail API enabled.
         </p>
+        {!canOAuthByo ? (
+          <p className="text-xs text-amber-500">Custom OAuth clients are disabled by your organization admin.</p>
+        ) : (
         <div className="space-y-3">
           <div>
             <label className="block text-xs text-theme-muted mb-1">Google (Gmail)</label>
@@ -510,6 +552,7 @@ export function SettingsView() {
             />
           </div>
         </div>
+        )}
       </section>
 
       {/* Email accounts */}

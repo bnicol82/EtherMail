@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'email' | 'vault' | 'calendar' | 'notes' | 'graph' | 'ai' | 'settings'
+export type View = 'dashboard' | 'email' | 'vault' | 'calendar' | 'notes' | 'graph' | 'ai' | 'settings' | 'admin'
 
 export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'scheduled' | 'archive' | 'trash'
 

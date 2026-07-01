@@ -9,6 +9,7 @@ import {
   type ShareResult,
 } from '../lib/shareNote'
 import { downloadNoteHtml } from '../lib/markdownExport'
+import { useFeatureGate } from '../hooks/useFeatureGate'
 
 interface Props {
   note: Pick<Note, 'title' | 'content'>
@@ -16,6 +17,8 @@ interface Props {
 }
 
 export function ShareNoteButton({ note, className = '' }: Props) {
+  const canExport = useFeatureGate('note_export')
+  const canShare = useFeatureGate('note_share')
   const [open, setOpen] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -42,6 +45,8 @@ export function ShareNoteButton({ note, className = '' }: Props) {
     }
   }
 
+  if (!canExport && !canShare) return null
+
   return (
     <div className={`relative ${className}`} ref={ref}>
       <button
@@ -66,41 +71,49 @@ export function ShareNoteButton({ note, className = '' }: Props) {
 
       {open && !feedback && (
         <div className="absolute top-full right-0 mt-1 z-50 min-w-[10.5rem] glass-frost rounded-xl border border-[var(--glass-border)] shadow-xl p-1.5">
-          <button
-            type="button"
-            onClick={() => run(() => exportNotePdf(note))}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
-          >
-            <Printer size={14} className="text-accent shrink-0" />
-            Save as PDF
-          </button>
-          <button
-            type="button"
-            onClick={() => run(() => shareNote(note))}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
-          >
-            <Share2 size={14} className="text-accent shrink-0" />
-            Share formatted
-          </button>
-          <button
-            type="button"
-            onClick={() => run(() => copyNoteMarkdown(note))}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
-          >
-            <Copy size={14} className="text-accent shrink-0" />
-            Copy markdown
-          </button>
-          <button
-            type="button"
-            onClick={() => run(() => {
-              downloadNoteHtml(note)
-              return 'downloaded'
-            })}
-            className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
-          >
-            <FileText size={14} className="text-accent shrink-0" />
-            Download HTML
-          </button>
+          {canExport && (
+            <button
+              type="button"
+              onClick={() => run(() => exportNotePdf(note))}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
+            >
+              <Printer size={14} className="text-accent shrink-0" />
+              Save as PDF
+            </button>
+          )}
+          {canShare && (
+            <button
+              type="button"
+              onClick={() => run(() => shareNote(note))}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
+            >
+              <Share2 size={14} className="text-accent shrink-0" />
+              Share formatted
+            </button>
+          )}
+          {canExport && (
+            <button
+              type="button"
+              onClick={() => run(() => copyNoteMarkdown(note))}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
+            >
+              <Copy size={14} className="text-accent shrink-0" />
+              Copy markdown
+            </button>
+          )}
+          {canExport && (
+            <button
+              type="button"
+              onClick={() => run(() => {
+                downloadNoteHtml(note)
+                return 'downloaded'
+              })}
+              className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
+            >
+              <FileText size={14} className="text-accent shrink-0" />
+              Download HTML
+            </button>
+          )}
         </div>
       )}
     </div>

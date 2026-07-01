@@ -1,4 +1,4 @@
-export type PlanTier = 'free' | 'pro' | 'team'
+export type PlanTier = 'free' | 'pro' | 'team' | 'enterprise'
 
 export interface PlanLimits {
   maxMailboxes: number
@@ -34,12 +34,21 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     vaultStorageMb: 51_200,
     sharedVaults: true,
   },
+  enterprise: {
+    maxMailboxes: Number.POSITIVE_INFINITY,
+    maxVaults: Number.POSITIVE_INFINITY,
+    aiQueriesPerMonth: Number.POSITIVE_INFINITY,
+    backgroundSync: true,
+    vaultStorageMb: 102_400,
+    sharedVaults: true,
+  },
 }
 
 export const PLAN_LABELS: Record<PlanTier, string> = {
   free: 'Free',
   pro: 'Pro',
   team: 'Team',
+  enterprise: 'Enterprise',
 }
 
 export function planLimits(tier: PlanTier = 'free'): PlanLimits {
