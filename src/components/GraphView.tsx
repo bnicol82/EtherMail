@@ -3,7 +3,10 @@ import {
   Focus,
   Mail,
   Maximize2,
+  PanelLeftClose,
+  PanelLeftOpen,
   RotateCcw,
+  X,
   ZoomIn,
   ZoomOut,
 } from 'lucide-react'
@@ -45,6 +48,8 @@ export function GraphView() {
   const containerRef = useRef<HTMLDivElement>(null)
   const positionsRef = useRef<Map<string, GraphPosition>>(new Map())
   const pinnedRef = useRef<Set<string>>(new Set())
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinchRef = useRef<{ distance: number; zoom: number; panX: number; panY: number } | null>(null)
 
   const [search, setSearch] = useState('')
   const [types, setTypes] = useState<Set<GraphNode['type']>>(() => new Set(ALL_NODE_TYPES))
@@ -61,6 +66,10 @@ export function GraphView() {
   const [panning, setPanning] = useState<{ sx: number; sy: number; panX: number; panY: number } | null>(
     null,
   )
+  const [filtersOpen, setFiltersOpen] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth >= 1024,
+  )
+  const [isPinching, setIsPinching] = useState(false)
   const [, bumpFrame] = useState(0)
 
   const activeVault = vaults.find((v) => v.id === activeVaultId)
@@ -147,6 +156,34 @@ export function GraphView() {
     const fit = fitCameraToBounds(positionsRef.current, canvasSize.w, canvasSize.h)
     setCamera(fit)
   }, [canvasSize])
+
+  const clearSelection = useCallback(() => {
+    setSelectedId(null)
+    setHoveredId(null)
+    setLocalGraph(false)
+    setDragging(null)
+  }, [])
+
+  const zoomAt = useCallback(
+    (sx: number, sy: number, factor: number) => {
+      setCamera((c) => {
+        const worldX = (sx - c.panX) / c.zoom
+        const worldY = (sy - c.panY) / c.zoom
+        const zoom = Math.min(3.5, Math.max(0.2, c.zoom * factor))
+        return { zoom, panX: sx - worldX * zoom, panY: sy - worldY * zoom }
+      })
+    },
+    [],
+  )
+
+  const pointerDistance = (a: { x: number; y: number }, b: { x: number; y: number }) =>
+    Math.hypot(a.x - b.x, a.y - b.y)
+
+  const getPinchCenter = (rect: DOMRect) => {
+    const pts = [...activePointersRef.current.values()]
+    if (pts.length < 2) return { x: rect.width / 2, y: rect.height / 2 }
+    return { x: (pts[0].x + pts[1].x) / 2 - rect.left, y: (pts[0].y + pts[1].y) / 2 - rect.top }
+  }
 
   useEffect(() => {
     if (positions.size > 0) fitView()
@@ -314,8 +351,29 @@ export function GraphView() {
   ])
 
   const onPointerDown = (e: React.PointerEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect()
-    if (!rect) return
+    const canvas = canvasRef.current
+    const rect = canvas?.getBoundingClientRect()
+    if (!canvas || !rect) return
+
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    if (activePointersRef.current.size >= 2) {
+      const pts = [...activePointersRef.current.values()]
+      pinchRef.current = {
+        distance: pointerDistance(pts[0], pts[1]),
+        zoom: camera.zoom,
+        panX: camera.panX,
+        panY: camera.panY,
+      }
+      setIsPinching(true)
+      setDragging(null)
+      setPanning(null)
+      setSelectedId(null)
+      setHoveredId(null)
+      canvas.setPointerCapture(e.pointerId)
+      return
+    }
+
     const sx = e.clientX - rect.left
     const sy = e.clientY - rect.top
     const hit = hitTest(sx, sy)
@@ -324,16 +382,39 @@ export function GraphView() {
       const world = screenToWorld(sx, sy)
       setDragging({ id: hit.id, ox: world.x - p.x, oy: world.y - p.y })
       setSelectedId(hit.id)
-      canvasRef.current?.setPointerCapture(e.pointerId)
+      canvas.setPointerCapture(e.pointerId)
     } else {
+      clearSelection()
       setPanning({ sx: e.clientX, sy: e.clientY, panX: camera.panX, panY: camera.panY })
-      canvasRef.current?.setPointerCapture(e.pointerId)
+      canvas.setPointerCapture(e.pointerId)
     }
   }
 
   const onPointerMove = (e: React.PointerEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect()
-    if (!rect) return
+    const canvas = canvasRef.current
+    const rect = canvas?.getBoundingClientRect()
+    if (!canvas || !rect) return
+
+    if (activePointersRef.current.has(e.pointerId)) {
+      activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+
+    if (activePointersRef.current.size >= 2 && pinchRef.current) {
+      const pts = [...activePointersRef.current.values()]
+      const dist = pointerDistance(pts[0], pts[1])
+      const scale = dist / Math.max(pinchRef.current.distance, 1)
+      const center = getPinchCenter(rect)
+      const worldX = (center.x - pinchRef.current.panX) / pinchRef.current.zoom
+      const worldY = (center.y - pinchRef.current.panY) / pinchRef.current.zoom
+      const zoom = Math.min(3.5, Math.max(0.2, pinchRef.current.zoom * scale))
+      setCamera({
+        zoom,
+        panX: center.x - worldX * zoom,
+        panY: center.y - worldY * zoom,
+      })
+      return
+    }
+
     const sx = e.clientX - rect.left
     const sy = e.clientY - rect.top
 
@@ -357,10 +438,17 @@ export function GraphView() {
       return
     }
 
-    setHoveredId(hitTest(sx, sy)?.id ?? null)
+    if (!isPinching) {
+      setHoveredId(hitTest(sx, sy)?.id ?? null)
+    }
   }
 
   const onPointerUp = (e: React.PointerEvent) => {
+    activePointersRef.current.delete(e.pointerId)
+    if (activePointersRef.current.size < 2) {
+      pinchRef.current = null
+      setIsPinching(false)
+    }
     setDragging(null)
     setPanning(null)
     canvasRef.current?.releasePointerCapture(e.pointerId)
@@ -372,14 +460,7 @@ export function GraphView() {
     if (!rect) return
     const sx = e.clientX - rect.left
     const sy = e.clientY - rect.top
-    const world = screenToWorld(sx, sy)
-    const factor = e.deltaY > 0 ? 0.9 : 1.1
-    const zoom = Math.min(3.5, Math.max(0.2, camera.zoom * factor))
-    setCamera({
-      zoom,
-      panX: sx - world.x * zoom,
-      panY: sy - world.y * zoom,
-    })
+    zoomAt(sx, sy, e.deltaY > 0 ? 0.9 : 1.1)
   }
 
   const onDoubleClick = (e: React.MouseEvent) => {
@@ -408,37 +489,59 @@ export function GraphView() {
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
-      <GraphFilterPanel
-        search={search}
-        onSearchChange={setSearch}
-        types={types}
-        onToggleType={toggleType}
-        orphansOnly={orphansOnly}
-        onOrphansOnlyChange={setOrphansOnly}
-        localGraph={localGraph}
-        onLocalGraphChange={setLocalGraph}
-        localDepth={localDepth}
-        onLocalDepthChange={setLocalDepth}
-        showArrows={showArrows}
-        onShowArrowsChange={setShowArrows}
-        typeCounts={typeCounts}
-        selectedNode={selectedNode}
-        orphanCount={orphanCount}
-      />
+      {filtersOpen && (
+        <aside className="w-full lg:w-56 xl:w-64 shrink-0 border-b lg:border-b-0 lg:border-r border-[var(--glass-border)] glass flex flex-col min-h-0 max-h-[34vh] lg:max-h-none overflow-y-auto">
+          <GraphFilterPanel
+            search={search}
+            onSearchChange={setSearch}
+            types={types}
+            onToggleType={toggleType}
+            orphansOnly={orphansOnly}
+            onOrphansOnlyChange={setOrphansOnly}
+            localGraph={localGraph}
+            onLocalGraphChange={setLocalGraph}
+            localDepth={localDepth}
+            onLocalDepthChange={setLocalDepth}
+            showArrows={showArrows}
+            onShowArrowsChange={setShowArrows}
+            typeCounts={typeCounts}
+            selectedNode={selectedNode}
+            orphanCount={orphanCount}
+          />
+        </aside>
+      )}
 
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 p-3 lg:p-4">
-        <div className="mb-3 flex items-start justify-between gap-3 shrink-0">
-          <div>
-            <h1 className="text-xl lg:text-2xl font-bold text-theme">Knowledge Graph</h1>
-            <p className="text-xs text-theme-muted mt-0.5">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 p-2 sm:p-3 lg:p-4">
+        <div className="mb-2 sm:mb-3 flex items-start justify-between gap-2 shrink-0">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-theme">Knowledge Graph</h1>
+            <p className="text-[10px] sm:text-xs text-theme-muted mt-0.5 truncate">
               {nodes.length} nodes · {edges.length} links
               {activeVault ? ` · ${activeVault.name}` : ' · all vaults'}
             </p>
           </div>
-          <div className="flex items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
             <button
               type="button"
-              onClick={() => setCamera((c) => ({ ...c, zoom: Math.min(3.5, c.zoom * 1.2) }))}
+              onClick={() => setFiltersOpen((o) => !o)}
+              className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
+              title={filtersOpen ? 'Hide filters' : 'Show filters'}
+              aria-expanded={filtersOpen}
+            >
+              {filtersOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
+            </button>
+            {selectedId && (
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="px-2 py-1 rounded-lg glass hover-theme text-[10px] text-theme-secondary"
+              >
+                Unselect
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => zoomAt(canvasSize.w / 2, canvasSize.h / 2, 1.2)}
               className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
               title="Zoom in"
             >
@@ -446,7 +549,7 @@ export function GraphView() {
             </button>
             <button
               type="button"
-              onClick={() => setCamera((c) => ({ ...c, zoom: Math.max(0.2, c.zoom / 1.2) }))}
+              onClick={() => zoomAt(canvasSize.w / 2, canvasSize.h / 2, 1 / 1.2)}
               className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
               title="Zoom out"
             >
@@ -515,19 +618,29 @@ export function GraphView() {
 
           {selectedNode && (
             <aside className="hidden xl:flex w-56 shrink-0 flex-col glass rounded-xl border border-[var(--glass-border)] overflow-hidden">
-              <div className="p-3 border-b border-[var(--glass-border)]">
-                <p className="text-[10px] uppercase tracking-wide text-theme-muted">
-                  {GRAPH_TYPE_LABELS[selectedNode.type]}
-                </p>
-                <p className="text-sm font-semibold text-theme mt-1 leading-snug break-words">
-                  {selectedNode.label}
-                </p>
-                {selectedNode.type === 'person' && selectedNode.metadata && (
-                  <p className="text-[10px] text-theme-muted mt-1">
-                    {selectedNode.metadata.emailCount ?? 0} emails ·{' '}
-                    {selectedNode.metadata.calendarCount ?? 0} events
+              <div className="p-3 border-b border-[var(--glass-border)] flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-[10px] uppercase tracking-wide text-theme-muted">
+                    {GRAPH_TYPE_LABELS[selectedNode.type]}
                   </p>
-                )}
+                  <p className="text-sm font-semibold text-theme mt-1 leading-snug break-words">
+                    {selectedNode.label}
+                  </p>
+                  {selectedNode.type === 'person' && selectedNode.metadata && (
+                    <p className="text-[10px] text-theme-muted mt-1">
+                      {selectedNode.metadata.emailCount ?? 0} emails ·{' '}
+                      {selectedNode.metadata.calendarCount ?? 0} events
+                    </p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="p-1 rounded-lg hover-theme text-theme-muted shrink-0"
+                  aria-label="Close selection"
+                >
+                  <X size={14} />
+                </button>
               </div>
               <div className="p-3 flex-1 overflow-y-auto space-y-2">
                 <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
@@ -583,8 +696,16 @@ export function GraphView() {
         </div>
 
         {selectedNode && (
-          <div className="xl:hidden mt-2 glass rounded-xl p-3 border border-[var(--glass-border)] shrink-0">
-            <div className="flex items-center justify-between gap-2">
+          <div className="xl:hidden mt-2 glass rounded-xl p-3 border border-[var(--glass-border)] shrink-0 relative">
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="absolute top-2 right-2 p-1.5 rounded-lg hover-theme text-theme-muted"
+              aria-label="Close selection"
+            >
+              <X size={16} />
+            </button>
+            <div className="flex items-center justify-between gap-2 pr-8">
               <div className="min-w-0">
                 <p className="text-[10px] text-theme-muted">{GRAPH_TYPE_LABELS[selectedNode.type]}</p>
                 <p className="text-sm font-medium text-theme truncate">{selectedNode.label}</p>
