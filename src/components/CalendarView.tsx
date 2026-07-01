@@ -12,6 +12,7 @@ import {
   isSameMonth,
   startOfDay,
   startOfMonth,
+  startOfWeek,
 } from '../lib/utils'
 import { useSnapScrollFeedback } from '../hooks/useSnapScrollFeedback'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
@@ -295,7 +296,7 @@ export function CalendarView() {
                 <span className="text-theme-muted font-normal group-hover:text-accent/80">
                   {fullCalendarOpen
                     ? ' · full calendar'
-                    : ` · ${focusDay.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}`}
+                    : ` · Week of ${startOfWeek(focusDay).toLocaleDateString([], { month: 'short', day: 'numeric' })}`}
                 </span>
               </button>
               <PanelHideButton panelId="calendar-week" label="week view" />
@@ -303,7 +304,7 @@ export function CalendarView() {
             <p className="text-[10px] text-theme-muted mb-3">
               {fullCalendarOpen
                 ? 'Scroll months — short vibration on each month'
-                : 'Swipe day by day — vibration on each day'}
+                : 'Swipe the week — moves one day at a time'}
             </p>
 
             {fullCalendarOpen ? (
