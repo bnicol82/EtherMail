@@ -4,7 +4,12 @@ import {
   GRAPH_NODE_COLORS,
   GRAPH_TYPE_LABELS,
 } from '../lib/graphTheme'
-import { GRAPH_LAYOUT_VIEWS, type GraphLayoutView } from '../lib/graphLayout'
+import {
+  GRAPH_LAYOUT_VIEWS,
+  GRAPH_FORCE_SLIDERS,
+  type GraphForceSettings,
+  type GraphLayoutView,
+} from '../lib/graphLayout'
 import type { GraphNode } from '../types'
 
 interface Props {
@@ -22,6 +27,9 @@ interface Props {
   onShowArrowsChange: (value: boolean) => void
   layoutView: GraphLayoutView
   onLayoutViewChange: (value: GraphLayoutView) => void
+  forceSettings: GraphForceSettings
+  onForceSettingsChange: (value: GraphForceSettings) => void
+  onResetForceSettings: () => void
   typeCounts: Record<GraphNode['type'], number>
   selectedNode: GraphNode | null
   orphanCount: number
@@ -43,6 +51,9 @@ export function GraphFilterPanel({
   onShowArrowsChange,
   layoutView,
   onLayoutViewChange,
+  forceSettings,
+  onForceSettingsChange,
+  onResetForceSettings,
   typeCounts,
   selectedNode,
   orphanCount,
@@ -128,6 +139,52 @@ export function GraphFilterPanel({
             )
           })}
         </div>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted">
+            Forces
+          </p>
+          {layoutView === 'force' && (
+            <button
+              type="button"
+              onClick={onResetForceSettings}
+              className="text-[9px] text-accent hover:underline"
+            >
+              Reset
+            </button>
+          )}
+        </div>
+        {layoutView !== 'force' ? (
+          <p className="text-[10px] text-theme-muted leading-relaxed">
+            Switch to Force layout to tune physics sliders.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {GRAPH_FORCE_SLIDERS.map((slider) => (
+              <label key={slider.key} className="block" title={slider.hint}>
+                <span className="text-[10px] text-theme-muted flex items-center justify-between gap-2">
+                  {slider.label}
+                  <span className="text-theme-secondary tabular-nums">{forceSettings[slider.key]}</span>
+                </span>
+                <input
+                  type="range"
+                  min={slider.min}
+                  max={slider.max}
+                  value={forceSettings[slider.key]}
+                  onChange={(e) =>
+                    onForceSettingsChange({
+                      ...forceSettings,
+                      [slider.key]: Number(e.target.value),
+                    })
+                  }
+                  className="w-full accent-[var(--accent)]"
+                />
+              </label>
+            ))}
+          </div>
+        )}
       </div>
 
       <div>

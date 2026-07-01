@@ -19,8 +19,10 @@ import {
   fitCameraToBounds,
   getNeighborhood,
   GRAPH_LAYOUT_VIEWS,
+  DEFAULT_GRAPH_FORCE_SETTINGS,
   nodeDrawRadius,
   runGraphLayout,
+  type GraphForceSettings,
   type GraphLayoutView,
   type GraphPosition,
 } from '../lib/graphLayout'
@@ -60,6 +62,7 @@ export function GraphView() {
   const [localDepth, setLocalDepth] = useState(2)
   const [showArrows, setShowArrows] = useState(true)
   const [layoutView, setLayoutView] = useState<GraphLayoutView>('force')
+  const [forceSettings, setForceSettings] = useState<GraphForceSettings>(DEFAULT_GRAPH_FORCE_SETTINGS)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [hoveredId, setHoveredId] = useState<string | null>(null)
   const [positions, setPositions] = useState<Map<string, GraphPosition>>(new Map())
@@ -104,12 +107,21 @@ export function GraphView() {
     return getNeighborhood(focusId, edges, 1)
   }, [focusId, edges])
 
+  const forceKey = useMemo(
+    () =>
+      layoutView === 'force'
+        ? `${forceSettings.centerForce}:${forceSettings.repelForce}:${forceSettings.linkForce}:${forceSettings.linkDistance}`
+        : '',
+    [layoutView, forceSettings],
+  )
+
   const applyLayout = useCallback(
     (clearPins: boolean) => {
       if (clearPins) pinnedRef.current.clear()
       const layout = runGraphLayout(layoutView, nodes, edges, {
         width: LAYOUT_W,
         height: LAYOUT_H,
+        forces: forceSettings,
       })
       const merged = new Map<string, GraphPosition>()
       nodes.forEach((n) => {
@@ -120,12 +132,20 @@ export function GraphView() {
       setPositions(merged)
       pinnedRef.current = new Set([...pinnedRef.current].filter((id) => merged.has(id)))
     },
-    [layoutView, nodes, edges],
+    [layoutView, forceSettings, nodes, edges],
   )
 
   useEffect(() => {
     applyLayout(false)
-  }, [graphKey, applyLayout])
+  }, [graphKey, forceKey, applyLayout])
+
+  const handleForceSettingsChange = useCallback((settings: GraphForceSettings) => {
+    setForceSettings(settings)
+  }, [])
+
+  const resetForceSettings = useCallback(() => {
+    setForceSettings(DEFAULT_GRAPH_FORCE_SETTINGS)
+  }, [])
 
   const handleLayoutViewChange = useCallback((view: GraphLayoutView) => {
     pinnedRef.current.clear()
@@ -525,6 +545,9 @@ export function GraphView() {
             onShowArrowsChange={setShowArrows}
             layoutView={layoutView}
             onLayoutViewChange={handleLayoutViewChange}
+            forceSettings={forceSettings}
+            onForceSettingsChange={handleForceSettingsChange}
+            onResetForceSettings={resetForceSettings}
             typeCounts={typeCounts}
             selectedNode={selectedNode}
             orphanCount={orphanCount}
