@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ChevronLeft, ChevronRight, Calendar, Users, Download, Upload } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
@@ -127,22 +127,22 @@ export function CalendarView() {
     return Array.from({ length: 24 }, (_, i) => addMonths(anchor, i - 12))
   }, [today])
 
-  useEffect(() => {
-    if (!fullCalendarOpen) return
+  const scrollFullCalToCurrentMonth = useCallback(() => {
     skipMonthFeedback.current = true
-    const frame = requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
       fullCalScrollRef.current
         ?.querySelector('[data-scroll-anchor="current"]')
         ?.scrollIntoView({ block: 'start' })
     })
-    const timer = window.setTimeout(() => {
+    window.setTimeout(() => {
       skipMonthFeedback.current = false
     }, 450)
-    return () => {
-      cancelAnimationFrame(frame)
-      window.clearTimeout(timer)
-    }
-  }, [fullCalendarOpen])
+  }, [])
+
+  useEffect(() => {
+    if (!fullCalendarOpen) return
+    scrollFullCalToCurrentMonth()
+  }, [fullCalendarOpen, scrollFullCalToCurrentMonth])
 
   useSnapScrollFeedback(
     fullCalScrollRef,
@@ -226,7 +226,9 @@ export function CalendarView() {
               <button
                 onClick={() => {
                   setFocusDay(todayDate)
-                  setFullCalendarOpen(false)
+                  if (fullCalendarOpen) {
+                    scrollFullCalToCurrentMonth()
+                  }
                 }}
                 className="px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
               >
