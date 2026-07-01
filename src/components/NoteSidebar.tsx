@@ -23,6 +23,7 @@ import {
   type WikiLinkRef,
 } from '../lib/noteFeatures'
 import { getBacklinks } from '../lib/utils'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 
 interface Props {
   note: Note
@@ -57,6 +58,8 @@ export function NoteSidebar({
 }: Props) {
   const [tagInput, setTagInput] = useState('')
   const [compactTab, setCompactTab] = useState<CompactTab>('tags')
+  const showCompose = useFeatureVisible('compose_email')
+  const showMeetingPrep = useFeatureVisible('meeting_prep_ai')
 
   const backlinks = getBacklinks(note.title, notes)
   const outgoing = getOutgoingLinks(note, notes)
@@ -259,6 +262,7 @@ export function NoteSidebar({
         <Sparkles size={10} /> Actions
       </p>
       <div className="space-y-1">
+        {showCompose && (
         <button
           type="button"
           onClick={onComposeFromNote}
@@ -266,7 +270,8 @@ export function NoteSidebar({
         >
           Compose email from note
         </button>
-        {onMeetingPrepNote && (
+        )}
+        {onMeetingPrepNote && showMeetingPrep && (
           <button
             type="button"
             onClick={onMeetingPrepNote}

@@ -1,6 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { bridgeSsoToSupabaseAuth } from './auth-bridge.ts'
 import { verifyIdTokenStrict } from './jwks.ts'
+import { checkAiQuota, currentUsagePeriod, isAiFeature } from './quota.ts'
 
 const DEMO_ORG_ID = '00000000-0000-4000-8000-000000000001'
 const CORS = {
@@ -51,6 +52,21 @@ Deno.serve(async (req) => {
       return json(200, await loadPolicyResponse(db))
     }
 
+    if (req.method === 'GET' && pathname === '/org/session') {
+      if (!session) return json(401, { error: 'No valid session' })
+      const { data: member } = await db
+        .from('org_members')
+        .select('*')
+        .eq('id', session.memberId)
+        .maybeSingle()
+      if (!member) return json(401, { error: 'Member not found' })
+      return json(200, {
+        member: mapMember(member),
+        role: session.role,
+        email: session.email,
+      })
+    }
+
     if (req.method === 'POST' && pathname === '/org/gate/check') {
       const body = await req.json()
       const policy = await loadPolicy(db)
@@ -61,11 +77,45 @@ Deno.serve(async (req) => {
           feature_id: body.featureId,
           detail: body.actionLabel,
         })
+        return json(200, {
+          allowed: false,
+          message: gateMessage(body.featureId),
+        })
       }
-      return json(200, {
-        allowed,
-        message: allowed ? null : gateMessage(body.featureId),
-      })
+
+      if (isAiFeature(body.featureId) && role !== 'admin' && role !== 'owner') {
+        const { data: org } = await db.from('organizations').select('plan_tier').eq('id', DEMO_ORG_ID).single()
+        const period = currentUsagePeriod()
+        const { data: usageRow } = await db
+          .from('org_usage')
+          .select('count')
+          .eq('org_id', DEMO_ORG_ID)
+          .eq('metric', 'ai_queries')
+          .eq('period', period)
+          .maybeSingle()
+        const usageCount = usageRow?.count ?? 0
+        const quota = checkAiQuota({
+          planTier: org?.plan_tier ?? 'enterprise',
+          quotaOverrides: policy.quota_overrides,
+          usageCount,
+        })
+        if (!quota.allowed) {
+          await audit(db, session, 'policy', 'quota_denied_server', {
+            feature_id: body.featureId,
+            detail: body.actionLabel ?? 'AI query',
+          })
+          return json(200, { allowed: false, message: quota.message })
+        }
+        await db.from('org_usage').upsert({
+          org_id: DEMO_ORG_ID,
+          metric: 'ai_queries',
+          period,
+          count: usageCount + 1,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'org_id,metric,period' })
+      }
+
+      return json(200, { allowed: true, message: null })
     }
 
     if (req.method === 'GET' && pathname === '/org/audit') {

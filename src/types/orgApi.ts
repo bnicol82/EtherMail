@@ -67,3 +67,9 @@ export interface SsoCallbackResponse {
   role: OrgRole
   supabaseAuth?: SupabaseAuthSession | null
 }
+
+export interface OrgSessionResponse {
+  member: OrgMember
+  role: OrgRole
+  email: string
+}

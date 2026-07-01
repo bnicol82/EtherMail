@@ -17,6 +17,7 @@ import {
   Link2,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import type { ComposeAttachment, ComposeDraft, Email } from '../types'
 import { providerColor, providerLabel, formatFileSize, fileIcon } from '../lib/utils'
 import { getEmailTemplates, generateTemplateWithAI } from '../lib/emailTemplates'
@@ -47,6 +48,7 @@ export function ComposeEmailModal() {
   const sendComposedEmail = useEtherMailStore((s) => s.sendComposedEmail)
   const saveComposeDraft = useEtherMailStore((s) => s.saveComposeDraft)
   const scheduleComposedEmail = useEtherMailStore((s) => s.scheduleComposedEmail)
+  const canSchedule = useFeatureVisible('scheduled_send')
 
   const [to, setTo] = useState('')
   const [cc, setCc] = useState('')
@@ -600,7 +602,7 @@ export function ComposeEmailModal() {
 
         {/* Footer */}
         <div className="shrink-0 border-t border-[var(--glass-border)] bg-[var(--glass-bg)]/60">
-          {scheduleLater && (
+          {scheduleLater && canSchedule && (
             <div className="px-4 pt-3 pb-2 border-b border-[var(--glass-border)]/60 space-y-2">
               <p className="text-[10px] text-theme-muted flex items-center gap-1">
                 <Clock size={12} />
@@ -627,6 +629,7 @@ export function ComposeEmailModal() {
             </div>
           )}
           <div className="flex items-center gap-2 px-4 py-3">
+          {canSchedule && (
           <label className="flex items-center gap-1.5 text-[10px] text-theme-muted cursor-pointer shrink-0">
             <input
               type="checkbox"
@@ -637,6 +640,7 @@ export function ComposeEmailModal() {
             <Clock size={12} />
             Schedule
           </label>
+          )}
           <span className="text-[10px] text-theme-muted hidden sm:inline">
             {wordCount} words
           </span>

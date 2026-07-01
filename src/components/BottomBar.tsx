@@ -12,6 +12,7 @@ import {
   Link2,
 } from 'lucide-react'
 import { useEtherMailStore, useStats, useUpcomingMeetings } from '../store/useStore'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import { getAIContext } from '../lib/aiContext'
 import { applyWikiLink, getAutoLinkSuggestions } from '../lib/noteAssist'
 import { MarkdownContent } from './MarkdownContent'
@@ -63,6 +64,10 @@ export function BottomBar() {
   const clearAiContextResponse = useEtherMailStore((s) => s.clearAiContextResponse)
   const meetings = useUpcomingMeetings(2)
   const stats = useStats()
+  const canVaultAi = useFeatureVisible('vault_ai')
+  const canExternalAi = useFeatureVisible('external_ai')
+  const showDockAi = canVaultAi || canExternalAi
+  const showWeather = useFeatureVisible('weather_widget')
 
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -140,6 +145,7 @@ export function BottomBar() {
       )}
 
       {/* Contextual suggestion pills */}
+      {showDockAi && (
       <div className="px-2 sm:px-3 py-1.5 border-b border-[var(--glass-border)] flex items-center gap-2 overflow-x-auto">
         <div className="flex items-center gap-1.5 shrink-0">
           <Bot size={13} className="text-accent" />
@@ -160,6 +166,7 @@ export function BottomBar() {
           ))}
         </div>
       </div>
+      )}
 
       {autoLinkSuggestions.length > 0 && (
         <div className="px-2 sm:px-3 py-1 border-b border-[var(--glass-border)] flex items-center gap-2 overflow-x-auto">
@@ -222,7 +229,7 @@ export function BottomBar() {
             <CloudSun size={11} />
             Weather
           </div>
-          <WeatherChip />
+          {showWeather ? <WeatherChip /> : <span className="text-[10px] text-theme-muted">Disabled</span>}
         </div>
 
         <div className="hidden lg:flex flex-col justify-center gap-0.5 px-3 py-2 border-r border-[var(--glass-border)] min-w-[130px] shrink-0">
@@ -237,6 +244,7 @@ export function BottomBar() {
           </div>
         </div>
 
+        {showDockAi && (
         <div className="flex-1 flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 min-w-0">
           <input
             ref={inputRef}
@@ -258,13 +266,14 @@ export function BottomBar() {
             <Send size={16} />
           </button>
         </div>
+        )}
       </div>
 
       <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-0.5 border-t border-[var(--glass-border)] text-[10px] text-theme-muted">
         <span className="truncate flex-1 min-w-0">
           {meetings[0] ? `${meetings[0].title} · ${formatMeetingTime(meetings[0].start)}` : 'No upcoming meetings'}
         </span>
-        <WeatherChip compact showLabel />
+        {showWeather && <WeatherChip compact showLabel />}
         <LiveClock />
       </div>
     </footer>

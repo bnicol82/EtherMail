@@ -21,6 +21,7 @@ import { PolicyToast } from './components/PolicyToast'
 import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { validateSsoCallback } from './lib/sso'
+import { hasOrgApi } from './lib/orgApi'
 import { unlockTouchAudio } from './lib/touchFeedback'
 import { buttonClickFeedback } from './lib/uiFeedback'
 import { Menu, SquarePen } from 'lucide-react'
@@ -61,6 +62,7 @@ export default function App() {
   const oauthSettings = useEtherMailStore((s) => s.oauthSettings)
   const completeOAuthConnect = useEtherMailStore((s) => s.completeOAuthConnect)
   const completeSsoLogin = useEtherMailStore((s) => s.completeSsoLogin)
+  const bootstrapOrgSession = useEtherMailStore((s) => s.bootstrapOrgSession)
   const openCompose = useEtherMailStore((s) => s.openCompose)
   const composeDraft = useEtherMailStore((s) => s.composeDraft)
   const showCompose = useFeatureVisible('compose_email')
@@ -72,6 +74,11 @@ export default function App() {
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
+
+  useEffect(() => {
+    if (!hasOrgApi()) return
+    void bootstrapOrgSession()
+  }, [bootstrapOrgSession])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
