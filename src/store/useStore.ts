@@ -21,6 +21,11 @@ import { getClientIdForProvider, simulateOAuthDelay } from '../lib/oauth/connect
 import { GmailSyncError, syncGmailAccount } from '../lib/sync/gmail'
 import { syncGmailDemoInbox } from '../lib/sync/gmailDemo'
 import { canConnectMailbox, type PlanTier } from '../lib/plan'
+import {
+  DEFAULT_EMAIL_FOLDER_SORT,
+  normalizeEmailFolderSort,
+  type EmailSortKey,
+} from '../lib/emailListSort'
 import type {
   AISettings,
   AckStatus,
@@ -104,6 +109,8 @@ interface EtherMailState {
   activeFolderId: string
   activeAccountId: string | null
   activeEmailFolder: EmailFolder
+  emailFolderSort: Record<EmailFolder, EmailSortKey>
+  setEmailFolderSort: (folder: EmailFolder, sort: EmailSortKey) => void
 
   editorMode: 'edit' | 'preview' | 'split'
   setEditorMode: (mode: 'edit' | 'preview' | 'split') => void
@@ -299,6 +306,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       activeFolderId: 'athena',
       activeAccountId: null,
       activeEmailFolder: 'inbox',
+      emailFolderSort: { ...DEFAULT_EMAIL_FOLDER_SORT },
 
       editorMode: 'split',
       setEditorMode: (editorMode) => set({ editorMode }),
@@ -619,6 +627,11 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       setActiveEmailFolder: (activeEmailFolder) =>
         set({ activeEmailFolder, mobilePanel: 'list' }),
+
+      setEmailFolderSort: (folder, sort) =>
+        set((s) => ({
+          emailFolderSort: { ...s.emailFolderSort, [folder]: sort },
+        })),
 
       deleteEmail: (emailId) => {
         const state = get()
@@ -1565,7 +1578,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 12,
+      version: 13,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -1750,6 +1763,12 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (version < 12) {
           next = { ...next, planTier: 'free' as PlanTier }
         }
+        if (version < 13) {
+          next = {
+            ...next,
+            emailFolderSort: normalizeEmailFolderSort(next.emailFolderSort),
+          }
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -1814,6 +1833,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         activeEmailId: s.activeEmailId,
         activeAccountId: s.activeAccountId,
         activeEmailFolder: s.activeEmailFolder,
+        emailFolderSort: s.emailFolderSort,
         hiddenPanels: s.hiddenPanels,
         alertMeta: s.alertMeta,
         weatherSettings: s.weatherSettings,
