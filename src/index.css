@@ -316,6 +316,34 @@ body {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 
+.markdown-body blockquote.note-callout {
+  border-left: 3px solid var(--accent);
+  background: var(--glass-bg);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.note-embed {
+  display: block;
+  margin: 0.75rem 0;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.note-embed:hover {
+  border-color: var(--accent-border);
+}
+
+.note-embed-missing {
+  cursor: default;
+  opacity: 0.75;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

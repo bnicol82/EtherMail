@@ -22,10 +22,13 @@ export const ROOT_PERSONAL_ID = 'root'
 export const ROOT_WORK_ID = 'root-work'
 export const EMAIL_FILES_WORK_FOLDER_ID = 'email-files-work'
 
+export const DAILY_FOLDER_ID = 'daily'
+
 export const SEED_FOLDERS: Folder[] = [
   { id: ROOT_PERSONAL_ID, name: 'Personal', parentId: null, vaultId: VAULT_PERSONAL_ID },
   { id: EMAIL_FILES_FOLDER_ID, name: 'Email Files', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID, isSystem: true },
   { id: 'templates', name: 'Templates', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
+  { id: DAILY_FOLDER_ID, name: 'Daily Notes', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
   { id: 'archives', name: 'Archives', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
   { id: 'personal', name: 'Life & Hobbies', parentId: ROOT_PERSONAL_ID, vaultId: VAULT_PERSONAL_ID },
   { id: ROOT_WORK_ID, name: 'Work', parentId: null, vaultId: VAULT_WORK_ID },

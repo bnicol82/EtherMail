@@ -5,11 +5,9 @@ import {
   Eye,
   Edit3,
   Columns,
-  Tag,
-  Link2,
+  Calendar,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
-import { getBacklinks } from '../lib/utils'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { NoteMarkdownEditor } from './NoteMarkdownEditor'
@@ -17,6 +15,7 @@ import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { ShareNoteButton } from './ShareNoteButton'
 import { VaultNoteHeader } from './VaultNoteHeader'
 import { NoteAssistPanel } from './NoteAssistPanel'
+import { NoteSidebar } from './NoteSidebar'
 import {
   applyWikiLink,
   formatNoteBullets,
@@ -31,7 +30,12 @@ export function NotesView() {
   const emails = useEtherMailStore((s) => s.emails)
   const activeNoteId = useEtherMailStore((s) => s.activeNoteId)
   const selectNote = useEtherMailStore((s) => s.selectNote)
+  const selectEmail = useEtherMailStore((s) => s.selectEmail)
   const updateNote = useEtherMailStore((s) => s.updateNote)
+  const updateNoteTags = useEtherMailStore((s) => s.updateNoteTags)
+  const openDailyNote = useEtherMailStore((s) => s.openDailyNote)
+  const openComposeFromNote = useEtherMailStore((s) => s.openComposeFromNote)
+  const createMeetingPrepNote = useEtherMailStore((s) => s.createMeetingPrepNote)
   const editorMode = useEtherMailStore((s) => s.editorMode)
   const setEditorMode = useEtherMailStore((s) => s.setEditorMode)
   const searchQuery = useEtherMailStore((s) => s.searchQuery)
@@ -57,8 +61,6 @@ export function NotesView() {
       )
     })
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-
-  const backlinks = activeNote ? getBacklinks(activeNote.title, notes) : []
 
   const autoLinkSuggestions = useMemo(
     () => (activeNote ? getAutoLinkSuggestions(activeNote, notes) : []),
@@ -127,6 +129,14 @@ export function NotesView() {
                 className="w-full pl-8 pr-3 py-1.5 rounded-lg input-theme text-sm outline-none"
               />
             </div>
+            <button
+              type="button"
+              onClick={() => openDailyNote()}
+              className="p-1.5 rounded-lg glass hover-theme text-theme-muted"
+              title="Today's note"
+            >
+              <Calendar size={14} />
+            </button>
             <PanelHideButton panelId="notes-list" label="notes list" />
           </div>
           <div className="flex-1 overflow-y-auto p-2">
@@ -176,36 +186,54 @@ export function NotesView() {
               </div>
 
               <div className="flex-1 flex min-h-0 overflow-hidden">
-                {(editorMode === 'edit' || editorMode === 'split') && (
-                  <div className={`${editorMode === 'split' ? 'w-1/2 border-r border-[var(--glass-border)]' : 'w-full'} flex flex-col min-h-0`}>
-                    <NoteMarkdownEditor
-                      title={activeNote.title}
-                      content={activeNote.content}
-                      onTitleChange={(t) => updateNote(activeNote.id, { title: t })}
-                      onContentChange={(c) => updateNote(activeNote.id, { content: c })}
-                    />
-                  </div>
-                )}
-                {(editorMode === 'preview' || editorMode === 'split') && (
-                  <div className={`${editorMode === 'split' ? 'w-1/2' : 'w-full'} overflow-y-auto p-4`}>
-                    <MarkdownContent content={activeNote.content} />
-                  </div>
-                )}
+                <div className="flex-1 flex min-h-0 flex-col">
+                  {(editorMode === 'edit' || editorMode === 'split') && (
+                    <div className={`${editorMode === 'split' ? 'w-full md:w-1/2 border-b md:border-b-0 md:border-r border-[var(--glass-border)]' : 'w-full'} flex flex-col min-h-0 flex-1 md:flex-none`}>
+                      <NoteMarkdownEditor
+                        title={activeNote.title}
+                        content={activeNote.content}
+                        onTitleChange={(t) => updateNote(activeNote.id, { title: t })}
+                        onContentChange={(c) => updateNote(activeNote.id, { content: c })}
+                      />
+                    </div>
+                  )}
+                  {(editorMode === 'preview' || editorMode === 'split') && (
+                    <div className={`${editorMode === 'split' ? 'w-full md:w-1/2' : 'w-full'} overflow-y-auto p-4 flex-1`}>
+                      <MarkdownContent content={activeNote.content} />
+                    </div>
+                  )}
+                </div>
+
+                <aside className="hidden xl:flex w-60 shrink-0 border-l border-[var(--glass-border)] glass overflow-y-auto p-3">
+                  <NoteSidebar
+                    note={activeNote}
+                    notes={notes}
+                    emails={emails}
+                    onSelectNote={(id) => selectNote(id, { view: 'notes' })}
+                    onSelectEmail={selectEmail}
+                    onUpdateTags={(tags) => updateNoteTags(activeNote.id, tags)}
+                    onUpdateContent={(content) => updateNote(activeNote.id, { content })}
+                    onComposeFromNote={() => openComposeFromNote(activeNote.id)}
+                    onMeetingPrepNote={createMeetingPrepNote}
+                    onAiAction={aiAction}
+                  />
+                </aside>
               </div>
 
-              <div className="shrink-0 border-t border-[var(--glass-border)] glass p-3 flex flex-wrap gap-3 text-xs">
-                <div className="flex items-center gap-1 text-theme-muted">
-                  <Tag size={10} />
-                  {activeNote.tags.map((t) => (
-                    <span key={t} className="px-1.5 py-0.5 rounded-full bg-accent-soft text-accent">{t}</span>
-                  ))}
-                </div>
-                {backlinks.length > 0 && (
-                  <div className="flex items-center gap-1 text-theme-muted">
-                    <Link2 size={10} />
-                    {backlinks.length} backlink{backlinks.length > 1 ? 's' : ''}
-                  </div>
-                )}
+              <div className="xl:hidden shrink-0 border-t border-[var(--glass-border)] glass p-3 max-h-48 overflow-y-auto">
+                <NoteSidebar
+                  compact
+                  note={activeNote}
+                  notes={notes}
+                  emails={emails}
+                  onSelectNote={(id) => selectNote(id, { view: 'notes' })}
+                  onSelectEmail={selectEmail}
+                  onUpdateTags={(tags) => updateNoteTags(activeNote.id, tags)}
+                  onUpdateContent={(content) => updateNote(activeNote.id, { content })}
+                  onComposeFromNote={() => openComposeFromNote(activeNote.id)}
+                  onMeetingPrepNote={createMeetingPrepNote}
+                  onAiAction={aiAction}
+                />
               </div>
             </>
           ) : (

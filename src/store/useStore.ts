@@ -68,7 +68,15 @@ import { syncCalendarFromEmails } from '../lib/calendarSync'
 import { completeNoteTodo } from '../lib/todos'
 import { snoozeUntilFromPreset } from '../lib/snooze'
 import { DEFAULT_INBOX_TRAINING, getOutboxEmails } from '../lib/aiInbox'
-import { generateMeetingBrief } from '../lib/meetingPrep'
+import { generateMeetingBrief, getNextMeeting } from '../lib/meetingPrep'
+import {
+  dailyNoteId,
+  dailyNoteTemplate,
+  findDailyNote,
+  noteToComposeBody,
+  syncTagsToFrontmatter,
+} from '../lib/noteFeatures'
+import { DAILY_FOLDER_ID } from '../data/seed'
 import { findFreeSlots, formatProposalEmail } from '../lib/smartPropose'
 import { materializeEmailAttachments } from '../lib/composeAttachments'
 
@@ -159,7 +167,12 @@ interface EtherMailState {
   selectFolder: (id: string) => void
   selectAccount: (accountId: string | null) => void
   updateNote: (id: string, updates: Partial<Note>) => void
+  updateNoteTags: (id: string, tags: string[]) => void
   createNote: (folderId?: string) => string
+  openDailyNote: (folderId?: string) => void
+  createNoteFromTemplate: (templateId: string, targetFolderId?: string) => void
+  openComposeFromNote: (noteId: string) => void
+  createMeetingPrepNote: () => void
   createFolder: (name: string, parentId?: string) => string
   uploadVaultFile: (file: File, folderId: string) => Promise<void>
   selectVaultFile: (id: string | null) => void
@@ -529,6 +542,14 @@ export const useEtherMailStore = create<EtherMailState>()(
               : n,
           ),
         })),
+      updateNoteTags: (id, tags) => {
+        const note = get().notes.find((n) => n.id === id)
+        if (!note) return
+        get().updateNote(id, {
+          tags,
+          content: syncTagsToFrontmatter(note.content, tags),
+        })
+      },
       createNote: (folderId) => {
         const id = `note-${Date.now()}`
         let folder = folderId ?? get().activeFolderId
@@ -553,6 +574,99 @@ export const useEtherMailStore = create<EtherMailState>()(
           mobilePanel: 'detail',
         }))
         return id
+      },
+
+      openDailyNote: (folderId) => {
+        const state = get()
+        const vaultId = state.activeVaultId ?? VAULT_PERSONAL_ID
+        const targetFolder = folderId ?? DAILY_FOLDER_ID
+        const existing = findDailyNote(state.notes, new Date(), vaultId)
+        if (existing) {
+          get().selectNote(existing.id)
+          return
+        }
+        const tpl = dailyNoteTemplate()
+        const id = dailyNoteId()
+        const note: Note = {
+          id,
+          title: tpl.title,
+          content: tpl.content,
+          folderId: targetFolder,
+          vaultId,
+          tags: tpl.tags,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        set((s) => ({
+          notes: [...s.notes, note],
+          activeNoteId: id,
+          activeFolderId: targetFolder,
+          activeVaultFileId: null,
+          view: s.view === 'notes' ? 'notes' : 'vault',
+          mobilePanel: 'detail',
+        }))
+      },
+
+      createNoteFromTemplate: (templateId, targetFolderId) => {
+        const state = get()
+        const template = state.notes.find((n) => n.id === templateId)
+        if (!template) return
+        const folder =
+          targetFolderId ??
+          (state.activeFolderId === EMAIL_FILES_FOLDER_ID ? 'personal' : state.activeFolderId)
+        const folderMeta = state.folders.find((f) => f.id === folder)
+        const id = `note-${Date.now()}`
+        const note: Note = {
+          id,
+          title: template.title.replace(/\(template\)/i, '').trim() || 'Untitled Note',
+          content: template.content,
+          folderId: folder,
+          vaultId: folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID,
+          tags: [...template.tags],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        set((s) => ({
+          notes: [...s.notes, note],
+          activeNoteId: id,
+          activeVaultFileId: null,
+          view: s.view === 'notes' ? 'notes' : 'vault',
+          mobilePanel: 'detail',
+        }))
+      },
+
+      openComposeFromNote: (noteId) => {
+        const note = get().notes.find((n) => n.id === noteId)
+        if (!note) return
+        const { subject, body } = noteToComposeBody(note)
+        get().openCompose({ subject, body })
+      },
+
+      createMeetingPrepNote: () => {
+        const state = get()
+        const event = getNextMeeting(state.calendarEvents)
+        if (!event) return
+        const brief = generateMeetingBrief(event, state.notes, state.emails)
+        const folder = state.activeFolderId === EMAIL_FILES_FOLDER_ID ? 'athena' : state.activeFolderId
+        const folderMeta = state.folders.find((f) => f.id === folder)
+        const id = `note-${Date.now()}`
+        const note: Note = {
+          id,
+          title: `Prep: ${event.title}`,
+          content: brief.markdown,
+          folderId: folder,
+          vaultId: folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID,
+          tags: ['meeting', 'prep'],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }
+        set((s) => ({
+          notes: [...s.notes, note],
+          activeNoteId: id,
+          activeVaultFileId: null,
+          view: 'vault',
+          mobilePanel: 'detail',
+        }))
       },
 
       createFolder: (name, parentId) => {
