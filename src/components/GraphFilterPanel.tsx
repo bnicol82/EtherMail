@@ -4,6 +4,7 @@ import {
   GRAPH_NODE_COLORS,
   GRAPH_TYPE_LABELS,
 } from '../lib/graphTheme'
+import { GRAPH_LAYOUT_VIEWS, type GraphLayoutView } from '../lib/graphLayout'
 import type { GraphNode } from '../types'
 
 interface Props {
@@ -19,6 +20,8 @@ interface Props {
   onLocalDepthChange: (value: number) => void
   showArrows: boolean
   onShowArrowsChange: (value: boolean) => void
+  layoutView: GraphLayoutView
+  onLayoutViewChange: (value: GraphLayoutView) => void
   typeCounts: Record<GraphNode['type'], number>
   selectedNode: GraphNode | null
   orphanCount: number
@@ -38,6 +41,8 @@ export function GraphFilterPanel({
   onLocalDepthChange,
   showArrows,
   onShowArrowsChange,
+  layoutView,
+  onLayoutViewChange,
   typeCounts,
   selectedNode,
   orphanCount,
@@ -94,6 +99,31 @@ export function GraphFilterPanel({
                 />
                 <span className="truncate flex-1">{GRAPH_TYPE_LABELS[type]}</span>
                 <span className="text-theme-muted tabular-nums text-[10px]">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-theme-muted mb-1.5">
+          Layout
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-2 gap-1">
+          {GRAPH_LAYOUT_VIEWS.map((view) => {
+            const on = layoutView === view.id
+            return (
+              <button
+                key={view.id}
+                type="button"
+                onClick={() => onLayoutViewChange(view.id)}
+                title={view.hint}
+                className={`px-2 py-1.5 rounded-lg text-[11px] text-left transition-colors ${
+                  on ? 'btn-accent' : 'glass text-theme-muted'
+                }`}
+                aria-pressed={on}
+              >
+                {view.label}
               </button>
             )
           })}
