@@ -175,63 +175,67 @@ export function CalendarView() {
               {importHint && <span className="ml-2 text-accent">· {importHint}</span>}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => downloadIcsFile(sortedEvents)}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-              title="Export all events as .ics"
-            >
-              <Download size={14} />
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
-              title="Import .ics file"
-            >
-              <Upload size={14} />
-              Import
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".ics,text/calendar"
-              className="hidden"
-              onChange={(e) => handleImport(e.target.files)}
-            />
-            <button
-              onClick={() =>
-                fullCalendarOpen
-                  ? setFullCalendarOpen(false)
-                  : setWeekStart((w) => addDays(w, -7))
-              }
-              className="p-2 rounded-lg glass hover-theme text-theme-secondary"
-              aria-label={fullCalendarOpen ? 'Close month view' : 'Previous week'}
-            >
-              <ChevronLeft size={18} />
-            </button>
-            <button
-              onClick={() => {
-                setWeekStart(startOfWeek(new Date()))
-                setFullCalendarOpen(false)
-              }}
-              className="px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
-            >
-              Today
-            </button>
-            <button
-              onClick={() =>
-                fullCalendarOpen
-                  ? setFullCalendarOpen(false)
-                  : setWeekStart((w) => addDays(w, 7))
-              }
-              className="p-2 rounded-lg glass hover-theme text-theme-secondary"
-              aria-label={fullCalendarOpen ? 'Close month view' : 'Next week'}
-            >
-              <ChevronRight size={18} />
-            </button>
+          <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() =>
+                  fullCalendarOpen
+                    ? setFullCalendarOpen(false)
+                    : setWeekStart((w) => addDays(w, -7))
+                }
+                className="p-2 rounded-lg glass hover-theme text-theme-secondary"
+                aria-label={fullCalendarOpen ? 'Close month view' : 'Previous week'}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <button
+                onClick={() => {
+                  setWeekStart(startOfWeek(new Date()))
+                  setFullCalendarOpen(false)
+                }}
+                className="px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+              >
+                Today
+              </button>
+              <button
+                onClick={() =>
+                  fullCalendarOpen
+                    ? setFullCalendarOpen(false)
+                    : setWeekStart((w) => addDays(w, 7))
+                }
+                className="p-2 rounded-lg glass hover-theme text-theme-secondary"
+                aria-label={fullCalendarOpen ? 'Close month view' : 'Next week'}
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => downloadIcsFile(sortedEvents)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                title="Export all events as .ics"
+              >
+                <Download size={14} />
+                Export
+              </button>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg glass text-[10px] text-theme-secondary hover-theme"
+                title="Import .ics file"
+              >
+                <Upload size={14} />
+                Import
+              </button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".ics,text/calendar"
+                className="hidden"
+                onChange={(e) => handleImport(e.target.files)}
+              />
+            </div>
           </div>
         </div>
 
