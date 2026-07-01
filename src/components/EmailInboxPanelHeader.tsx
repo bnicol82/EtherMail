@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Square,
   Tag,
+  ArrowUpDown,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ import { PanelHideButton } from './PanelHideButton'
 import { AIInboxBar } from './AIInboxBar'
 import { EmailLabelsBar } from './EmailLabelsBar'
 import { EMAIL_FOLDERS } from '../lib/emailFolders'
+import { EMAIL_SORT_OPTIONS, type EmailSortKey } from '../lib/emailListSort'
 import { providerColor, providerLabel } from '../lib/utils'
 import type { EmailAccount, EmailFolder, EmailLabel } from '../types'
 import type { InboxHiddenStats } from '../lib/aiInbox'
@@ -47,6 +49,8 @@ interface Props {
   onFilterChange: (value: string) => void
   onFolderChange: (folder: EmailFolder) => void
   onClearAccount: () => void
+  folderSort: EmailSortKey
+  onFolderSortChange: (sort: EmailSortKey) => void
 
   aiInboxEnabled: boolean
   aiOutboxEnabled: boolean
@@ -96,6 +100,8 @@ export function EmailInboxPanelHeader({
   onFilterChange,
   onFolderChange,
   onClearAccount,
+  folderSort,
+  onFolderSortChange,
   aiInboxEnabled,
   aiOutboxEnabled,
   inboxStats,
@@ -194,15 +200,33 @@ export function EmailInboxPanelHeader({
         })}
       </nav>
 
-      {/* Search */}
-      <div className="relative">
-        <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-theme-muted" />
-        <input
-          value={filter}
-          onChange={(e) => onFilterChange(e.target.value)}
-          placeholder={`Search ${currentFolderLabel.toLowerCase()}…`}
-          className="w-full pl-7 pr-2 py-1 rounded-lg input-theme text-xs outline-none"
-        />
+      {/* Search + sort */}
+      <div className="flex items-center gap-1.5">
+        <div className="relative flex-1 min-w-0">
+          <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-theme-muted" />
+          <input
+            value={filter}
+            onChange={(e) => onFilterChange(e.target.value)}
+            placeholder={`Search ${currentFolderLabel.toLowerCase()}…`}
+            className="w-full pl-7 pr-2 py-1 rounded-lg input-theme text-xs outline-none"
+          />
+        </div>
+        <label className="shrink-0 flex items-center gap-1 text-[10px] text-theme-muted">
+          <ArrowUpDown size={11} className="text-accent" aria-hidden />
+          <select
+            value={folderSort}
+            onChange={(e) => onFolderSortChange(e.target.value as EmailSortKey)}
+            className="max-w-[5.5rem] sm:max-w-none px-1.5 py-1 rounded-lg glass text-[10px] text-theme-secondary outline-none"
+            title="Sort order for this folder"
+            aria-label={`Sort ${currentFolderLabel}`}
+          >
+            {EMAIL_SORT_OPTIONS.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
 
       {/* Compact tool strip */}

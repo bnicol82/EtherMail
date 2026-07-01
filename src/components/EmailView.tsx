@@ -37,6 +37,7 @@ import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
 import { emailMatchesPerson } from '../lib/contactGraph'
+import { sortEmails, sortEmailThreads } from '../lib/emailListSort'
 import { VAULT_PERSONAL_ID } from '../data/seed'
 import type { EmailFolder } from '../types'
 
@@ -50,6 +51,8 @@ export function EmailView() {
   const graphPersonFilter = useEtherMailStore((s) => s.graphPersonFilter)
   const setGraphPersonFilter = useEtherMailStore((s) => s.setGraphPersonFilter)
   const activeEmailFolder = useEtherMailStore((s) => s.activeEmailFolder)
+  const emailFolderSort = useEtherMailStore((s) => s.emailFolderSort)
+  const setEmailFolderSort = useEtherMailStore((s) => s.setEmailFolderSort)
   const hiddenPanels = useEtherMailStore((s) => s.hiddenPanels)
   const selectEmail = useEtherMailStore((s) => s.selectEmail)
   const linkEmailToNote = useEtherMailStore((s) => s.linkEmailToNote)
@@ -194,38 +197,60 @@ export function EmailView() {
     return counts
   }, [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter])
 
-  const filtered = emails.filter((e) => {
-    if (!emailInScope(e)) return false
-    if ((e.folder ?? 'inbox') !== activeEmailFolder) return false
-    if (activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)) {
-      const c = classifyEmail(e, inboxTraining, emailInboxOverrides[e.id])
-      if (aiInboxEnabled && !c.important) return false
-      if (aiOutboxEnabled && c.important) return false
-    }
-    if (followUpFilterEnabled && activeEmailFolder === 'inbox' && !followUpIds.has(e.id)) {
-      return false
-    }
-    if (activeLabelFilter && !e.labelIds?.includes(activeLabelFilter)) {
-      return false
-    }
-    if (!filter) return true
-    const q = filter.toLowerCase()
-    return (
-      e.subject.toLowerCase().includes(q) ||
-      e.fromName.toLowerCase().includes(q) ||
-      e.preview.toLowerCase().includes(q)
-    )
-  })
+  const currentFolderSort = emailFolderSort[activeEmailFolder]
+
+  const filtered = useMemo(() => {
+    const list = emails.filter((e) => {
+      if (!emailInScope(e)) return false
+      if ((e.folder ?? 'inbox') !== activeEmailFolder) return false
+      if (activeEmailFolder === 'inbox' && (aiInboxEnabled || aiOutboxEnabled)) {
+        const c = classifyEmail(e, inboxTraining, emailInboxOverrides[e.id])
+        if (aiInboxEnabled && !c.important) return false
+        if (aiOutboxEnabled && c.important) return false
+      }
+      if (followUpFilterEnabled && activeEmailFolder === 'inbox' && !followUpIds.has(e.id)) {
+        return false
+      }
+      if (activeLabelFilter && !e.labelIds?.includes(activeLabelFilter)) {
+        return false
+      }
+      if (!filter) return true
+      const q = filter.toLowerCase()
+      return (
+        e.subject.toLowerCase().includes(q) ||
+        e.fromName.toLowerCase().includes(q) ||
+        e.preview.toLowerCase().includes(q)
+      )
+    })
+    return sortEmails(list, currentFolderSort)
+  }, [
+    emails,
+    activeEmailFolder,
+    activeAccountId,
+    activeVaultId,
+    graphPersonFilter,
+    accounts,
+    aiInboxEnabled,
+    aiOutboxEnabled,
+    inboxTraining,
+    emailInboxOverrides,
+    followUpFilterEnabled,
+    followUpIds,
+    activeLabelFilter,
+    filter,
+    currentFolderSort,
+  ])
 
   const accountEmailPool = useMemo(
     () => emails.filter((e) => emailInScope(e)),
     [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter],
   )
 
-  const threadedList = useMemo(
-    () => (threadViewEnabled ? threadsForFilteredList(accountEmailPool, filtered) : []),
-    [threadViewEnabled, accountEmailPool, filtered],
-  )
+  const threadedList = useMemo(() => {
+    if (!threadViewEnabled) return []
+    const threads = threadsForFilteredList(accountEmailPool, filtered)
+    return sortEmailThreads(threads, currentFolderSort)
+  }, [threadViewEnabled, accountEmailPool, filtered, currentFolderSort])
 
   const activeThread = useMemo(
     () =>
@@ -313,6 +338,8 @@ export function EmailView() {
             onFilterChange={setFilter}
             onFolderChange={setActiveEmailFolder}
             onClearAccount={() => selectAccount(null)}
+            folderSort={currentFolderSort}
+            onFolderSortChange={(sort) => setEmailFolderSort(activeEmailFolder, sort)}
             aiInboxEnabled={aiInboxEnabled}
             aiOutboxEnabled={aiOutboxEnabled}
             inboxStats={inboxStats}
