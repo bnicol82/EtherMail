@@ -133,6 +133,17 @@ export function ComposeEmailModal() {
     }
   }
 
+  const vaultChips = useMemo(
+    () =>
+      getVaultReplyChips(notes, emails, {
+        subject,
+        body,
+        contextEmailId: composeDraft?.contextEmailId,
+        limit: 3,
+      }),
+    [notes, emails, subject, body, composeDraft?.contextEmailId],
+  )
+
   if (!composeDraft) return null
 
   const connectedAccounts = accounts.filter((a) => a.connected)
@@ -141,17 +152,6 @@ export function ComposeEmailModal() {
     connectedAccounts[0]
   const draft = buildDraft()
   const wordCount = countWords(body)
-
-  const vaultChips = useMemo(
-    () =>
-      getVaultReplyChips(notes, emails, {
-        subject,
-        body,
-        contextEmailId: composeDraft.contextEmailId,
-        limit: 3,
-      }),
-    [notes, emails, subject, body, composeDraft.contextEmailId],
-  )
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return
