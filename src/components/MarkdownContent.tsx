@@ -20,10 +20,14 @@ export function MarkdownContent({ content, onWikiLinkClick }: Props) {
     if (note) selectNote(note.id)
   }
 
-  // Pre-process wiki links [[Title]] to markdown links
+  // Pre-process wiki links [[Title]] or [[Title|alias]]
   const processed = content.replace(
-    /\[\[([^\]]+)\]\]/g,
-    (_match, title: string) => `[${title}](wiki:${encodeURIComponent(title)})`,
+    /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
+    (_match, rawTitle: string, alias?: string) => {
+      const title = rawTitle.trim()
+      const label = (alias ?? title).trim()
+      return `[${label}](wiki:${encodeURIComponent(title)})`
+    },
   )
 
   return (
@@ -31,6 +35,14 @@ export function MarkdownContent({ content, onWikiLinkClick }: Props) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
+          img: ({ src, alt }) => (
+            <img
+              src={src}
+              alt={alt ?? ''}
+              className="note-inline-image"
+              loading="lazy"
+            />
+          ),
           a: ({ href, children }) => {
             if (href?.startsWith('wiki:')) {
               const title = decodeURIComponent(href.slice(5))

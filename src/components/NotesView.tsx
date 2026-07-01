@@ -12,6 +12,7 @@ import { useEtherMailStore } from '../store/useStore'
 import { getBacklinks } from '../lib/utils'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
+import { NoteMarkdownEditor } from './NoteMarkdownEditor'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { ShareNoteButton } from './ShareNoteButton'
 import { VaultNoteHeader } from './VaultNoteHeader'
@@ -177,16 +178,11 @@ export function NotesView() {
               <div className="flex-1 flex min-h-0 overflow-hidden">
                 {(editorMode === 'edit' || editorMode === 'split') && (
                   <div className={`${editorMode === 'split' ? 'w-1/2 border-r border-[var(--glass-border)]' : 'w-full'} flex flex-col min-h-0`}>
-                    <input
-                      value={activeNote.title}
-                      onChange={(e) => updateNote(activeNote.id, { title: e.target.value })}
-                      className="px-4 py-3 bg-transparent text-lg font-semibold text-theme outline-none border-b border-[var(--glass-border)]"
-                    />
-                    <textarea
-                      value={activeNote.content}
-                      onChange={(e) => updateNote(activeNote.id, { content: e.target.value })}
-                      className="flex-1 p-4 bg-transparent text-sm text-theme-secondary outline-none resize-none font-mono leading-relaxed"
-                      spellCheck={false}
+                    <NoteMarkdownEditor
+                      title={activeNote.title}
+                      content={activeNote.content}
+                      onTitleChange={(t) => updateNote(activeNote.id, { title: t })}
+                      onContentChange={(c) => updateNote(activeNote.id, { content: c })}
                     />
                   </div>
                 )}
