@@ -305,6 +305,17 @@ body {
   color: var(--text-secondary);
 }
 
+.markdown-body img,
+.note-inline-image {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.75rem 0;
+  border-radius: 0.75rem;
+  border: 1px solid var(--glass-border);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
