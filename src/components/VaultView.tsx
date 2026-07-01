@@ -232,7 +232,7 @@ export function VaultView() {
 
   const editorActions = (
     <>
-      {(editorMode === 'preview' || editorMode === 'split') && activeNote && (
+      {(editorMode === 'preview' || editorMode === 'split' || editorMode === 'edit') && activeNote && (
         <ShareNoteButton note={activeNote} />
       )}
       {(['edit', 'split', 'preview'] as const).map((mode) => (

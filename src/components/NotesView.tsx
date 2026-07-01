@@ -79,7 +79,7 @@ export function NotesView() {
 
   const editorActions = activeNote ? (
     <>
-      {(editorMode === 'preview' || editorMode === 'split') && <ShareNoteButton note={activeNote} />}
+      {activeNote && <ShareNoteButton note={activeNote} />}
       {(['edit', 'split', 'preview'] as const).map((mode) => (
         <button
           key={mode}

@@ -1,12 +1,14 @@
 import type { Note } from '../types'
+import { noteAsMarkdown } from './markdownWiki'
+import { downloadNoteHtml, printNoteAsPdf, shareNoteHtmlFile } from './markdownExport'
 
-export type ShareResult = 'shared' | 'copied' | 'downloaded' | 'cancelled' | 'failed'
-
-function noteAsMarkdown(note: Pick<Note, 'title' | 'content'>): string {
-  const body = note.content.trim()
-  if (body.startsWith('#')) return body
-  return `# ${note.title}\n\n${body}`
-}
+export type ShareResult =
+  | 'pdf'
+  | 'shared'
+  | 'copied'
+  | 'downloaded'
+  | 'cancelled'
+  | 'failed'
 
 function downloadMarkdown(note: Pick<Note, 'title' | 'content'>): void {
   const text = noteAsMarkdown(note)
@@ -19,22 +21,31 @@ function downloadMarkdown(note: Pick<Note, 'title' | 'content'>): void {
   URL.revokeObjectURL(url)
 }
 
-/** Share a formatted note via Web Share API, clipboard, or download */
+/** Export formatted note as PDF via the browser print dialog */
+export function exportNotePdf(note: Pick<Note, 'title' | 'content'>): ShareResult {
+  const ok = printNoteAsPdf(note)
+  return ok ? 'pdf' : 'failed'
+}
+
+/** Share formatted HTML (preserves headings, links, lists, images) */
 export async function shareNote(note: Pick<Note, 'title' | 'content'>): Promise<ShareResult> {
-  const text = noteAsMarkdown(note)
+  const shared = await shareNoteHtmlFile(note)
+  if (shared) return 'shared'
 
-  if (typeof navigator !== 'undefined' && navigator.share) {
-    try {
-      await navigator.share({
-        title: note.title,
-        text,
-      })
-      return 'shared'
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') return 'cancelled'
-    }
+  const pdfOk = printNoteAsPdf(note)
+  if (pdfOk) return 'pdf'
+
+  try {
+    downloadNoteHtml(note)
+    return 'downloaded'
+  } catch {
+    return 'failed'
   }
+}
 
+/** Copy note markdown to clipboard */
+export async function copyNoteMarkdown(note: Pick<Note, 'title' | 'content'>): Promise<ShareResult> {
+  const text = noteAsMarkdown(note)
   if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
     try {
       await navigator.clipboard.writeText(text)
@@ -54,15 +65,17 @@ export async function shareNote(note: Pick<Note, 'title' | 'content'>): Promise<
 
 export function shareResultMessage(result: ShareResult): string {
   switch (result) {
+    case 'pdf':
+      return 'Print / Save as PDF'
     case 'shared':
       return 'Note shared'
     case 'copied':
       return 'Copied to clipboard'
     case 'downloaded':
-      return 'Downloaded as Markdown'
+      return 'Downloaded formatted HTML'
     case 'cancelled':
       return ''
     default:
-      return 'Could not share note'
+      return 'Could not export note'
   }
 }

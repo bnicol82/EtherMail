@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { useNexusStore } from '../store/useStore'
+import { preprocessWikiLinks } from '../lib/markdownWiki'
 
 interface Props {
   content: string
@@ -20,15 +21,7 @@ export function MarkdownContent({ content, onWikiLinkClick }: Props) {
     if (note) selectNote(note.id)
   }
 
-  // Pre-process wiki links [[Title]] or [[Title|alias]]
-  const processed = content.replace(
-    /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g,
-    (_match, rawTitle: string, alias?: string) => {
-      const title = rawTitle.trim()
-      const label = (alias ?? title).trim()
-      return `[${label}](wiki:${encodeURIComponent(title)})`
-    },
-  )
+  const processed = preprocessWikiLinks(content)
 
   return (
     <div className="markdown-body">
