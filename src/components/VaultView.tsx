@@ -263,7 +263,7 @@ export function VaultView() {
           {mode === 'preview' && <Eye size={16} />}
         </button>
       ))}
-      <PanelHideButton panelId="vault-editor" label="editor" />
+      <PanelHideButton panelId="vault-editor" label="editor" className="hidden md:inline-flex" />
     </>
   )
 
@@ -279,11 +279,13 @@ export function VaultView() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-      <div className="hidden md:flex shrink-0 flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
-        <PanelRestoreTab panelId="vault-tree" label="Folders" />
-        <PanelRestoreTab panelId="vault-editor" label="Editor" />
-        <PanelRestoreTab panelId="vault-rail" label="Insights" />
-      </div>
+      {(treeHidden || editorHidden || railHidden) && (
+        <div className="shrink-0 flex flex-col gap-1 p-2 border-b border-[var(--glass-border)] glass">
+          <PanelRestoreTab panelId="vault-tree" label="Folders" />
+          <PanelRestoreTab panelId="vault-editor" label="Editor" />
+          <PanelRestoreTab panelId="vault-rail" label="Insights" />
+        </div>
+      )}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
       {!treeHidden && (
@@ -310,7 +312,7 @@ export function VaultView() {
               selectFolder(id)
             }}
           />
-          <PanelHideButton panelId="vault-tree" label="folders" />
+          <PanelHideButton panelId="vault-tree" label="folders" className="hidden md:inline-flex" />
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {vaultRoots.map((root) => (
