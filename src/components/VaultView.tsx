@@ -9,8 +9,6 @@ import {
   Edit3,
   Columns,
   Sparkles,
-  Tag,
-  Link2,
   Paperclip,
   Mail,
   ExternalLink,
@@ -26,7 +24,8 @@ import { ShareNoteButton } from './ShareNoteButton'
 import { VaultAddMenu } from './VaultAddMenu'
 import { VaultNoteHeader } from './VaultNoteHeader'
 import { NoteAssistPanel } from './NoteAssistPanel'
-import { getBacklinks, formatDate, formatFileSize, fileIcon } from '../lib/utils'
+import { NoteSidebar } from './NoteSidebar'
+import { formatDate, formatFileSize, fileIcon } from '../lib/utils'
 import {
   applyWikiLink,
   formatNoteBullets,
@@ -55,6 +54,9 @@ export function VaultView() {
   const selectEmail = useNexusStore((s) => s.selectEmail)
   const selectFolder = useNexusStore((s) => s.selectFolder)
   const updateNote = useNexusStore((s) => s.updateNote)
+  const updateNoteTags = useNexusStore((s) => s.updateNoteTags)
+  const openComposeFromNote = useNexusStore((s) => s.openComposeFromNote)
+  const createMeetingPrepNote = useNexusStore((s) => s.createMeetingPrepNote)
   const editorMode = useNexusStore((s) => s.editorMode)
   const setEditorMode = useNexusStore((s) => s.setEditorMode)
   const searchQuery = useNexusStore((s) => s.searchQuery)
@@ -211,7 +213,6 @@ export function VaultView() {
     return crumbs
   }
 
-  const backlinks = activeNote ? getBacklinks(activeNote.title, notes) : []
 
   const autoLinkSuggestions = useMemo(
     () => (activeNote ? getAutoLinkSuggestions(activeNote, notes) : []),
@@ -552,19 +553,19 @@ export function VaultView() {
                   />
                 </div>
 
-                <div className="p-3 border-b border-[var(--glass-border)]">
-                  <div className="space-y-1">
-                    {['Find similar notes', 'Suggest tags'].map((a) => (
-                      <button
-                        key={a}
-                        type="button"
-                        onClick={() => aiAction(a)}
-                        className="w-full text-left text-xs px-2 py-1.5 rounded hover-theme text-theme-secondary hover:text-theme"
-                      >
-                        {a}
-                      </button>
-                    ))}
-                  </div>
+                <div className="p-3 border-b border-[var(--glass-border)] space-y-3">
+                  <NoteSidebar
+                    note={activeNote}
+                    notes={notes}
+                    emails={emails}
+                    onSelectNote={(id) => selectNote(id)}
+                    onSelectEmail={(id) => selectEmail(id)}
+                    onUpdateTags={(tags) => updateNoteTags(activeNote.id, tags)}
+                    onUpdateContent={(content) => updateNote(activeNote.id, { content })}
+                    onComposeFromNote={() => openComposeFromNote(activeNote.id)}
+                    onMeetingPrepNote={createMeetingPrepNote}
+                    onAiAction={aiAction}
+                  />
                 </div>
 
                 <div className="p-3 border-b border-[var(--glass-border)]">
@@ -580,33 +581,6 @@ export function VaultView() {
                       if (note) selectNote(note.id)
                     }}
                   />
-                </div>
-
-                <div className="p-3 space-y-3">
-                  <div>
-                    <p className="text-xs text-theme-muted mb-1 flex items-center gap-1"><Tag size={10} /> Tags</p>
-                    <div className="flex flex-wrap gap-1">
-                      {activeNote.tags.map((t) => (
-                        <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-accent-soft text-accent">{t}</span>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs text-theme-muted mb-1 flex items-center gap-1"><Link2 size={10} /> Backlinks</p>
-                    {backlinks.length === 0 ? (
-                      <p className="text-xs text-theme-muted">No backlinks</p>
-                    ) : (
-                      backlinks.map((b) => (
-                        <button
-                          key={b.id}
-                          onClick={() => selectNote(b.id)}
-                          className="block text-xs text-accent hover:underline"
-                        >
-                          {b.title}
-                        </button>
-                      ))
-                    )}
-                  </div>
                 </div>
               </div>
               )}

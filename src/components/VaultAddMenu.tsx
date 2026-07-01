@@ -1,8 +1,9 @@
 import { useRef, useState, useEffect } from 'react'
-import { Plus, FileText, FolderPlus, Upload } from 'lucide-react'
+import { Plus, FileText, FolderPlus, Upload, Calendar, LayoutTemplate } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
 import { EMAIL_FILES_WORK_FOLDER_ID } from '../data/seed'
+import { getTemplateNotes } from '../lib/noteFeatures'
 
 const MAX_UPLOAD_BYTES = 512_000
 const SYSTEM_FOLDER_IDS = new Set([EMAIL_FILES_FOLDER_ID, EMAIL_FILES_WORK_FOLDER_ID])
@@ -14,11 +15,16 @@ interface Props {
 
 export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
   const createNote = useEtherMailStore((s) => s.createNote)
+  const openDailyNote = useEtherMailStore((s) => s.openDailyNote)
+  const createNoteFromTemplate = useEtherMailStore((s) => s.createNoteFromTemplate)
   const createFolder = useEtherMailStore((s) => s.createFolder)
   const uploadVaultFile = useEtherMailStore((s) => s.uploadVaultFile)
+  const notes = useEtherMailStore((s) => s.notes)
+  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
 
   const [open, setOpen] = useState(false)
   const [folderPrompt, setFolderPrompt] = useState(false)
+  const [templatePicker, setTemplatePicker] = useState(false)
   const [folderName, setFolderName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -26,6 +32,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
   const folderInputRef = useRef<HTMLInputElement>(null)
 
   const disabled = SYSTEM_FOLDER_IDS.has(folderId)
+  const templates = getTemplateNotes(notes, activeVaultId ?? undefined)
 
   useEffect(() => {
     if (!open) return
@@ -33,6 +40,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false)
         setFolderPrompt(false)
+        setTemplatePicker(false)
       }
     }
     document.addEventListener('mousedown', close)
@@ -49,13 +57,20 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
       : 'root'
     : folderId
 
-  const onNewNote = () => {
-    const target = folderId === EMAIL_FILES_FOLDER_ID
+  const targetFolder = () =>
+    folderId === EMAIL_FILES_FOLDER_ID
       ? 'personal'
       : folderId === EMAIL_FILES_WORK_FOLDER_ID
         ? 'athena'
         : folderId
-    createNote(target)
+
+  const onNewNote = () => {
+    createNote(targetFolder())
+    setOpen(false)
+  }
+
+  const onDailyNote = () => {
+    openDailyNote()
     setOpen(false)
   }
 
@@ -135,6 +150,34 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
                 </button>
               </div>
             </div>
+          ) : templatePicker ? (
+            <div className="p-1 max-h-48 overflow-y-auto">
+              {templates.length === 0 ? (
+                <p className="text-[10px] text-theme-muted px-2 py-1">No templates in Templates folder</p>
+              ) : (
+                templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    type="button"
+                    onClick={() => {
+                      createNoteFromTemplate(tpl.id, targetFolder())
+                      setTemplatePicker(false)
+                      setOpen(false)
+                    }}
+                    className="w-full text-left px-3 py-2 rounded-lg text-xs text-theme-secondary hover-theme"
+                  >
+                    {tpl.title}
+                  </button>
+                ))
+              )}
+              <button
+                type="button"
+                onClick={() => setTemplatePicker(false)}
+                className="w-full px-3 py-1.5 text-[10px] text-theme-muted hover-theme"
+              >
+                Back
+              </button>
+            </div>
           ) : (
             <>
               <button
@@ -144,6 +187,23 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
               >
                 <FileText size={14} className="text-accent" />
                 New note
+              </button>
+              <button
+                type="button"
+                onClick={onDailyNote}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
+              >
+                <Calendar size={14} className="text-accent" />
+                Today&apos;s note
+              </button>
+              <button
+                type="button"
+                onClick={() => setTemplatePicker(true)}
+                disabled={templates.length === 0}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left disabled:opacity-40"
+              >
+                <LayoutTemplate size={14} className="text-accent" />
+                From template
               </button>
               <button
                 type="button"
