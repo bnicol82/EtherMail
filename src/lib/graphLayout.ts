@@ -54,6 +54,7 @@ export type GraphLayoutView =
   | 'radial'
   | 'hierarchical'
   | 'concentric'
+  | 'cluster'
 
 export const GRAPH_LAYOUT_VIEWS: {
   id: GraphLayoutView
@@ -65,6 +66,7 @@ export const GRAPH_LAYOUT_VIEWS: {
   { id: 'spiral', label: 'Spiral', hint: 'Outward spiral' },
   { id: 'grid', label: 'Grid', hint: 'Square grid' },
   { id: 'radial', label: 'Radial', hint: 'Grouped by type' },
+  { id: 'cluster', label: 'Cluster', hint: 'Spaced type islands' },
   { id: 'hierarchical', label: 'Tree', hint: 'Layered from hub' },
   { id: 'concentric', label: 'Rings', hint: 'By connections' },
 ]
@@ -280,6 +282,72 @@ export function runGridLayout(
 
 const TYPE_ORDER: GraphNode['type'][] = ['note', 'email', 'person', 'tag', 'calendar']
 
+/** Relative anchor for each type cluster (scaled from canvas center) */
+const CLUSTER_ANCHORS: Record<GraphNode['type'], { x: number; y: number }> = {
+  note: { x: -0.38, y: -0.32 },
+  email: { x: 0.38, y: -0.32 },
+  person: { x: 0, y: 0.02 },
+  tag: { x: -0.38, y: 0.34 },
+  calendar: { x: 0.38, y: 0.34 },
+}
+
+function nodesByType(nodes: GraphNode[]): Map<GraphNode['type'], GraphNode[]> {
+  const byType = new Map<GraphNode['type'], GraphNode[]>()
+  TYPE_ORDER.forEach((t) => byType.set(t, []))
+  nodes.forEach((n) => {
+    const list = byType.get(n.type) ?? []
+    list.push(n)
+    byType.set(n.type, list)
+  })
+  return byType
+}
+
+function layoutClusterGroup(
+  group: GraphNode[],
+  centerX: number,
+  centerY: number,
+  result: Map<string, GraphPosition>,
+): void {
+  const sorted = [...group].sort((a, b) => a.label.localeCompare(b.label))
+  const n = sorted.length
+  if (n === 0) return
+  if (n === 1) {
+    result.set(sorted[0].id, { x: centerX, y: centerY })
+    return
+  }
+
+  const ringRadius = Math.max(36, Math.min(105, 15 * Math.sqrt(n)))
+  sorted.forEach((node, i) => {
+    const angle = (i / n) * Math.PI * 2 - Math.PI / 2
+    result.set(node.id, {
+      x: centerX + Math.cos(angle) * ringRadius,
+      y: centerY + Math.sin(angle) * ringRadius,
+    })
+  })
+}
+
+export function runClusterLayout(
+  nodes: GraphNode[],
+  options: ForceLayoutOptions = {},
+): Map<string, GraphPosition> {
+  const { cx, cy, width, height } = layoutBounds(options)
+  const result = new Map<string, GraphPosition>()
+  const byType = nodesByType(nodes)
+  const spreadX = width * 0.42
+  const spreadY = height * 0.4
+
+  for (const type of TYPE_ORDER) {
+    const group = byType.get(type) ?? []
+    if (group.length === 0) continue
+    const anchor = CLUSTER_ANCHORS[type]
+    const clusterX = cx + anchor.x * spreadX
+    const clusterY = cy + anchor.y * spreadY
+    layoutClusterGroup(group, clusterX, clusterY, result)
+  }
+
+  return result
+}
+
 export function runRadialLayout(
   nodes: GraphNode[],
   options: ForceLayoutOptions = {},
@@ -420,6 +488,8 @@ export function runGraphLayout(
       return runGridLayout(nodes, options)
     case 'radial':
       return runRadialLayout(nodes, options)
+    case 'cluster':
+      return runClusterLayout(nodes, options)
     case 'hierarchical':
       return runHierarchicalLayout(nodes, edges, options)
     case 'concentric':
