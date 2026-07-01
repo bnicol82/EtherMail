@@ -32,8 +32,8 @@ import {
 } from '../lib/orgPolicy'
 import { canUseFeatureFromStore } from '../lib/featureGates'
 import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
-import { appendAudit, auditAiQuery, gateOrToast } from '../lib/storePolicy'
-import { gateClientAndServer } from '../lib/serverGate'
+import { appendAudit, auditAiQuery } from '../lib/storePolicy'
+import { withFullGate } from '../lib/serverGate'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
@@ -240,7 +240,7 @@ interface EtherMailState {
   sendScheduledEmailNow: (emailId: string) => void
 
   updateCalendarEvent: (id: string, updates: Partial<CalendarEvent>) => void
-  importCalendarEvents: (events: CalendarEvent[]) => number
+  importCalendarEvents: (events: CalendarEvent[]) => Promise<number>
   forwardCalendarInvite: (eventId: string) => void
   editingEventId: string | null
   setEditingEventId: (id: string | null) => void
@@ -287,7 +287,7 @@ interface EtherMailState {
   emailLabels: EmailLabel[]
   activeLabelFilter: string | null
   setActiveLabelFilter: (labelId: string | null) => void
-  createEmailLabel: (name: string, color?: string) => string
+  createEmailLabel: (name: string, color?: string) => Promise<string>
   deleteEmailLabel: (labelId: string) => void
   toggleEmailLabelOnEmail: (emailId: string, labelId: string) => void
   batchApplyEmailLabel: (emailIds: string[], labelId: string) => void
@@ -354,15 +354,12 @@ export const useEtherMailStore = create<EtherMailState>()(
     (set, get) => ({
       view: 'dashboard',
       setView: (view) => {
-        const state = get()
-        if (view === 'graph') {
-          const gate = gateOrToast(state, 'graph_view', 'Open graph view')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (view === 'graph') {
+            if (!(await withFullGate(get, set, 'graph_view', 'Open graph view'))) return
           }
-        }
-        set({ view, mobilePanel: 'list' })
+          set({ view, mobilePanel: 'list' })
+        })()
       },
 
       theme: 'glass',
@@ -416,14 +413,12 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       commandPaletteOpen: false,
       setCommandPaletteOpen: (commandPaletteOpen) => {
-        if (commandPaletteOpen) {
-          const gate = gateOrToast(get(), 'command_palette', 'Open command palette')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (commandPaletteOpen) {
+            if (!(await withFullGate(get, set, 'command_palette', 'Open command palette'))) return
           }
-        }
-        set({ commandPaletteOpen })
+          set({ commandPaletteOpen })
+        })()
       },
 
       assistantSettings: {
@@ -487,11 +482,11 @@ export const useEtherMailStore = create<EtherMailState>()(
         const state = get()
         const mode = state.aiMode
         const aiFeature = mode === 'vault' ? 'vault_ai' : 'external_ai'
-        const gate = await gateClientAndServer(state, aiFeature, 'AI query')
-        if (!gate.ok) {
-          const denial = gate.patch.policyToast
+        const ok = await withFullGate(get, set, aiFeature, 'AI query')
+        if (!ok) {
+          const denial = get().policyToast ?? 'Action not allowed'
           state.addChatMessage({ role: 'assistant', content: denial, mode })
-          set({ ...gate.patch, aiContextResponse: denial, aiAssistantOpen: true })
+          set({ aiContextResponse: denial, aiAssistantOpen: true })
           return
         }
         const bridgeOk = canUseFeatureFromStore('ai_bridge', state)
@@ -526,12 +521,8 @@ export const useEtherMailStore = create<EtherMailState>()(
       clearAiContextResponse: () => set({ aiContextResponse: null, aiAssistantOpen: false }),
 
       openMeetingPrepBrief: async (eventId) => {
+        if (!(await withFullGate(get, set, 'meeting_prep_ai', 'Meeting prep brief'))) return
         const state = get()
-        const gate = gateOrToast(state, 'meeting_prep_ai', 'Meeting prep brief')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
         const event = state.calendarEvents.find((e) => e.id === eventId)
         if (!event) return
         const brief = generateMeetingBrief(event, state.notes, state.emails)
@@ -607,14 +598,12 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       aiMode: 'vault',
       setAiMode: (aiMode) => {
-        if (aiMode === 'external') {
-          const gate = gateOrToast(get(), 'external_ai', 'Switch to external AI')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (aiMode === 'external') {
+            if (!(await withFullGate(get, set, 'external_ai', 'Switch to external AI'))) return
           }
-        }
-        set({ aiMode })
+          set({ aiMode })
+        })()
       },
 
       selectNote: (id, opts) => {
@@ -846,11 +835,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       uploadVaultFile: async (file, folderId) => {
-        const gate = gateOrToast(get(), 'vault_file_upload', 'Upload vault file')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
+        if (!(await withFullGate(get, set, 'vault_file_upload', 'Upload vault file'))) return
         if (folderId === EMAIL_FILES_FOLDER_ID) return
         const folderMeta = get().folders.find((f) => f.id === folderId)
         const dataUrl = await new Promise<string>((resolve, reject) => {
@@ -944,12 +929,9 @@ export const useEtherMailStore = create<EtherMailState>()(
       composeDraft: null,
 
       openCompose: (initial) => {
-        const state = get()
-        const gate = gateOrToast(state, 'compose_email', 'Compose email')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
+        void (async () => {
+          if (!(await withFullGate(get, set, 'compose_email', 'Compose email'))) return
+          const state = get()
         const connected = state.accounts.filter((a) => a.connected)
         const defaultAccount =
           (state.activeAccountId && connected.find((a) => a.id === state.activeAccountId)?.id) ||
@@ -1004,6 +986,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           view: 'email',
           mobilePanel: 'list',
         })
+        })()
       },
 
       openComposeFromEmail: (emailId) => {
@@ -1041,12 +1024,7 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       sendComposedEmail: (draft) => {
         void (async () => {
-          const state = get()
-          const gate = await gateClientAndServer(state, 'compose_email', 'Send email')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
-          }
+          if (!(await withFullGate(get, set, 'compose_email', 'Send email'))) return
           const current = get()
           const account = current.accounts.find((a) => a.id === draft.accountId)
           const now = new Date().toISOString()
@@ -1206,12 +1184,9 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       scheduleComposedEmail: (draft, scheduledAt) => {
-        const state = get()
-        const gate = gateOrToast(state, 'scheduled_send', 'Schedule email')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
+        void (async () => {
+          if (!(await withFullGate(get, set, 'scheduled_send', 'Schedule email'))) return
+          const state = get()
         const account = state.accounts.find((a) => a.id === draft.accountId)
         const now = new Date().toISOString()
         const preview = draft.body.trim().slice(0, 120) || '(scheduled)'
@@ -1279,6 +1254,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           composeDraft: null,
           mobilePanel: 'detail',
         })
+        })()
       },
 
       processScheduledEmails: () => {
@@ -1349,14 +1325,10 @@ export const useEtherMailStore = create<EtherMailState>()(
           ),
         })),
 
-      importCalendarEvents: (events) => {
+      importCalendarEvents: async (events) => {
         if (events.length === 0) return 0
+        if (!(await withFullGate(get, set, 'calendar_import_export', 'Import calendar'))) return 0
         const state = get()
-        const gate = gateOrToast(state, 'calendar_import_export', 'Import calendar')
-        if (!gate.ok) {
-          set(gate.patch)
-          return 0
-        }
         const before = state.calendarEvents.length
         const merged = mergeImportedEvents(state.calendarEvents, events)
         set({
@@ -1477,47 +1449,38 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       threadViewEnabled: false,
       setThreadViewEnabled: (threadViewEnabled) => {
-        if (threadViewEnabled) {
-          const gate = gateOrToast(get(), 'thread_view', 'Thread view')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (threadViewEnabled) {
+            if (!(await withFullGate(get, set, 'thread_view', 'Thread view'))) return
           }
-        }
-        set({ threadViewEnabled })
+          set({ threadViewEnabled })
+        })()
       },
 
       aiInboxEnabled: false,
       setAiInboxEnabled: (aiInboxEnabled) => {
-        if (aiInboxEnabled) {
-          const gate = gateOrToast(get(), 'ai_inbox', 'AI Inbox')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (aiInboxEnabled) {
+            if (!(await withFullGate(get, set, 'ai_inbox', 'AI Inbox'))) return
           }
-        }
-        set({ aiInboxEnabled, aiOutboxEnabled: aiInboxEnabled ? false : get().aiOutboxEnabled })
+          set({ aiInboxEnabled, aiOutboxEnabled: aiInboxEnabled ? false : get().aiOutboxEnabled })
+        })()
       },
 
       aiOutboxEnabled: false,
       setAiOutboxEnabled: (aiOutboxEnabled) => {
-        if (aiOutboxEnabled) {
-          const gate = gateOrToast(get(), 'ai_outbox', 'AI Outbox')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (aiOutboxEnabled) {
+            if (!(await withFullGate(get, set, 'ai_outbox', 'AI Outbox'))) return
           }
-        }
-        set({ aiOutboxEnabled, aiInboxEnabled: aiOutboxEnabled ? false : get().aiInboxEnabled })
+          set({ aiOutboxEnabled, aiInboxEnabled: aiOutboxEnabled ? false : get().aiInboxEnabled })
+        })()
       },
 
       deleteAllOutboxEmails: () => {
-        const state = get()
-        const gate = gateOrToast(state, 'ai_outbox', 'Delete outbox emails')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
+        void (async () => {
+          if (!(await withFullGate(get, set, 'ai_outbox', 'Delete outbox emails'))) return
+          const state = get()
         const outboxIds = new Set(
           getOutboxEmails(state.emails, state.inboxTraining, state.emailInboxOverrides).map(
             (e) => e.id,
@@ -1533,18 +1496,16 @@ export const useEtherMailStore = create<EtherMailState>()(
               ? null
               : state.activeEmailId,
         })
+        })()
       },
 
       inboxTraining: DEFAULT_INBOX_TRAINING,
       emailInboxOverrides: {},
 
       trainEmailImportant: (emailId) => {
-        const state = get()
-        const gate = gateOrToast(state, 'inbox_training', 'Train inbox')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
+        void (async () => {
+          if (!(await withFullGate(get, set, 'inbox_training', 'Train inbox'))) return
+          const state = get()
         const email = state.emails.find((e) => e.id === emailId)
         if (!email) return
         const domain = domainFromAddress(email.from)
@@ -1565,15 +1526,13 @@ export const useEtherMailStore = create<EtherMailState>()(
             [emailId]: { verdict: 'important', trainedAt: new Date().toISOString() },
           },
         })
+        })()
       },
 
       trainEmailJunk: (emailId, category) => {
-        const state = get()
-        const gate = gateOrToast(state, 'inbox_training', 'Train inbox')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
+        void (async () => {
+          if (!(await withFullGate(get, set, 'inbox_training', 'Train inbox'))) return
+          const state = get()
         const email = state.emails.find((e) => e.id === emailId)
         if (!email) return
         const domain = domainFromAddress(email.from)
@@ -1594,42 +1553,37 @@ export const useEtherMailStore = create<EtherMailState>()(
             [emailId]: { verdict: 'junk', category, trainedAt: new Date().toISOString() },
           },
         })
+        })()
       },
 
       clearInboxTraining: () => {
-        const gate = gateOrToast(get(), 'inbox_training', 'Reset inbox training')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        set({ inboxTraining: DEFAULT_INBOX_TRAINING, emailInboxOverrides: {} })
+        void (async () => {
+          if (!(await withFullGate(get, set, 'inbox_training', 'Reset inbox training'))) return
+          set({ inboxTraining: DEFAULT_INBOX_TRAINING, emailInboxOverrides: {} })
+        })()
       },
 
       selectedEmailIds: [],
       emailSelectionMode: false,
       followUpFilterEnabled: false,
       setEmailSelectionMode: (emailSelectionMode) => {
-        if (emailSelectionMode) {
-          const gate = gateOrToast(get(), 'batch_email_actions', 'Select emails')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (emailSelectionMode) {
+            if (!(await withFullGate(get, set, 'batch_email_actions', 'Select emails'))) return
           }
-        }
-        set({
-          emailSelectionMode,
-          selectedEmailIds: emailSelectionMode ? get().selectedEmailIds : [],
-        })
+          set({
+            emailSelectionMode,
+            selectedEmailIds: emailSelectionMode ? get().selectedEmailIds : [],
+          })
+        })()
       },
       setFollowUpFilterEnabled: (followUpFilterEnabled) => {
-        if (followUpFilterEnabled) {
-          const gate = gateOrToast(get(), 'follow_up_filter', 'Follow-up filter')
-          if (!gate.ok) {
-            set(gate.patch)
-            return
+        void (async () => {
+          if (followUpFilterEnabled) {
+            if (!(await withFullGate(get, set, 'follow_up_filter', 'Follow-up filter'))) return
           }
-        }
-        set({ followUpFilterEnabled })
+          set({ followUpFilterEnabled })
+        })()
       },
       toggleEmailSelection: (emailId) =>
         set((s) => ({
@@ -1640,71 +1594,54 @@ export const useEtherMailStore = create<EtherMailState>()(
       selectAllVisibleEmails: (emailIds) => set({ selectedEmailIds: emailIds }),
       clearEmailSelection: () => set({ selectedEmailIds: [], emailSelectionMode: false }),
       batchArchiveEmails: (emailIds) => {
-        const state = get()
-        const gate = gateOrToast(state, 'batch_email_actions', 'Batch archive')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        const ids = new Set(emailIds)
-        set((s) => ({
-          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'archive' as EmailFolder } : e)),
-          selectedEmailIds: [],
-          emailSelectionMode: false,
-          activeEmailId:
-            s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
-        }))
+        void (async () => {
+          if (!(await withFullGate(get, set, 'batch_email_actions', 'Batch archive'))) return
+          const ids = new Set(emailIds)
+          set((s) => ({
+            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'archive' as EmailFolder } : e)),
+            selectedEmailIds: [],
+            emailSelectionMode: false,
+            activeEmailId:
+              s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
+          }))
+        })()
       },
       batchDeleteEmails: (emailIds) => {
-        const state = get()
-        const gate = gateOrToast(state, 'batch_email_actions', 'Batch delete')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        const ids = new Set(emailIds)
-        set((s) => ({
-          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e)),
-          selectedEmailIds: [],
-          emailSelectionMode: false,
-          activeEmailId:
-            s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
-        }))
+        void (async () => {
+          if (!(await withFullGate(get, set, 'batch_email_actions', 'Batch delete'))) return
+          const ids = new Set(emailIds)
+          set((s) => ({
+            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e)),
+            selectedEmailIds: [],
+            emailSelectionMode: false,
+            activeEmailId:
+              s.activeEmailId && ids.has(s.activeEmailId) ? null : s.activeEmailId,
+          }))
+        })()
       },
       batchStarEmails: (emailIds, starred) => {
-        const state = get()
-        const gate = gateOrToast(state, 'batch_email_actions', 'Batch star')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        const ids = new Set(emailIds)
-        set((s) => ({
-          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, starred } : e)),
-        }))
+        void (async () => {
+          if (!(await withFullGate(get, set, 'batch_email_actions', 'Batch star'))) return
+          const ids = new Set(emailIds)
+          set((s) => ({
+            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, starred } : e)),
+          }))
+        })()
       },
       batchMarkEmailsRead: (emailIds, read) => {
-        const state = get()
-        const gate = gateOrToast(state, 'batch_email_actions', 'Batch mark read')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        const ids = new Set(emailIds)
-        set((s) => ({
-          emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, read } : e)),
-        }))
+        void (async () => {
+          if (!(await withFullGate(get, set, 'batch_email_actions', 'Batch mark read'))) return
+          const ids = new Set(emailIds)
+          set((s) => ({
+            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, read } : e)),
+          }))
+        })()
       },
 
       setActiveLabelFilter: (activeLabelFilter) => set({ activeLabelFilter }),
 
-      createEmailLabel: (name, color) => {
-        const state = get()
-        const gate = gateOrToast(state, 'email_labels', 'Create email label')
-        if (!gate.ok) {
-          set(gate.patch)
-          return ''
-        }
+      createEmailLabel: async (name, color) => {
+        if (!(await withFullGate(get, set, 'email_labels', 'Create email label'))) return ''
         const trimmed = name.trim()
         if (!trimmed) return ''
         const id = `label-${Date.now()}`
@@ -1719,20 +1656,17 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       deleteEmailLabel: (labelId) => {
-        const state = get()
-        const gate = gateOrToast(state, 'email_labels', 'Delete email label')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        set((s) => ({
-          emailLabels: s.emailLabels.filter((l) => l.id !== labelId),
-          emails: s.emails.map((e) => ({
-            ...e,
-            labelIds: e.labelIds?.filter((id) => id !== labelId),
-          })),
-          activeLabelFilter: s.activeLabelFilter === labelId ? null : s.activeLabelFilter,
-        }))
+        void (async () => {
+          if (!(await withFullGate(get, set, 'email_labels', 'Delete email label'))) return
+          set((s) => ({
+            emailLabels: s.emailLabels.filter((l) => l.id !== labelId),
+            emails: s.emails.map((e) => ({
+              ...e,
+              labelIds: e.labelIds?.filter((id) => id !== labelId),
+            })),
+            activeLabelFilter: s.activeLabelFilter === labelId ? null : s.activeLabelFilter,
+          }))
+        })()
       },
 
       toggleEmailLabelOnEmail: (emailId, labelId) =>
@@ -1751,23 +1685,20 @@ export const useEtherMailStore = create<EtherMailState>()(
         })),
 
       batchApplyEmailLabel: (emailIds, labelId) => {
-        const state = get()
-        const gate = gateOrToast(state, 'email_labels', 'Apply email label')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        const ids = new Set(emailIds)
-        set((s) => ({
-          emails: s.emails.map((e) => {
-            if (!ids.has(e.id)) return e
-            const current = e.labelIds ?? []
-            if (current.includes(labelId)) return e
-            return { ...e, labelIds: [...current, labelId] }
-          }),
-          selectedEmailIds: [],
-          emailSelectionMode: false,
-        }))
+        void (async () => {
+          if (!(await withFullGate(get, set, 'email_labels', 'Apply email label'))) return
+          const ids = new Set(emailIds)
+          set((s) => ({
+            emails: s.emails.map((e) => {
+              if (!ids.has(e.id)) return e
+              const current = e.labelIds ?? []
+              if (current.includes(labelId)) return e
+              return { ...e, labelIds: [...current, labelId] }
+            }),
+            selectedEmailIds: [],
+            emailSelectionMode: false,
+          }))
+        })()
       },
 
       hiddenPanels: {},
@@ -1898,12 +1829,8 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       syncGmailInbox: async (accountId) => {
+        if (!(await withFullGate(get, set, 'gmail_live_sync', 'Gmail sync'))) return
         const state = get()
-        const gate = gateOrToast(state, 'gmail_live_sync', 'Gmail sync')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
         const account = state.accounts.find((a) => a.id === accountId)
         if (!account || account.provider !== 'gmail' || !account.oauthAccessToken) return
 
@@ -2224,13 +2151,9 @@ export const useEtherMailStore = create<EtherMailState>()(
         },
       ],
       setVaultShared: (vaultId, shared) => {
-        const state = get()
-        const gate = gateOrToast(state, 'shared_vaults', shared ? 'Share vault' : 'Unshare vault')
-        if (!gate.ok) {
-          set(gate.patch)
-          return
-        }
-        set((s) => ({
+        void (async () => {
+          if (!(await withFullGate(get, set, 'shared_vaults', shared ? 'Share vault' : 'Unshare vault'))) return
+          set((s) => ({
           vaults: s.vaults.map((v) => (v.id === vaultId ? { ...v, shared } : v)),
           vaultShares: shared
             ? s.vaultShares.some((vs) => vs.vaultId === vaultId)
@@ -2254,6 +2177,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           void pushVaultSharesToApi(get()).catch(() => {})
           void get().flushAuditToApi()
         }
+        })()
       },
       setVaultSharePermission: (vaultId, permission) => {
         set((s) => ({

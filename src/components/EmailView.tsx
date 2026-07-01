@@ -356,7 +356,7 @@ export function EmailView() {
             activeLabelFilter={activeLabelFilter}
             labelCounts={labelCounts}
             onLabelFilter={setActiveLabelFilter}
-            onCreateLabel={(name, color) => createEmailLabel(name, color)}
+            onCreateLabel={(name, color) => void createEmailLabel(name, color)}
             onDeleteLabel={deleteEmailLabel}
             threadViewEnabled={threadViewEnabled}
             onToggleThreadView={() => setThreadViewEnabled(!threadViewEnabled)}

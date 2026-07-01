@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
+import * as jose from 'https://esm.sh/jose@5.9.6'
 
 const DEMO_ORG_ID = '00000000-0000-4000-8000-000000000001'
 const CORS = {
@@ -365,6 +366,34 @@ function emailFromIdToken(idToken: string) {
   return payload.email ?? payload.preferred_username ?? payload.upn ?? null
 }
 
+function jwksUrlForProvider(provider: string, tenantId: string, domain: string) {
+  switch (provider) {
+    case 'entra':
+      return `https://login.microsoftonline.com/${tenantId || 'common'}/discovery/v2.0/keys`
+    case 'google_workspace':
+      return 'https://www.googleapis.com/oauth2/v3/certs'
+    case 'okta':
+      return `https://${domain}/oauth2/v1/keys`
+    default:
+      return null
+  }
+}
+
+async function verifyIdToken(idToken: string, provider: string, tenantId: string, clientId: string, domain: string) {
+  const jwksUrl = jwksUrlForProvider(provider, tenantId, domain)
+  if (!jwksUrl) return emailFromIdToken(idToken)
+  const jwks = jose.createRemoteJWKSet(new URL(jwksUrl))
+  const { payload } = await jose.jwtVerify(idToken, jwks, {
+    audience: clientId || undefined,
+  })
+  return (
+    (payload.email as string) ??
+    (payload.preferred_username as string) ??
+    (payload.upn as string) ??
+    null
+  )
+}
+
 async function exchangeCode(
   sso: Record<string, unknown>,
   code: string,
@@ -404,7 +433,22 @@ async function exchangeCode(
   })
   if (!res.ok) throw new Error(`Token exchange failed (${res.status})`)
   const tokens = await res.json()
-  const email = emailFromIdToken(tokens.id_token) ?? tokens.email
+
+  let email: string | null = null
+  if (tokens.id_token) {
+    try {
+      email = await verifyIdToken(
+        tokens.id_token,
+        provider,
+        String(sso.tenant_id ?? ''),
+        clientId,
+        String(sso.domain ?? ''),
+      )
+    } catch {
+      email = emailFromIdToken(tokens.id_token)
+    }
+  }
+  email = email ?? (tokens.email ? String(tokens.email).toLowerCase() : null)
   if (!email) throw new Error('No email in SSO token')
   return { email: String(email).toLowerCase() }
 }

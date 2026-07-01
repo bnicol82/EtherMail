@@ -1,8 +1,10 @@
 import { emailFromIdToken } from './jwt-email.mjs'
+import { verifyIdToken, idTokenVerifyOptions, emailFromPayload } from './jwks-verify.mjs'
 
 /**
  * Exchange OAuth authorization code for tokens.
  * When client secret env vars are unset, returns demo email (local dev only).
+ * When id_token is returned, JWKS signature validation is performed.
  */
 export async function exchangeSsoAuthorizationCode({
   code,
@@ -38,9 +40,19 @@ export async function exchangeSsoAuthorizationCode({
   }
 
   const tokens = await res.json()
-  const email =
-    emailFromIdToken(tokens.id_token) ??
-    (tokens.email ? String(tokens.email).toLowerCase() : null)
+  let email = null
+
+  if (tokens.id_token) {
+    const verifyOpts = idTokenVerifyOptions(provider, { tenantId, clientId, domain })
+    if (verifyOpts) {
+      const payload = await verifyIdToken(tokens.id_token, verifyOpts)
+      email = emailFromPayload(payload)
+    } else {
+      email = emailFromIdToken(tokens.id_token)
+    }
+  }
+
+  email = email ?? (tokens.email ? String(tokens.email).toLowerCase() : null)
 
   if (!email) throw new Error('SSO response did not include an email')
   return { email, mode: 'oauth', idToken: tokens.id_token ?? null }
