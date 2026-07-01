@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import {
   Send,
   X,
@@ -14,6 +14,7 @@ import {
   Clock,
   ChevronDown,
   Check,
+  Link2,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { ComposeAttachment, ComposeDraft, Email } from '../types'
@@ -33,6 +34,7 @@ import {
   scheduledAtFromPreset,
   toDatetimeLocalValue,
 } from '../lib/scheduledSend'
+import { getVaultReplyChips } from '../lib/vaultReplyChips'
 
 type ComposePanel = 'none' | 'templates' | 'ai'
 
@@ -139,6 +141,17 @@ export function ComposeEmailModal() {
     connectedAccounts[0]
   const draft = buildDraft()
   const wordCount = countWords(body)
+
+  const vaultChips = useMemo(
+    () =>
+      getVaultReplyChips(notes, emails, {
+        subject,
+        body,
+        contextEmailId: composeDraft.contextEmailId,
+        limit: 3,
+      }),
+    [notes, emails, subject, body, composeDraft.contextEmailId],
+  )
 
   const handleFiles = async (files: FileList | null) => {
     if (!files?.length) return
@@ -445,6 +458,28 @@ export function ComposeEmailModal() {
             </select>
           )}
         </div>
+
+        {vaultChips.length > 0 && (
+          <div className="shrink-0 px-3 py-2 border-b border-[var(--glass-border)] bg-accent-soft/20">
+            <p className="text-[10px] text-theme-muted mb-1.5 flex items-center gap-1">
+              <Link2 size={10} className="text-accent" />
+              From your vault
+            </p>
+            <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+              {vaultChips.map((chip) => (
+                <button
+                  key={chip.noteId}
+                  type="button"
+                  onClick={() => insertNoteLink(chip.noteId)}
+                  className="shrink-0 text-xs px-2.5 py-1 rounded-full glass hover-theme text-theme-secondary border border-[var(--accent-border)]/40"
+                  title={chip.reason}
+                >
+                  [[{chip.title}]]
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Side panel: templates or AI */}
         {panel !== 'none' && (
