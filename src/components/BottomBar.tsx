@@ -15,6 +15,7 @@ import { useEtherMailStore, useStats, useUpcomingMeetings } from '../store/useSt
 import { getAIContext } from '../lib/aiContext'
 import { applyWikiLink, getAutoLinkSuggestions } from '../lib/noteAssist'
 import { MarkdownContent } from './MarkdownContent'
+import { CopyButton } from './CopyButton'
 import { WeatherChip } from './WeatherChip'
 
 function formatMeetingTime(iso: string): string {
@@ -102,6 +103,9 @@ export function BottomBar() {
               Quick reply
             </span>
             <div className="flex items-center gap-2">
+              {!aiLoading && aiContextResponse && (
+                <CopyButton text={aiContextResponse} label="Copy" />
+              )}
               <button
                 onClick={openFullChat}
                 className="text-[10px] text-accent hover:underline flex items-center gap-1"

@@ -3,6 +3,7 @@ import { Send, Sparkles, Globe, Shield, Trash2, Mic, Loader2 } from 'lucide-reac
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { MarkdownContent } from './MarkdownContent'
+import { CopyButton } from './CopyButton'
 import { AIAlertsPanel } from './AIAlertsPanel'
 import { listenOnce, speakText, isListeningSupported, stopSpeaking } from '../lib/voice'
 import { formatAssistantReplyForSpeech } from '../lib/proactiveAssistant'
@@ -205,15 +206,18 @@ export function AIView() {
             className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] md:max-w-[70%] rounded-xl px-4 py-3 ${
+              className={`max-w-[85%] md:max-w-[70%] rounded-xl px-4 py-3 relative ${
                 m.role === 'user'
                   ? 'bg-accent-soft border border-accent'
                   : 'glass border border-[var(--glass-border)]'
               }`}
             >
-              <p className="text-[10px] uppercase tracking-wider mb-1 text-theme-muted">
-                {m.role === 'user' ? 'You' : m.mode === 'vault' ? 'Vault AI' : 'External AI'}
-              </p>
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-[10px] uppercase tracking-wider text-theme-muted">
+                  {m.role === 'user' ? 'You' : m.mode === 'vault' ? 'Vault AI' : 'External AI'}
+                </p>
+                <CopyButton text={m.content} />
+              </div>
               {m.role === 'assistant' ? (
                 <div className="text-sm text-theme-secondary prose-sm">
                   <MarkdownContent content={m.content} />
