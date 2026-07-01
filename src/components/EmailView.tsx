@@ -113,6 +113,7 @@ export function EmailView() {
   const showLabels = useFeatureVisible('email_labels')
   const showAiInbox = useFeatureVisible('ai_inbox')
   const showAiOutbox = useFeatureVisible('ai_outbox')
+  const showCompose = useFeatureVisible('compose_email')
 
   const [filter, setFilter] = useState('')
   const [batchConfirmDelete, setBatchConfirmDelete] = useState(false)
@@ -474,7 +475,8 @@ export function EmailView() {
           <>
             <div className="flex-1 flex flex-col min-w-0 min-h-0 order-2 lg:order-1">
               {(activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled') &&
-                !composeDraft && (
+                !composeDraft &&
+                showCompose && (
                   <div className="shrink-0 px-3 pt-3 lg:px-4">
                     <button
                       type="button"
@@ -542,6 +544,8 @@ export function EmailView() {
                       </button>
                     </>
                   )}
+                  {showCompose && (
+                  <>
                   <button
                     onClick={() =>
                       (activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled')
@@ -575,6 +579,8 @@ export function EmailView() {
                   >
                     <Forward size={14} /> Forward
                   </button>
+                  </>
+                  )}
                   <button
                     onClick={() => runAiAction('Draft a reply to this email')}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
@@ -635,14 +641,16 @@ export function EmailView() {
                     type="button"
                     onClick={() => {
                       if (
-                        activeEmail.folder === 'drafts' ||
-                        activeEmail.folder === 'scheduled'
+                        showCompose &&
+                        (activeEmail.folder === 'drafts' ||
+                        activeEmail.folder === 'scheduled')
                       ) {
                         openComposeFromEmail(activeEmail.id)
                       }
                     }}
                     className={`whitespace-pre-wrap text-sm text-theme-secondary leading-relaxed w-full text-left ${
-                      activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled'
+                      showCompose &&
+                      (activeEmail.folder === 'drafts' || activeEmail.folder === 'scheduled')
                         ? 'rounded-xl glass p-3 hover-theme cursor-pointer'
                         : ''
                     }`}

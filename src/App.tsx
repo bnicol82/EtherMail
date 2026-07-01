@@ -16,6 +16,7 @@ import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { EventEditModal } from './components/EventEditModal'
 import { CommandPalette } from './components/CommandPalette'
 import { ProactiveAssistant } from './components/ProactiveAssistant'
+import { OrgLoginGate } from './components/OrgLoginGate'
 import { PolicyToast } from './components/PolicyToast'
 import { useScheduledSend } from './hooks/useScheduledSend'
 import { handleOAuthCallback } from './lib/oauth/connect'
@@ -23,6 +24,7 @@ import { validateSsoCallback } from './lib/sso'
 import { unlockTouchAudio } from './lib/touchFeedback'
 import { buttonClickFeedback } from './lib/uiFeedback'
 import { Menu, SquarePen } from 'lucide-react'
+import { useFeatureVisible } from './hooks/useFeatureGate'
 
 function MainContent() {
   const view = useEtherMailStore((s) => s.view)
@@ -61,6 +63,7 @@ export default function App() {
   const completeSsoLogin = useEtherMailStore((s) => s.completeSsoLogin)
   const openCompose = useEtherMailStore((s) => s.openCompose)
   const composeDraft = useEtherMailStore((s) => s.composeDraft)
+  const showCompose = useFeatureVisible('compose_email')
 
   useScheduledSend()
 
@@ -106,6 +109,7 @@ export default function App() {
   }, [])
 
   return (
+    <OrgLoginGate>
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
       {/* App shell — sidebar + main only (fixed bars live outside this flex tree) */}
       <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
@@ -126,6 +130,7 @@ export default function App() {
             </div>
             <span className="font-semibold text-theme text-sm truncate">EtherMail</span>
           </div>
+          {showCompose && (
           <button
             onClick={() => openCompose()}
             className="p-1.5 rounded-lg btn-accent shrink-0"
@@ -133,6 +138,7 @@ export default function App() {
           >
             <SquarePen size={16} />
           </button>
+          )}
         </header>
 
         {sidebarOpen && (
@@ -173,5 +179,6 @@ export default function App() {
       <ComposeEmailModal />
       <EventEditModal />
     </div>
+    </OrgLoginGate>
   )
 }

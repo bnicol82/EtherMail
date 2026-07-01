@@ -59,6 +59,8 @@ npm run dev
 
 Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement. All gated store actions use client + server checks via `withFullGate`.
 
+When **Enforce SSO** is enabled, members without an org session see a login gate. Supabase access tokens refresh automatically via `POST /org/auth/refresh`.
+
 ### SSO secrets (production)
 
 Set on the org API server or Supabase Edge Function:
