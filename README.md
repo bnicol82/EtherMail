@@ -63,6 +63,8 @@ When **Enforce SSO** is enabled, members without an org session see a login gate
 
 **Vault access (Phase L):** Shared vault permissions (`read` / `write` / `admin`) gate note and file mutations. Read-only members can browse but cannot create notes, folders, or uploads. The graph and vault tree filter content to accessible vaults. When **Background sync** and **Gmail live sync** are enabled, connected Gmail accounts sync every five minutes. Org sessions and audit logs refresh on the same interval while the app is open.
 
+**Database RLS (Phase M):** Migration `005_member_rls.sql` adds member-scoped `SELECT` policies for authenticated Supabase users (organizations, policy, members, SSO, vault shares, audit, sessions, usage). Helper functions live in the `private` schema; the edge function still uses `service_role`. Run org API tests with `npm run test:org-api` (also runs in CI via **Org API tests** workflow).
+
 ### SSO secrets (production)
 
 Set on the org API server or Supabase Edge Function:
@@ -77,7 +79,7 @@ SSO login also bridges to **Supabase Auth** when deployed on Supabase: the edge 
 
 ## Supabase deployment (production)
 
-1. `supabase link` and `supabase db push` (migrations `001`–`004`)
+1. `supabase link` and `supabase db push` (migrations `001`–`005`)
 2. `supabase functions deploy org-api`
 3. Set secrets: `SSO_ENTRA_CLIENT_SECRET`, `SSO_OKTA_CLIENT_SECRET`, or `SSO_GOOGLE_CLIENT_SECRET`
 4. Point `VITE_ORG_API_URL` at `https://<project>.supabase.co/functions/v1/org-api`

@@ -14,7 +14,7 @@ import { getAiUsageCount, incrementAiUsage, usageSummary } from './lib/quota-che
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.ORG_API_PORT || 8787)
-const STORE_PATH = path.join(__dirname, 'org-store.json')
+const STORE_PATH = process.env.ORG_API_STORE_PATH || path.join(__dirname, 'org-store.json')
 const SEED_PATH = path.join(__dirname, 'org-store.seed.json')
 
 /** @type {Map<string, { memberId: string, email: string, role: string }>} */
@@ -390,7 +390,11 @@ function auditRow(store, category, action, opts = {}) {
   }
 }
 
-server.listen(PORT, () => {
-  if (!fs.existsSync(STORE_PATH)) loadStore()
-  console.log(`EtherMail org API listening on http://localhost:${PORT}`)
-})
+if (process.env.ORG_API_SKIP_LISTEN !== '1') {
+  server.listen(PORT, () => {
+    if (!fs.existsSync(STORE_PATH)) loadStore()
+    console.log(`EtherMail org API listening on http://localhost:${PORT}`)
+  })
+}
+
+export { server, PORT, STORE_PATH, SEED_PATH, sessions }
