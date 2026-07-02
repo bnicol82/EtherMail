@@ -15,6 +15,8 @@ import {
   PanelRight,
 } from 'lucide-react'
 import { useNexusStore, useGraph } from '../store/useStore'
+import { useAccessibleVaults } from '../hooks/useAccessibleVaults'
+import { filterNotesByVaultAccess } from '../lib/vaultAccess'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { NoteMarkdownEditor } from './NoteMarkdownEditor'
@@ -70,6 +72,25 @@ export function VaultView() {
   const hiddenPanels = useNexusStore((s) => s.hiddenPanels)
   const activeVaultId = useNexusStore((s) => s.activeVaultId)
   const vaults = useNexusStore((s) => s.vaults)
+  const vaultShares = useNexusStore((s) => s.vaultShares)
+  const userRole = useNexusStore((s) => s.userRole)
+  const orgPolicy = useNexusStore((s) => s.orgPolicy)
+  const planTier = useNexusStore((s) => s.planTier)
+  const orgSession = useNexusStore((s) => s.orgSession)
+  const accessibleVaults = useAccessibleVaults()
+
+  const accessibleNotes = useMemo(
+    () =>
+      filterNotesByVaultAccess(notes, {
+        vaults,
+        vaultShares,
+        userRole,
+        orgPolicy,
+        planTier,
+        memberId: orgSession?.memberId ?? null,
+      }),
+    [notes, vaults, vaultShares, userRole, orgPolicy, planTier, orgSession],
+  )
 
   const treeHidden = hiddenPanels['vault-tree'] ?? false
   const editorHidden = hiddenPanels['vault-editor'] ?? false
@@ -79,21 +100,24 @@ export function VaultView() {
     new Set(['root', 'root-work', 'projects', 'athena', EMAIL_FILES_FOLDER_ID, EMAIL_FILES_WORK_FOLDER_ID]),
   )
   const [detailsOpen, setDetailsOpen] = useState(false)
-  const activeNote = notes.find((n) => n.id === activeNoteId)
+  const activeNote = accessibleNotes.find((n) => n.id === activeNoteId)
   const activeAttachment = emailAttachments.find((a) => a.id === activeAttachmentId)
   const activeVaultFile = vaultFiles.find((f) => f.id === activeVaultFileId)
   const isEmailFiles =
     activeFolderId === EMAIL_FILES_FOLDER_ID || activeFolderId === EMAIL_FILES_WORK_FOLDER_ID
   const vaultRoots = (activeVaultId
     ? folders.filter((f) => f.parentId === null && (f.vaultId ?? VAULT_PERSONAL_ID) === activeVaultId)
-    : folders.filter((f) => f.parentId === null)
+    : folders.filter((f) => {
+        const vaultId = f.vaultId ?? VAULT_PERSONAL_ID
+        return f.parentId === null && accessibleVaults.some((v) => v.id === vaultId)
+      })
   ).sort((a, b) => {
     const order = (id?: string) => (id === VAULT_PERSONAL_ID ? 0 : 1)
     return order(a.vaultId) - order(b.vaultId)
   })
   const { nodes, edges } = useGraph()
 
-  const folderNotes = notes.filter((n) => {
+  const folderNotes = accessibleNotes.filter((n) => {
     if (activeVaultId && n.vaultId !== activeVaultId) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
@@ -125,8 +149,15 @@ export function VaultView() {
     })
     .sort((a, b) => b.date.localeCompare(a.date))
 
+  const accessibleVaultIds = useMemo(
+    () => new Set(accessibleVaults.map((v) => v.id)),
+    [accessibleVaults],
+  )
+
   const folderVaultFiles = vaultFiles
     .filter((f) => {
+      const vaultId = f.vaultId ?? VAULT_PERSONAL_ID
+      if (!accessibleVaultIds.has(vaultId)) return false
       if (activeVaultId && f.vaultId !== activeVaultId) return false
       if (searchQuery) {
         const q = searchQuery.toLowerCase()

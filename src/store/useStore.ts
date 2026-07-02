@@ -34,7 +34,7 @@ import { canUseFeatureFromStore, getFeatureDenialReason } from '../lib/featureGa
 import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
 import { appendAudit, auditAiQuery } from '../lib/storePolicy'
 import { withFullGate } from '../lib/serverGate'
-import { canAccessVault, vaultAccessFromStore } from '../lib/vaultAccess'
+import { canAccessVault, denyVaultWrite, filterNotesByVaultAccess, vaultAccessFromStore } from '../lib/vaultAccess'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
@@ -694,14 +694,26 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
       selectAccount: (activeAccountId) =>
         set({ activeAccountId, view: 'email', mobilePanel: 'list' }),
-      updateNote: (id, updates) =>
+      updateNote: (id, updates) => {
+        const state = get()
+        const note = state.notes.find((n) => n.id === id)
+        const vaultId = note?.vaultId ?? state.activeVaultId
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return
+        }
         set((s) => ({
           notes: s.notes.map((n) =>
             n.id === id
               ? { ...n, ...updates, updatedAt: new Date().toISOString() }
               : n,
           ),
-        })),
+        }))
+      },
       updateNoteTags: (id, tags) => {
         const note = get().notes.find((n) => n.id === id)
         if (!note) return
@@ -711,16 +723,26 @@ export const useEtherMailStore = create<EtherMailState>()(
         })
       },
       createNote: (folderId) => {
-        const id = `note-${Date.now()}`
-        let folder = folderId ?? get().activeFolderId
+        const state = get()
+        let folder = folderId ?? state.activeFolderId
         if (folder === EMAIL_FILES_FOLDER_ID) folder = 'athena'
-        const folderMeta = get().folders.find((f) => f.id === folder)
+        const folderMeta = state.folders.find((f) => f.id === folder)
+        const vaultId = folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return ''
+        }
+        const id = `note-${Date.now()}`
         const note: Note = {
           id,
           title: 'Untitled Note',
           content: '# Untitled Note\n\nStart writing...',
           folderId: folder,
-          vaultId: folderMeta?.vaultId ?? get().activeVaultId ?? VAULT_PERSONAL_ID,
+          vaultId,
           tags: [],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -739,6 +761,14 @@ export const useEtherMailStore = create<EtherMailState>()(
       openDailyNote: (folderId) => {
         const state = get()
         const vaultId = state.activeVaultId ?? VAULT_PERSONAL_ID
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return
+        }
         const targetFolder = folderId ?? DAILY_FOLDER_ID
         const existing = findDailyNote(state.notes, new Date(), vaultId)
         if (existing) {
@@ -775,13 +805,22 @@ export const useEtherMailStore = create<EtherMailState>()(
           targetFolderId ??
           (state.activeFolderId === EMAIL_FILES_FOLDER_ID ? 'personal' : state.activeFolderId)
         const folderMeta = state.folders.find((f) => f.id === folder)
+        const vaultId = folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return
+        }
         const id = `note-${Date.now()}`
         const note: Note = {
           id,
           title: template.title.replace(/\(template\)/i, '').trim() || 'Untitled Note',
           content: template.content,
           folderId: folder,
-          vaultId: folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID,
+          vaultId,
           tags: [...template.tags],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -806,16 +845,25 @@ export const useEtherMailStore = create<EtherMailState>()(
         const state = get()
         const event = getNextMeeting(state.calendarEvents)
         if (!event) return
-        const brief = generateMeetingBrief(event, state.notes, state.emails)
         const folder = state.activeFolderId === EMAIL_FILES_FOLDER_ID ? 'athena' : state.activeFolderId
         const folderMeta = state.folders.find((f) => f.id === folder)
+        const vaultId = folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return
+        }
+        const brief = generateMeetingBrief(event, state.notes, state.emails)
         const id = `note-${Date.now()}`
         const note: Note = {
           id,
           title: `Prep: ${event.title}`,
           content: brief.markdown,
           folderId: folder,
-          vaultId: folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID,
+          vaultId,
           tags: ['meeting', 'prep'],
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
@@ -830,11 +878,21 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       createFolder: (name, parentId) => {
-        const parent = parentId ?? get().activeFolderId
+        const state = get()
+        const parent = parentId ?? state.activeFolderId
         if (parent === EMAIL_FILES_FOLDER_ID) return ''
         const trimmed = name.trim()
         if (!trimmed) return ''
-        const parentFolder = get().folders.find((f) => f.id === parent)
+        const parentFolder = state.folders.find((f) => f.id === parent)
+        const vaultId = parentFolder?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return ''
+        }
         const id = `folder-${Date.now()}`
         set((s) => ({
           folders: [
@@ -843,7 +901,7 @@ export const useEtherMailStore = create<EtherMailState>()(
               id,
               name: trimmed,
               parentId: parent,
-              vaultId: parentFolder?.vaultId ?? s.activeVaultId ?? VAULT_PERSONAL_ID,
+              vaultId,
             },
           ],
           activeFolderId: id,
@@ -854,7 +912,17 @@ export const useEtherMailStore = create<EtherMailState>()(
       uploadVaultFile: async (file, folderId) => {
         if (!(await withFullGate(get, set, 'vault_file_upload', 'Upload vault file'))) return
         if (folderId === EMAIL_FILES_FOLDER_ID) return
-        const folderMeta = get().folders.find((f) => f.id === folderId)
+        const state = get()
+        const folderMeta = state.folders.find((f) => f.id === folderId)
+        const vaultId = folderMeta?.vaultId ?? state.activeVaultId ?? VAULT_PERSONAL_ID
+        const denial = denyVaultWrite(vaultId, vaultAccessFromStore(state))
+        if (denial) {
+          set({
+            policyToast: denial.message,
+            auditLog: appendAudit(state, 'vault', 'vault_write_denied', { detail: denial.detail }),
+          })
+          return
+        }
         const dataUrl = await new Promise<string>((resolve, reject) => {
           const reader = new FileReader()
           reader.onload = () => resolve(reader.result as string)
@@ -865,7 +933,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         const entry: VaultFile = {
           id,
           folderId,
-          vaultId: folderMeta?.vaultId ?? get().activeVaultId ?? VAULT_PERSONAL_ID,
+          vaultId,
           filename: file.name,
           sizeBytes: file.size,
           mimeType: file.type || 'application/octet-stream',
@@ -2675,9 +2743,32 @@ export function useGraph() {
   const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
   const accounts = useEtherMailStore((s) => s.accounts)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  const vaults = useEtherMailStore((s) => s.vaults)
+  const vaultShares = useEtherMailStore((s) => s.vaultShares)
+  const userRole = useEtherMailStore((s) => s.userRole)
+  const orgPolicy = useEtherMailStore((s) => s.orgPolicy)
+  const planTier = useEtherMailStore((s) => s.planTier)
+  const orgSession = useEtherMailStore((s) => s.orgSession)
+
+  const accessibleNotes = useMemo(
+    () =>
+      filterNotesByVaultAccess(
+        notes,
+        vaultAccessFromStore({
+          vaults,
+          vaultShares,
+          userRole,
+          orgPolicy,
+          planTier,
+          orgSession,
+        }),
+      ),
+    [notes, vaults, vaultShares, userRole, orgPolicy, planTier, orgSession],
+  )
+
   return useMemo(
-    () => buildContactGraph(notes, emails, calendarEvents, accounts, activeVaultId),
-    [notes, emails, calendarEvents, accounts, activeVaultId],
+    () => buildContactGraph(accessibleNotes, emails, calendarEvents, accounts, activeVaultId),
+    [accessibleNotes, emails, calendarEvents, accounts, activeVaultId],
   )
 }
 
