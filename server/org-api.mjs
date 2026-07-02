@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { checkServerGate } from './lib/gate-check.mjs'
 import { exchangeSsoAuthorizationCode } from './lib/sso-exchange.mjs'
+import { getAiUsageCount, incrementAiUsage } from './lib/quota-check.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.ORG_API_PORT || 8787)
@@ -105,10 +106,16 @@ const server = http.createServer(async (req, res) => {
         role,
         featureId: body?.featureId,
         actionLabel: body?.actionLabel,
+        planTier: store.planTier ?? 'enterprise',
+        quotaOverrides: store.policy?.quotaOverrides ?? {},
+        aiUsageCount: getAiUsageCount(store),
       })
-      if (!result.allowed) {
+      if (result.allowed && result.incrementAi) {
+        incrementAiUsage(store)
+        saveStore(store)
+      } else if (!result.allowed) {
         store.auditEvents.push(
-          auditRow(store, 'policy', 'feature_denied_server', {
+          auditRow(store, result.audit?.category ?? 'policy', result.audit?.action ?? 'feature_denied_server', {
             featureId: body?.featureId,
             detail: body?.actionLabel,
             actorEmail: session?.email,
@@ -117,6 +124,25 @@ const server = http.createServer(async (req, res) => {
         saveStore(store)
       }
       json(res, 200, { allowed: result.allowed, message: result.message ?? null })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/org/session') {
+      const session = sessionFromReq(req)
+      if (!session) {
+        json(res, 401, { error: 'No valid session' })
+        return
+      }
+      const member = store.members.find((m) => m.id === session.memberId)
+      if (!member) {
+        json(res, 401, { error: 'Member not found' })
+        return
+      }
+      json(res, 200, {
+        member,
+        role: session.role,
+        email: session.email,
+      })
       return
     }
 

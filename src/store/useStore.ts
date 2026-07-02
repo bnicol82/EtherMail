@@ -37,7 +37,7 @@ import { withFullGate } from '../lib/serverGate'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
-import { fetchOrgPolicy, hasOrgApi, pushOrgPolicy, fetchAuditLog, pushAuditEvents, apiInviteMember, apiUpdateMember, apiRemoveMember, apiUpdateVaultShares, apiUpdateSsoConfig, exchangeSsoCode, setOrgSessionToken, setSupabaseAuth, logoutOrgSessionApi } from '../lib/orgApi'
+import { fetchOrgPolicy, hasOrgApi, pushOrgPolicy, fetchAuditLog, pushAuditEvents, apiInviteMember, apiUpdateMember, apiRemoveMember, apiUpdateVaultShares, apiUpdateSsoConfig, exchangeSsoCode, setOrgSessionToken, setSupabaseAuth, logoutOrgSessionApi, fetchOrgSession, getOrgSessionToken } from '../lib/orgApi'
 import {
   DEFAULT_EMAIL_FOLDER_SORT,
   normalizeEmailFolderSort,
@@ -340,6 +340,7 @@ interface EtherMailState {
   completeSsoLogin: (code: string, email?: string) => Promise<void>
   clearOrgSession: () => void
   logoutOrgSession: () => Promise<void>
+  bootstrapOrgSession: () => Promise<void>
   auditSyncCursor: string | null
   flushAuditToApi: () => Promise<void>
   syncAuditFromApi: () => Promise<void>
@@ -2039,6 +2040,25 @@ export const useEtherMailStore = create<EtherMailState>()(
       logoutOrgSession: async () => {
         await logoutOrgSessionApi()
         get().clearOrgSession()
+      },
+      bootstrapOrgSession: async () => {
+        if (!hasOrgApi()) return
+        const remote = await fetchOrgSession()
+        if (!remote) {
+          if (get().orgSession || getOrgSessionToken()) get().clearOrgSession()
+          return
+        }
+        const token = getOrgSessionToken() ?? `remote-${remote.member.id}`
+        if (!getOrgSessionToken()) setOrgSessionToken(token)
+        set({
+          orgSession: {
+            sessionToken: token,
+            memberId: remote.member.id,
+            email: remote.member.email,
+            role: remote.role,
+          },
+          userRole: remote.role,
+        })
       },
       auditSyncCursor: null,
       flushAuditToApi: async () => {

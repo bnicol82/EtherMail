@@ -1,3 +1,5 @@
+import { checkAiQuota } from './quota-check.mjs'
+
 /** Server-side feature gate — mirrors client featureGates.ts */
 export function canUseFeatureOnServer(features, role, featureId) {
   if (role === 'admin' || role === 'owner') return true
@@ -10,17 +12,50 @@ export function gateDenialMessage(featureId) {
   return `Your organization has disabled ${label}. Contact your admin.`
 }
 
-export function checkServerGate({ features, role, featureId, actionLabel }) {
+export function checkServerGate({
+  features,
+  role,
+  featureId,
+  actionLabel,
+  planTier,
+  quotaOverrides,
+  aiUsageCount,
+}) {
   const allowed = canUseFeatureOnServer(features, role, featureId)
-  if (allowed) return { allowed: true }
-  return {
-    allowed: false,
-    message: gateDenialMessage(featureId),
-    audit: {
-      category: 'policy',
-      action: 'feature_denied_server',
-      featureId,
-      detail: actionLabel ?? featureId,
-    },
+  if (!allowed) {
+    return {
+      allowed: false,
+      message: gateDenialMessage(featureId),
+      audit: {
+        category: 'policy',
+        action: 'feature_denied_server',
+        featureId,
+        detail: actionLabel ?? featureId,
+      },
+    }
   }
+
+  if (featureId === 'vault_ai' || featureId === 'external_ai') {
+    const quota = checkAiQuota({
+      planTier: planTier ?? 'enterprise',
+      quotaOverrides: quotaOverrides ?? {},
+      usageCount: aiUsageCount ?? 0,
+    })
+    if (!quota.allowed) {
+      return {
+        allowed: false,
+        message: quota.message,
+        audit: {
+          category: 'policy',
+          action: 'quota_denied_server',
+          featureId,
+          detail: actionLabel ?? 'AI query',
+        },
+        incrementAi: false,
+      }
+    }
+    return { allowed: true, incrementAi: true }
+  }
+
+  return { allowed: true, incrementAi: false }
 }

@@ -7,6 +7,7 @@ import type {
   SsoCallbackResponse,
   SsoConfig,
   VaultShare,
+  OrgSessionResponse,
 } from '../types/orgApi'
 import { DEFAULT_ORG_POLICY } from './orgPolicy'
 
@@ -241,6 +242,20 @@ export async function checkServerGate(
   })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json() as Promise<{ allowed: boolean; message?: string }>
+}
+
+/** Validate current org session with server; returns null when expired or missing. */
+export async function fetchOrgSession(): Promise<OrgSessionResponse | null> {
+  if (!hasOrgApi()) return null
+  if (!getOrgSessionToken() && !getSupabaseAuth()?.accessToken) return null
+  try {
+    const res = await orgApiFetch('/org/session')
+    if (res.status === 401) return null
+    if (!res.ok) throw new Error(await parseError(res))
+    return res.json() as Promise<OrgSessionResponse>
+  } catch {
+    return null
+  }
 }
 
 /** Exchange SSO authorization code for org session (demo API accepts any code). */

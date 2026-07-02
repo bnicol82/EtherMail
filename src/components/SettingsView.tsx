@@ -58,6 +58,11 @@ export function SettingsView() {
   const canExternalAi = useFeatureVisible('external_ai')
   const canBridge = useFeatureVisible('ai_bridge')
   const canOAuthByo = useFeatureVisible('oauth_byo_client')
+  const canConnectMailboxFeature = useFeatureVisible('connect_mailbox')
+  const canGmailSync = useFeatureVisible('gmail_live_sync')
+  const canTheme = useFeatureVisible('theme_customization')
+  const canWeather = useFeatureVisible('weather_widget')
+  const canTouchFeedback = useFeatureVisible('touch_feedback')
 
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([])
 
@@ -190,6 +195,7 @@ export function SettingsView() {
       )}
 
       {/* Theme */}
+      {canTheme && (
       <section className="glass rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Palette size={18} className="text-accent" />
@@ -210,8 +216,10 @@ export function SettingsView() {
           ))}
         </div>
       </section>
+      )}
 
       {/* Touch feedback */}
+      {canTouchFeedback && (
       <section className="glass rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <Vibrate size={18} className="text-accent" />
@@ -250,8 +258,10 @@ export function SettingsView() {
           Test feedback
         </button>
       </section>
+      )}
 
       {/* Weather */}
+      {canWeather && (
       <section className="glass rounded-xl p-5 mb-6">
         <div className="flex items-center gap-2 mb-4">
           <CloudSun size={18} className="text-accent" />
@@ -283,6 +293,7 @@ export function SettingsView() {
           className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
         />
       </section>
+      )}
 
       {/* AI Assistant voice & personality */}
       <section className="glass rounded-xl p-5 mb-6">
@@ -603,6 +614,7 @@ export function SettingsView() {
       </section>
 
       {/* Email accounts */}
+      {canConnectMailboxFeature && (
       <section className="glass rounded-xl p-5">
         <h2 className="font-semibold text-theme mb-4">Email Accounts</h2>
         <div className="space-y-3">
@@ -634,7 +646,7 @@ export function SettingsView() {
               </div>
               {acc.connected ? (
                 <div className="flex items-center gap-2 shrink-0">
-                  {(isGmailOAuth || isGmailDemo) && (
+                  {(isGmailOAuth || isGmailDemo) && canGmailSync && (
                     <button
                       type="button"
                       onClick={() =>
@@ -671,6 +683,7 @@ export function SettingsView() {
           )})}
         </div>
       </section>
+      )}
     </div>
   )
 }

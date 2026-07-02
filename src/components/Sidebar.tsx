@@ -57,6 +57,10 @@ export function Sidebar() {
   const canGraph = useEtherMailStore((s) => isFeatureVisibleFromStore('graph_view', s))
   const showCompose = useFeatureVisible('compose_email')
   const showCommandPalette = useFeatureVisible('command_palette')
+  const showConnectMailbox = useFeatureVisible('connect_mailbox')
+  const showAiNav = useFeatureVisible('vault_ai') || useFeatureVisible('external_ai')
+  const showSharedVaults = useFeatureVisible('shared_vaults')
+  const visibleVaults = showSharedVaults ? vaults : vaults.filter((v) => !v.shared)
   const navItems = useMemo(
     () => NAV.filter(({ id }) => id !== 'graph' || canGraph),
     [canGraph],
@@ -162,7 +166,7 @@ export function Sidebar() {
             >
               All
             </button>
-            {vaults.map((vault) => {
+            {visibleVaults.map((vault) => {
               const Icon = vault.kind === 'work' ? Briefcase : Home
               return (
                 <button
@@ -213,6 +217,7 @@ export function Sidebar() {
           </button>
         ))}
 
+        {showAiNav && (
         <button
           data-menu-item="nav-ai"
           onMouseEnter={onMenuHover}
@@ -235,6 +240,7 @@ export function Sidebar() {
             </span>
           )}
         </button>
+        )}
 
         {canAccessAdmin && (
           <button
@@ -279,7 +285,7 @@ export function Sidebar() {
             )}
           </button>
 
-          {accounts.map((acc) => {
+          {(showConnectMailbox ? accounts : accounts.filter((a) => a.connected)).map((acc) => {
             const unreadCount = accountUnread(acc.id)
             const isActive = view === 'email' && activeAccountId === acc.id
             return (

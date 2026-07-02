@@ -3,6 +3,7 @@ import { Send, Sparkles, Globe, Shield, Trash2, Mic, Loader2 } from 'lucide-reac
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { generateVaultAIResponse, generateExternalAIResponse } from '../lib/rag'
 import { MarkdownContent } from './MarkdownContent'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import { CopyButton } from './CopyButton'
 import { AIAlertsPanel } from './AIAlertsPanel'
 import { listenOnce, speakText, isListeningSupported, stopSpeaking } from '../lib/voice'
@@ -29,6 +30,9 @@ export function AIView() {
   const aiSettings = useEtherMailStore((s) => s.aiSettings)
   const assistantSettings = useEtherMailStore((s) => s.assistantSettings)
   const unreadAlertCount = useUnreadAlertCount()
+  const canVaultAi = useFeatureVisible('vault_ai')
+  const canExternalAi = useFeatureVisible('external_ai')
+  const canVoiceInput = useFeatureVisible('voice_input')
 
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -126,6 +130,7 @@ export function AIView() {
             </p>
           </div>
           <div className="flex gap-1 sm:gap-2 shrink-0">
+            {canVaultAi && (
             <button
               onClick={() => setAiMode('vault')}
               title="Vault AI (RAG)"
@@ -138,6 +143,8 @@ export function AIView() {
               <Shield size={15} className="sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Vault AI (RAG)</span>
             </button>
+            )}
+            {canExternalAi && (
             <button
               onClick={() => setAiMode('external')}
               title="External AI"
@@ -150,6 +157,7 @@ export function AIView() {
               <Globe size={15} className="sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">External AI</span>
             </button>
+            )}
           </div>
         </div>
 
@@ -245,7 +253,7 @@ export function AIView() {
           <p className="text-xs text-red-400 mb-2 text-center">{voiceError}</p>
         )}
         <div className="flex gap-2 max-w-3xl mx-auto">
-          {assistantSettings.voiceChatEnabled && (
+          {assistantSettings.voiceChatEnabled && canVoiceInput && (
             <button
               onClick={startVoice}
               disabled={loading || listening}

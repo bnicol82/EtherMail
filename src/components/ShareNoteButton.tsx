@@ -9,7 +9,7 @@ import {
   type ShareResult,
 } from '../lib/shareNote'
 import { downloadNoteHtml } from '../lib/markdownExport'
-import { useFeatureGate } from '../hooks/useFeatureGate'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 
 interface Props {
   note: Pick<Note, 'title' | 'content'>
@@ -17,8 +17,8 @@ interface Props {
 }
 
 export function ShareNoteButton({ note, className = '' }: Props) {
-  const canExport = useFeatureGate('note_export')
-  const canShare = useFeatureGate('note_share')
+  const canExport = useFeatureVisible('note_export')
+  const canShare = useFeatureVisible('note_share')
   const [open, setOpen] = useState(false)
   const [feedback, setFeedback] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
