@@ -8,6 +8,7 @@ import type {
   SsoConfig,
   VaultShare,
   OrgSessionResponse,
+  OrgUsageResponse,
 } from '../types/orgApi'
 import { DEFAULT_ORG_POLICY } from './orgPolicy'
 
@@ -234,14 +235,29 @@ export async function apiUpdateSsoConfig(config: SsoConfig): Promise<SsoConfig> 
 export async function checkServerGate(
   featureId: FeatureId,
   actionLabel?: string,
+  metadata?: Record<string, unknown>,
 ): Promise<{ allowed: boolean; message?: string }> {
   if (!hasOrgApi()) return { allowed: true }
   const res = await orgApiFetch('/org/gate/check', {
     method: 'POST',
-    body: JSON.stringify({ featureId, actionLabel }),
+    body: JSON.stringify({ featureId, actionLabel, metadata }),
   })
   if (!res.ok) throw new Error(await parseError(res))
   return res.json() as Promise<{ allowed: boolean; message?: string }>
+}
+
+/** Fetch org usage quotas for admin dashboard. */
+export async function fetchOrgUsage(connectedMailboxes: number): Promise<OrgUsageResponse | null> {
+  if (!hasOrgApi()) return null
+  try {
+    const qs = `?connectedMailboxes=${encodeURIComponent(String(connectedMailboxes))}`
+    const res = await orgApiFetch(`/org/usage${qs}`)
+    if (res.status === 401) return null
+    if (!res.ok) throw new Error(await parseError(res))
+    return res.json() as Promise<OrgUsageResponse>
+  } catch {
+    return null
+  }
 }
 
 /** Validate current org session with server; returns null when expired or missing. */

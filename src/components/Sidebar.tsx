@@ -21,6 +21,7 @@ import { useRef, useMemo } from 'react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { isFeatureVisibleFromStore } from '../lib/featureGates'
 import { useFeatureVisible } from '../hooks/useFeatureGate'
+import { useAccessibleVaults } from '../hooks/useAccessibleVaults'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 import { useMenuScrollHaptic } from '../hooks/useMenuScrollHaptic'
@@ -48,7 +49,6 @@ export function Sidebar() {
   const setSearchQuery = useEtherMailStore((s) => s.setSearchQuery)
   const setCommandPaletteOpen = useEtherMailStore((s) => s.setCommandPaletteOpen)
   const openCompose = useEtherMailStore((s) => s.openCompose)
-  const vaults = useEtherMailStore((s) => s.vaults)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
   const setActiveVault = useEtherMailStore((s) => s.setActiveVault)
   const unreadAlertCount = useUnreadAlertCount()
@@ -60,7 +60,8 @@ export function Sidebar() {
   const showConnectMailbox = useFeatureVisible('connect_mailbox')
   const showAiNav = useFeatureVisible('vault_ai') || useFeatureVisible('external_ai')
   const showSharedVaults = useFeatureVisible('shared_vaults')
-  const visibleVaults = showSharedVaults ? vaults : vaults.filter((v) => !v.shared)
+  const accessibleVaults = useAccessibleVaults()
+  const visibleVaults = showSharedVaults ? accessibleVaults : accessibleVaults.filter((v) => !v.shared)
   const navItems = useMemo(
     () => NAV.filter(({ id }) => id !== 'graph' || canGraph),
     [canGraph],

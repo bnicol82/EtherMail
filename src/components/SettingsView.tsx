@@ -1,5 +1,5 @@
 import { ArrowLeft, Key, Shield, Globe, Link2, Palette, Mail, CloudSun, Mic, Volume2, Bot, Trash2, RefreshCw, Sparkles, Vibrate, LogOut, UserCircle } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useEtherMailStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
 import { canUseRealOAuth } from '../lib/oauth/connect'
@@ -10,6 +10,8 @@ import { buttonClickFeedback } from '../lib/uiFeedback'
 import { useFeatureVisible } from '../hooks/useFeatureGate'
 import { buildSsoLoginUrl } from '../lib/sso'
 import { hasOrgApi } from '../lib/orgApi'
+import { providerFeatureId } from '../lib/providerGates'
+import { canUseFeatureFromStore } from '../lib/featureGates'
 import type { AssistantPersonality, Theme } from '../types'
 
 const THEMES: { id: Theme; label: string; description: string }[] = [
@@ -51,6 +53,7 @@ export function SettingsView() {
   const feedbackSettings = useEtherMailStore((s) => s.feedbackSettings)
   const setFeedbackSettings = useEtherMailStore((s) => s.setFeedbackSettings)
   const userRole = useEtherMailStore((s) => s.userRole)
+  const orgPolicy = useEtherMailStore((s) => s.orgPolicy)
   const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
   const orgSession = useEtherMailStore((s) => s.orgSession)
   const ssoConfig = useEtherMailStore((s) => s.ssoConfig)
@@ -94,6 +97,20 @@ export function SettingsView() {
     hasOrgApi() && ssoConfig.enabled
       ? buildSsoLoginUrl(ssoConfig, `${window.location.origin}${import.meta.env.BASE_URL}`)
       : null
+
+  const visibleAccounts = useMemo(
+    () =>
+      accounts.filter(
+        (acc) =>
+          acc.connected ||
+          canUseFeatureFromStore(providerFeatureId(acc.provider), {
+            orgPolicy,
+            userRole,
+            planTier,
+          }),
+      ),
+    [accounts, orgPolicy, userRole, planTier],
+  )
 
   return (
     <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
@@ -618,7 +635,7 @@ export function SettingsView() {
       <section className="glass rounded-xl p-5">
         <h2 className="font-semibold text-theme mb-4">Email Accounts</h2>
         <div className="space-y-3">
-          {accounts.map((acc) => {
+          {visibleAccounts.map((acc) => {
             const isGmailOAuth = acc.provider === 'gmail' && acc.syncMode === 'oauth'
             const isGmailDemo = acc.provider === 'gmail' && acc.syncMode === 'demo' && acc.connected
             const isSyncing = gmailSyncingAccountId === acc.id

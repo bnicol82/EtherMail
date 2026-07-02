@@ -43,3 +43,40 @@ export function checkAiQuota({
   }
   return { allowed: true as const }
 }
+
+const PLAN_MAILBOX_LIMITS: Record<string, number> = {
+  free: 2,
+  pro: Number.POSITIVE_INFINITY,
+  team: Number.POSITIVE_INFINITY,
+  enterprise: Number.POSITIVE_INFINITY,
+}
+
+export function effectiveMailboxLimit(
+  planTier: string,
+  quotaOverrides: Record<string, unknown> | null | undefined,
+) {
+  const base = PLAN_MAILBOX_LIMITS[planTier] ?? PLAN_MAILBOX_LIMITS.free
+  const override = quotaOverrides?.maxMailboxes
+  if (typeof override === 'number') return override
+  return base
+}
+
+export function checkMailboxQuota({
+  planTier,
+  quotaOverrides,
+  connectedMailboxes,
+}: {
+  planTier: string
+  quotaOverrides: Record<string, unknown> | null | undefined
+  connectedMailboxes: number
+}) {
+  const limit = effectiveMailboxLimit(planTier, quotaOverrides)
+  if (!Number.isFinite(limit)) return { allowed: true as const }
+  if (connectedMailboxes >= limit) {
+    return {
+      allowed: false as const,
+      message: `Mailbox limit (${limit}) reached. Contact your administrator.`,
+    }
+  }
+  return { allowed: true as const }
+}

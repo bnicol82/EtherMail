@@ -14,8 +14,9 @@ export async function withFullGate(
   set: StoreSet,
   featureId: FeatureId,
   actionLabel: string,
+  metadata?: Record<string, unknown>,
 ): Promise<boolean> {
-  const gate = await gateClientAndServer(get(), featureId, actionLabel)
+  const gate = await gateClientAndServer(get(), featureId, actionLabel, metadata)
   if (gate.ok) return true
   set(gate.patch)
   return false
@@ -26,6 +27,7 @@ export async function gateClientAndServer(
   state: PolicySlice,
   featureId: FeatureId,
   actionLabel: string,
+  metadata?: Record<string, unknown>,
 ): Promise<{ ok: true } | { ok: false; patch: GatePatch }> {
   const client = gateOrToast(state, featureId, actionLabel)
   if (!client.ok) return client
@@ -33,7 +35,7 @@ export async function gateClientAndServer(
   if (!hasOrgApi()) return { ok: true }
 
   try {
-    const server = await checkServerGate(featureId, actionLabel)
+    const server = await checkServerGate(featureId, actionLabel, metadata)
     if (server.allowed) return { ok: true }
     return {
       ok: false,

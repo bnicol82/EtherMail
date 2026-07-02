@@ -59,7 +59,7 @@ npm run dev
 
 Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement. All gated store actions use client + server checks via `withFullGate`.
 
-When **Enforce SSO** is enabled, members without an org session see a login gate. Supabase access tokens refresh automatically via `POST /org/auth/refresh`. Validate sessions on load via `GET /org/session`. Server-side AI quota limits are enforced on `POST /org/gate/check` for `vault_ai` / `external_ai`.
+When **Enforce SSO** is enabled, members without an org session see a login gate. Supabase access tokens refresh automatically via `POST /org/auth/refresh`. Validate sessions on load via `GET /org/session`. Server-side AI quota limits are enforced on `POST /org/gate/check` for `vault_ai` / `external_ai`. Mailbox connect quotas use `metadata.connectedMailboxes`. View usage in Admin → **Usage** (`GET /org/usage`). Members only see shared vaults they are assigned to.
 
 ### SSO secrets (production)
 
