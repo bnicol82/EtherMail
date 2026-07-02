@@ -183,7 +183,7 @@ export function CalendarView() {
     if (!files?.[0] || !canCalendarImportExport) return
     try {
       const parsed = await readIcsFile(files[0])
-      const added = importCalendarEvents(parsed)
+      const added = await importCalendarEvents(parsed)
       setImportHint(
         added > 0 ? `Imported ${added} event${added === 1 ? '' : 's'}` : `Updated ${parsed.length} event${parsed.length === 1 ? '' : 's'}`,
       )

@@ -57,7 +57,17 @@ npm run dev
 
 `.env.development` sets `VITE_ORG_API_URL=/api` (proxied to `localhost:8787`). Admin → **Sync policy from API** pulls policy, members, vault shares, and audit events.
 
-Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement.
+Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement. All gated store actions use client + server checks via `withFullGate`.
+
+### SSO secrets (production)
+
+Set on the org API server or Supabase Edge Function:
+
+- `SSO_ENTRA_CLIENT_SECRET` — Microsoft Entra
+- `SSO_OKTA_CLIENT_SECRET` — Okta
+- `SSO_GOOGLE_CLIENT_SECRET` — Google Workspace
+
+When secrets are set, authorization codes are exchanged for tokens and `id_token` signatures are validated against provider JWKS.
 
 ## Supabase deployment (production)
 

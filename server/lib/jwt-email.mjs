@@ -1,4 +1,4 @@
-/** Extract email claim from an OIDC id_token (no signature verification — use JWKS in production). */
+/** Extract email claim from an OIDC id_token payload (call verifyIdToken first in production). */
 export function emailFromIdToken(idToken) {
   if (!idToken || typeof idToken !== 'string') return null
   const parts = idToken.split('.')
