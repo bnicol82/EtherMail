@@ -8,6 +8,7 @@ import {
   Lock,
   Unlock,
   RotateCcw,
+  BarChart3,
   Building2,
   Users,
   ScrollText,
@@ -28,6 +29,7 @@ import { canUseFeature, featureGateFromStore } from '../lib/featureGates'
 import { AuditLogPanel } from './admin/AuditLogPanel'
 import { MembersPanel } from './admin/MembersPanel'
 import { SharedVaultsPanel } from './admin/SharedVaultsPanel'
+import { UsagePanel } from './admin/UsagePanel'
 import { SsoConfigPanel } from './admin/SsoConfigPanel'
 import { hasOrgApi } from '../lib/orgApi'
 
@@ -45,13 +47,14 @@ const RISK_STYLES = {
   high: 'text-red-400',
 } as const
 
-type AdminTab = 'policy' | 'audit' | 'members' | 'vaults' | 'sso'
+type AdminTab = 'policy' | 'audit' | 'members' | 'vaults' | 'usage' | 'sso'
 
 const TABS: { id: AdminTab; label: string; icon: typeof Shield }[] = [
   { id: 'policy', label: 'Policy', icon: Shield },
   { id: 'audit', label: 'Audit log', icon: ScrollText },
   { id: 'members', label: 'Members', icon: Users },
   { id: 'vaults', label: 'Shared vaults', icon: Share2 },
+  { id: 'usage', label: 'Usage', icon: BarChart3 },
   { id: 'sso', label: 'SSO & API', icon: KeyRound },
 ]
 
@@ -154,6 +157,7 @@ export function AdminView() {
       {tab === 'audit' && <AuditLogPanel />}
       {tab === 'members' && <MembersPanel />}
       {tab === 'vaults' && <SharedVaultsPanel />}
+      {tab === 'usage' && <UsagePanel />}
       {tab === 'sso' && <SsoConfigPanel />}
 
       {tab === 'policy' && (

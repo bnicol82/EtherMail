@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { bridgeSsoToSupabaseAuth } from './auth-bridge.ts'
 import { verifyIdTokenStrict } from './jwks.ts'
-import { checkAiQuota, currentUsagePeriod, isAiFeature } from './quota.ts'
+import { checkAiQuota, currentUsagePeriod, isAiFeature, checkMailboxQuota, effectiveAiQueryLimit, effectiveMailboxLimit } from './quota.ts'
 
 const DEMO_ORG_ID = '00000000-0000-4000-8000-000000000001'
 const CORS = {
@@ -115,7 +115,57 @@ Deno.serve(async (req) => {
         }, { onConflict: 'org_id,metric,period' })
       }
 
+      if (
+        body.featureId === 'connect_mailbox' &&
+        role !== 'admin' &&
+        role !== 'owner' &&
+        typeof body.metadata?.connectedMailboxes === 'number'
+      ) {
+        const { data: org } = await db.from('organizations').select('plan_tier').eq('id', DEMO_ORG_ID).single()
+        const mailboxQuota = checkMailboxQuota({
+          planTier: org?.plan_tier ?? 'enterprise',
+          quotaOverrides: policy.quota_overrides,
+          connectedMailboxes: body.metadata.connectedMailboxes,
+        })
+        if (!mailboxQuota.allowed) {
+          await audit(db, session, 'policy', 'quota_denied_server', {
+            feature_id: body.featureId,
+            detail: body.actionLabel ?? 'Connect mailbox',
+          })
+          return json(200, { allowed: false, message: mailboxQuota.message })
+        }
+      }
+
       return json(200, { allowed: true, message: null })
+    }
+
+    if (req.method === 'GET' && pathname === '/org/usage') {
+      if (!session) return json(401, { error: 'No valid session' })
+      const { data: org } = await db.from('organizations').select('plan_tier').eq('id', DEMO_ORG_ID).single()
+      const policy = await loadPolicy(db)
+      const period = currentUsagePeriod()
+      const { data: usageRow } = await db
+        .from('org_usage')
+        .select('count')
+        .eq('org_id', DEMO_ORG_ID)
+        .eq('metric', 'ai_queries')
+        .eq('period', period)
+        .maybeSingle()
+      const connectedMailboxes = Number(url.searchParams.get('connectedMailboxes') ?? '0')
+      const aiLimit = effectiveAiQueryLimit(org?.plan_tier ?? 'enterprise', policy.quota_overrides)
+      const mailboxLimit = effectiveMailboxLimit(org?.plan_tier ?? 'enterprise', policy.quota_overrides)
+      const aiUsed = usageRow?.count ?? 0
+      return json(200, {
+        period,
+        aiQueries: {
+          used: aiUsed,
+          limit: Number.isFinite(aiLimit) ? aiLimit : null,
+        },
+        mailboxes: {
+          used: connectedMailboxes,
+          limit: Number.isFinite(mailboxLimit) ? mailboxLimit : null,
+        },
+      })
     }
 
     if (req.method === 'GET' && pathname === '/org/audit') {

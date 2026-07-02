@@ -1,4 +1,4 @@
-import { checkAiQuota } from './quota-check.mjs'
+import { checkAiQuota, currentUsagePeriod, isAiFeature, checkMailboxQuota } from './quota-check.mjs'
 
 /** Server-side feature gate — mirrors client featureGates.ts */
 export function canUseFeatureOnServer(features, role, featureId) {
@@ -20,6 +20,7 @@ export function checkServerGate({
   planTier,
   quotaOverrides,
   aiUsageCount,
+  metadata,
 }) {
   const allowed = canUseFeatureOnServer(features, role, featureId)
   if (!allowed) {
@@ -55,6 +56,30 @@ export function checkServerGate({
       }
     }
     return { allowed: true, incrementAi: true }
+  }
+
+  if (featureId === 'connect_mailbox') {
+    const connected = metadata?.connectedMailboxes
+    if (typeof connected === 'number') {
+      const quota = checkMailboxQuota({
+        planTier: planTier ?? 'enterprise',
+        quotaOverrides: quotaOverrides ?? {},
+        connectedMailboxes: connected,
+      })
+      if (!quota.allowed) {
+        return {
+          allowed: false,
+          message: quota.message,
+          audit: {
+            category: 'policy',
+            action: 'quota_denied_server',
+            featureId,
+            detail: actionLabel ?? 'Connect mailbox',
+          },
+          incrementAi: false,
+        }
+      }
+    }
   }
 
   return { allowed: true, incrementAi: false }

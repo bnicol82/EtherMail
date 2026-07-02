@@ -73,3 +73,14 @@ export interface OrgSessionResponse {
   role: OrgRole
   email: string
 }
+
+export interface OrgUsageMetric {
+  used: number
+  limit: number | null
+}
+
+export interface OrgUsageResponse {
+  period: string
+  aiQueries: OrgUsageMetric
+  mailboxes: OrgUsageMetric
+}

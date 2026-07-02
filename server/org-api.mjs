@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import { checkServerGate } from './lib/gate-check.mjs'
 import { exchangeSsoAuthorizationCode } from './lib/sso-exchange.mjs'
-import { getAiUsageCount, incrementAiUsage } from './lib/quota-check.mjs'
+import { getAiUsageCount, incrementAiUsage, usageSummary } from './lib/quota-check.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const PORT = Number(process.env.ORG_API_PORT || 8787)
@@ -109,6 +109,7 @@ const server = http.createServer(async (req, res) => {
         planTier: store.planTier ?? 'enterprise',
         quotaOverrides: store.policy?.quotaOverrides ?? {},
         aiUsageCount: getAiUsageCount(store),
+        metadata: body?.metadata ?? {},
       })
       if (result.allowed && result.incrementAi) {
         incrementAiUsage(store)
@@ -143,6 +144,19 @@ const server = http.createServer(async (req, res) => {
         role: session.role,
         email: session.email,
       })
+      return
+    }
+
+    if (req.method === 'GET' && url.pathname === '/org/usage') {
+      const session = sessionFromReq(req)
+      if (!session) {
+        json(res, 401, { error: 'No valid session' })
+        return
+      }
+      const connectedMailboxes = Number(
+        url.searchParams.get('connectedMailboxes') ?? store.connectedMailboxes ?? 0,
+      )
+      json(res, 200, usageSummary({ ...store, connectedMailboxes }, store.planTier ?? 'enterprise'))
       return
     }
 

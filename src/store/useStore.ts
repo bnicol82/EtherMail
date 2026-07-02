@@ -30,10 +30,11 @@ import {
   mergeOrgPolicy,
   setOrgFeatureAllowed,
 } from '../lib/orgPolicy'
-import { canUseFeatureFromStore } from '../lib/featureGates'
+import { canUseFeatureFromStore, getFeatureDenialReason } from '../lib/featureGates'
 import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
 import { appendAudit, auditAiQuery } from '../lib/storePolicy'
 import { withFullGate } from '../lib/serverGate'
+import { canAccessVault, vaultAccessFromStore } from '../lib/vaultAccess'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
@@ -375,10 +376,24 @@ export const useEtherMailStore = create<EtherMailState>()(
           set({ activeVaultId: null, graphPersonFilter: null })
           return
         }
-        const root = get().folders.find((f) => f.parentId === null && f.vaultId === activeVaultId)
+        const state = get()
+        const vault = state.vaults.find((v) => v.id === activeVaultId)
+        if (
+          vault &&
+          !canAccessVault(vault, vaultAccessFromStore(state))
+        ) {
+          set({
+            policyToast: 'You do not have access to this shared vault.',
+            auditLog: appendAudit(state, 'vault', 'vault_access_denied', {
+              detail: vault.name,
+            }),
+          })
+          return
+        }
+        const root = state.folders.find((f) => f.parentId === null && f.vaultId === activeVaultId)
         set({
           activeVaultId,
-          activeFolderId: root?.id ?? get().activeFolderId,
+          activeFolderId: root?.id ?? state.activeFolderId,
           graphPersonFilter: null,
         })
       },
@@ -1726,22 +1741,39 @@ export const useEtherMailStore = create<EtherMailState>()(
       setConnectingAccountId: (connectingAccountId) => set({ connectingAccountId }),
 
       startConnectAccount: (accountId) => {
-        const state = get()
-        const account = state.accounts.find((a) => a.id === accountId)
-        if (!account || account.connected) return
-        if (!canUseFeatureFromStore('connect_mailbox', state)) return
-        const providerFeature: FeatureId =
-          account.provider === 'gmail'
-            ? 'provider_gmail'
-            : account.provider === 'outlook'
-              ? 'provider_outlook'
-              : account.provider === 'yahoo'
-                ? 'provider_yahoo'
-                : 'provider_enterprise'
-        if (!canUseFeatureFromStore(providerFeature, state)) return
-        const connectedCount = state.accounts.filter((a) => a.connected).length
-        if (!canConnectMailbox(connectedCount, state.planTier)) return
-        set({ connectingAccountId: accountId })
+        void (async () => {
+          const state = get()
+          const account = state.accounts.find((a) => a.id === accountId)
+          if (!account || account.connected) return
+          const connectedCount = state.accounts.filter((a) => a.connected).length
+          if (
+            !(await withFullGate(get, set, 'connect_mailbox', 'Connect mailbox', {
+              connectedMailboxes: connectedCount,
+            }))
+          ) {
+            return
+          }
+          const providerFeature: FeatureId =
+            account.provider === 'gmail'
+              ? 'provider_gmail'
+              : account.provider === 'outlook'
+                ? 'provider_outlook'
+                : account.provider === 'yahoo'
+                  ? 'provider_yahoo'
+                  : 'provider_enterprise'
+          if (!canUseFeatureFromStore(providerFeature, state)) {
+            set({
+              policyToast: getFeatureDenialReason(providerFeature),
+              auditLog: appendAudit(state, 'policy', 'feature_denied', {
+                featureId: providerFeature,
+                detail: 'Connect mailbox',
+              }),
+            })
+            return
+          }
+          if (!canConnectMailbox(connectedCount, state.planTier)) return
+          set({ connectingAccountId: accountId })
+        })()
       },
 
       connectGmailDemo: async (accountId) => {
