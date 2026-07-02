@@ -59,6 +59,8 @@ npm run dev
 
 Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement. All gated store actions use client + server checks via `withFullGate`.
 
+When **Enforce SSO** is enabled, members without an org session see a login gate. Supabase access tokens refresh automatically via `POST /org/auth/refresh`.
+
 ### SSO secrets (production)
 
 Set on the org API server or Supabase Edge Function:
@@ -69,12 +71,16 @@ Set on the org API server or Supabase Edge Function:
 
 When secrets are set, authorization codes are exchanged for tokens and `id_token` signatures are validated against provider JWKS.
 
+SSO login also bridges to **Supabase Auth** when deployed on Supabase: the edge function creates/links an `auth.users` row, returns Supabase access/refresh tokens, and accepts `Authorization: Bearer` on org API requests (alongside `X-EtherMail-Session`).
+
 ## Supabase deployment (production)
 
-1. `supabase link` and `supabase db push` (migrations `001` + `002`)
+1. `supabase link` and `supabase db push` (migrations `001`–`003`)
 2. `supabase functions deploy org-api`
 3. Set secrets: `SSO_ENTRA_CLIENT_SECRET`, `SSO_OKTA_CLIENT_SECRET`, or `SSO_GOOGLE_CLIENT_SECRET`
 4. Point `VITE_ORG_API_URL` at `https://<project>.supabase.co/functions/v1/org-api`
+
+Or trigger **Deploy Supabase** in GitHub Actions (requires `SUPABASE_ACCESS_TOKEN` and `SUPABASE_PROJECT_REF` repository secrets).
 
 ## Roadmap
 

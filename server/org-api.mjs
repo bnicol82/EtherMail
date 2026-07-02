@@ -304,6 +304,27 @@ const server = http.createServer(async (req, res) => {
       return
     }
 
+    if (req.method === 'POST' && url.pathname === '/org/auth/refresh') {
+      const body = await readBody(req)
+      if (!body?.refreshToken) {
+        json(res, 400, { error: 'refreshToken required' })
+        return
+      }
+      json(res, 200, {
+        accessToken: `local-${randomUUID()}`,
+        refreshToken: body.refreshToken,
+        expiresIn: 3600,
+      })
+      return
+    }
+
+    if (req.method === 'POST' && url.pathname === '/org/auth/logout') {
+      const token = req.headers['x-ethermail-session']
+      if (typeof token === 'string') sessions.delete(token)
+      json(res, 200, { ok: true })
+      return
+    }
+
     if (req.method === 'GET' && url.pathname === '/health') {
       json(res, 200, { ok: true })
       return

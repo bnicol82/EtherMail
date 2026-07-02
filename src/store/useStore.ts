@@ -37,7 +37,7 @@ import { withFullGate } from '../lib/serverGate'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
-import { fetchOrgPolicy, hasOrgApi, pushOrgPolicy, fetchAuditLog, pushAuditEvents, apiInviteMember, apiUpdateMember, apiRemoveMember, apiUpdateVaultShares, apiUpdateSsoConfig, exchangeSsoCode, setOrgSessionToken } from '../lib/orgApi'
+import { fetchOrgPolicy, hasOrgApi, pushOrgPolicy, fetchAuditLog, pushAuditEvents, apiInviteMember, apiUpdateMember, apiRemoveMember, apiUpdateVaultShares, apiUpdateSsoConfig, exchangeSsoCode, setOrgSessionToken, setSupabaseAuth, logoutOrgSessionApi } from '../lib/orgApi'
 import {
   DEFAULT_EMAIL_FOLDER_SORT,
   normalizeEmailFolderSort,
@@ -339,6 +339,7 @@ interface EtherMailState {
   orgSession: OrgSession | null
   completeSsoLogin: (code: string, email?: string) => Promise<void>
   clearOrgSession: () => void
+  logoutOrgSession: () => Promise<void>
   auditSyncCursor: string | null
   flushAuditToApi: () => Promise<void>
   syncAuditFromApi: () => Promise<void>
@@ -1998,11 +1999,20 @@ export const useEtherMailStore = create<EtherMailState>()(
             redirectUri: `${window.location.origin}${import.meta.env.BASE_URL}`,
           })
           setOrgSessionToken(res.sessionToken)
+          if (res.supabaseAuth) {
+            setSupabaseAuth({
+              accessToken: res.supabaseAuth.accessToken,
+              refreshToken: res.supabaseAuth.refreshToken,
+              expiresAt: Date.now() + res.supabaseAuth.expiresIn * 1000,
+              authUserId: res.supabaseAuth.authUserId,
+            })
+          }
           const session: OrgSession = {
             sessionToken: res.sessionToken,
             memberId: res.member.id,
             email: res.member.email,
             role: res.role,
+            authUserId: res.supabaseAuth?.authUserId,
           }
           set({
             orgSession: session,
@@ -2023,7 +2033,12 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
       clearOrgSession: () => {
         setOrgSessionToken(null)
+        setSupabaseAuth(null)
         set({ orgSession: null })
+      },
+      logoutOrgSession: async () => {
+        await logoutOrgSessionApi()
+        get().clearOrgSession()
       },
       auditSyncCursor: null,
       flushAuditToApi: async () => {

@@ -1,5 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
-import * as jose from 'https://esm.sh/jose@5.9.6'
+import { bridgeSsoToSupabaseAuth } from './auth-bridge.ts'
+import { verifyIdTokenStrict } from './jwks.ts'
 
 const DEMO_ORG_ID = '00000000-0000-4000-8000-000000000001'
 const CORS = {
@@ -222,11 +223,58 @@ Deno.serve(async (req) => {
 
       await audit(db, { memberId: member!.id, email: member!.email, role: member!.role }, 'auth', 'sso_login', { detail: email })
 
+      let supabaseAuth: Record<string, unknown> | null = null
+      try {
+        const bridged = await bridgeSsoToSupabaseAuth(db, email, {
+          id: String(member!.id),
+          role: String(member!.role),
+          name: String(member!.name ?? ''),
+        }, DEMO_ORG_ID)
+        if (bridged) {
+          supabaseAuth = {
+            accessToken: bridged.accessToken,
+            refreshToken: bridged.refreshToken,
+            expiresIn: bridged.expiresIn,
+            authUserId: bridged.authUserId,
+          }
+        }
+      } catch (bridgeErr) {
+        console.warn('Supabase Auth bridge skipped:', bridgeErr)
+      }
+
       return json(200, {
         sessionToken: sessionRow!.token,
         member: mapMember(member),
         role: member!.role,
+        supabaseAuth,
       })
+    }
+
+    if (req.method === 'POST' && pathname === '/org/auth/refresh') {
+      const body = await req.json()
+      const refreshToken = String(body?.refreshToken ?? '')
+      if (!refreshToken) return json(400, { error: 'refreshToken required' })
+
+      const authClient = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const { data, error } = await authClient.auth.refreshSession({ refresh_token: refreshToken })
+      if (error || !data.session) {
+        return json(401, { error: error?.message ?? 'Refresh failed' })
+      }
+      return json(200, {
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresIn: data.session.expires_in ?? 3600,
+      })
+    }
+
+    if (req.method === 'POST' && pathname === '/org/auth/logout') {
+      const token = req.headers.get('x-ethermail-session')
+      if (token) {
+        await db.from('org_sessions').delete().eq('token', token)
+      }
+      return json(200, { ok: true })
     }
 
     return json(404, { error: 'Not found' })
@@ -244,6 +292,53 @@ function json(status: number, body: unknown) {
 }
 
 async function sessionFromRequest(db: ReturnType<typeof createClient>, req: Request) {
+  const bearer = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim()
+  if (bearer) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+    if (supabaseUrl && serviceKey) {
+      const authClient = createClient(supabaseUrl, serviceKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+      const { data: userData, error } = await authClient.auth.getUser(bearer)
+      if (!error && userData.user) {
+        const user = userData.user
+        const { data: byAuth } = await db
+          .from('org_members')
+          .select('*')
+          .eq('org_id', DEMO_ORG_ID)
+          .eq('auth_user_id', user.id)
+          .maybeSingle()
+        if (byAuth) {
+          return {
+            memberId: String(byAuth.id),
+            email: String(byAuth.email),
+            role: String(byAuth.role),
+          }
+        }
+        const email = user.email?.toLowerCase()
+        if (email) {
+          const { data: byEmail } = await db
+            .from('org_members')
+            .select('*')
+            .eq('org_id', DEMO_ORG_ID)
+            .eq('email', email)
+            .maybeSingle()
+          if (byEmail) {
+            if (!byEmail.auth_user_id) {
+              await db.from('org_members').update({ auth_user_id: user.id }).eq('id', byEmail.id)
+            }
+            return {
+              memberId: String(byEmail.id),
+              email: String(byEmail.email),
+              role: String(byEmail.role),
+            }
+          }
+        }
+      }
+    }
+  }
+
   const token = req.headers.get('x-ethermail-session')
   if (!token) return null
   const { data } = await db.from('org_sessions').select('*, org_members(*)').eq('token', token).maybeSingle()
@@ -366,34 +461,6 @@ function emailFromIdToken(idToken: string) {
   return payload.email ?? payload.preferred_username ?? payload.upn ?? null
 }
 
-function jwksUrlForProvider(provider: string, tenantId: string, domain: string) {
-  switch (provider) {
-    case 'entra':
-      return `https://login.microsoftonline.com/${tenantId || 'common'}/discovery/v2.0/keys`
-    case 'google_workspace':
-      return 'https://www.googleapis.com/oauth2/v3/certs'
-    case 'okta':
-      return `https://${domain}/oauth2/v1/keys`
-    default:
-      return null
-  }
-}
-
-async function verifyIdToken(idToken: string, provider: string, tenantId: string, clientId: string, domain: string) {
-  const jwksUrl = jwksUrlForProvider(provider, tenantId, domain)
-  if (!jwksUrl) return emailFromIdToken(idToken)
-  const jwks = jose.createRemoteJWKSet(new URL(jwksUrl))
-  const { payload } = await jose.jwtVerify(idToken, jwks, {
-    audience: clientId || undefined,
-  })
-  return (
-    (payload.email as string) ??
-    (payload.preferred_username as string) ??
-    (payload.upn as string) ??
-    null
-  )
-}
-
 async function exchangeCode(
   sso: Record<string, unknown>,
   code: string,
@@ -437,15 +504,20 @@ async function exchangeCode(
   let email: string | null = null
   if (tokens.id_token) {
     try {
-      email = await verifyIdToken(
+      const verified = await verifyIdTokenStrict(
         tokens.id_token,
         provider,
         String(sso.tenant_id ?? ''),
         clientId,
         String(sso.domain ?? ''),
       )
-    } catch {
-      email = emailFromIdToken(tokens.id_token)
+      email = verified.email
+    } catch (verifyErr) {
+      if (!secret || !clientId) {
+        email = emailFromIdToken(tokens.id_token)
+      } else {
+        throw verifyErr
+      }
     }
   }
   email = email ?? (tokens.email ? String(tokens.email).toLowerCase() : null)

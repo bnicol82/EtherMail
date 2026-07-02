@@ -20,6 +20,7 @@ import {
 import { useRef, useMemo } from 'react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
 import { isFeatureVisibleFromStore } from '../lib/featureGates'
+import { useFeatureVisible } from '../hooks/useFeatureGate'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 import { useMenuScrollHaptic } from '../hooks/useMenuScrollHaptic'
@@ -54,6 +55,8 @@ export function Sidebar() {
   const userRole = useEtherMailStore((s) => s.userRole)
   const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
   const canGraph = useEtherMailStore((s) => isFeatureVisibleFromStore('graph_view', s))
+  const showCompose = useFeatureVisible('compose_email')
+  const showCommandPalette = useFeatureVisible('command_palette')
   const navItems = useMemo(
     () => NAV.filter(({ id }) => id !== 'graph' || canGraph),
     [canGraph],
@@ -99,6 +102,7 @@ export function Sidebar() {
             <Plus size={15} />
             New Note
           </button>
+          {showCompose && (
           <button
             onClick={() => {
               openCompose()
@@ -109,6 +113,7 @@ export function Sidebar() {
             <SquarePen size={15} />
             Compose
           </button>
+          )}
           <button
             onClick={() => {
               buttonClickFeedback()
@@ -128,6 +133,7 @@ export function Sidebar() {
             <X size={18} />
           </button>
         </div>
+        {showCommandPalette && (
         <button
           onClick={() => {
             setCommandPaletteOpen(true)
@@ -139,6 +145,7 @@ export function Sidebar() {
           <span className="flex-1 text-left">Search vault & inbox</span>
           <kbd className="text-[10px] px-1 rounded bg-black/10">⌘K</kbd>
         </button>
+        )}
 
         <div className="mt-3">
           <p className="px-1 text-[10px] font-medium text-theme-muted uppercase tracking-wider mb-1.5">
