@@ -1,5 +1,5 @@
 import type { OrgPolicy, OrgRole } from '../types/admin'
-import type { VaultShare } from '../types/orgApi'
+import type { VaultShare, VaultSharePermission } from '../types/orgApi'
 import type { Vault } from '../types'
 import { canUseFeature, featureGateFromStore } from './featureGates'
 import type { PlanTier } from './plan'
@@ -36,6 +36,55 @@ export function canAccessVault(
   const share = ctx.vaultShares.find((s) => s.vaultId === vault.id)
   if (!share) return false
   return share.memberIds.includes(ctx.memberId)
+}
+
+export function getVaultSharePermission(
+  vaultId: string,
+  ctx: VaultAccessContext,
+): VaultSharePermission | null {
+  const vault = ctx.vaults.find((v) => v.id === vaultId)
+  if (!vault?.shared) return 'admin'
+  const share = ctx.vaultShares.find((s) => s.vaultId === vaultId)
+  return share?.permission ?? null
+}
+
+/** Whether the user may edit notes/files in a vault. */
+export function canWriteVault(vaultId: string, ctx: VaultAccessContext): boolean {
+  const vault = ctx.vaults.find((v) => v.id === vaultId)
+  if (!vault) return false
+  if (ctx.userRole === 'admin' || ctx.userRole === 'owner') return true
+  if (!canAccessVault(vault, ctx)) return false
+  if (vault.kind === 'personal' || !vault.shared) return true
+  const permission = getVaultSharePermission(vaultId, ctx)
+  return permission === 'write' || permission === 'admin'
+}
+
+export function filterNotesByVaultAccess<T extends { vaultId?: string }>(
+  notes: T[],
+  ctx: VaultAccessContext,
+): T[] {
+  const allowed = new Set(getAccessibleVaults(ctx).map((v) => v.id))
+  return notes.filter((note) => allowed.has(note.vaultId ?? 'vault-personal'))
+}
+
+export function vaultAccessDeniedMessage(vaultName: string, write = false) {
+  return write
+    ? `You have read-only access to ${vaultName}.`
+    : `You do not have access to ${vaultName}.`
+}
+
+/** Returns denial info when a vault mutation should be blocked. */
+export function denyVaultWrite(
+  vaultId: string | undefined | null,
+  ctx: VaultAccessContext,
+): { message: string; detail: string } | null {
+  const id = vaultId ?? 'vault-personal'
+  if (canWriteVault(id, ctx)) return null
+  const vault = ctx.vaults.find((v) => v.id === id)
+  return {
+    message: vaultAccessDeniedMessage(vault?.name ?? 'this vault', true),
+    detail: vault?.name ?? id,
+  }
 }
 
 export function vaultAccessFromStore(state: {

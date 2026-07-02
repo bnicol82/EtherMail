@@ -1,8 +1,14 @@
 import { useMemo } from 'react'
 import { useEtherMailStore } from '../store/useStore'
-import { getAccessibleVaults, vaultAccessFromStore } from '../lib/vaultAccess'
+import {
+  canWriteVault,
+  getAccessibleVaults,
+  type VaultAccessContext,
+  vaultAccessFromStore,
+} from '../lib/vaultAccess'
+import { VAULT_PERSONAL_ID } from '../data/seed'
 
-export function useAccessibleVaults() {
+export function useVaultAccessContext(): VaultAccessContext {
   const vaults = useEtherMailStore((s) => s.vaults)
   const vaultShares = useEtherMailStore((s) => s.vaultShares)
   const userRole = useEtherMailStore((s) => s.userRole)
@@ -12,16 +18,27 @@ export function useAccessibleVaults() {
 
   return useMemo(
     () =>
-      getAccessibleVaults(
-        vaultAccessFromStore({
-          vaults,
-          vaultShares,
-          userRole,
-          orgPolicy,
-          planTier,
-          orgSession,
-        }),
-      ),
+      vaultAccessFromStore({
+        vaults,
+        vaultShares,
+        userRole,
+        orgPolicy,
+        planTier,
+        orgSession,
+      }),
     [vaults, vaultShares, userRole, orgPolicy, planTier, orgSession],
+  )
+}
+
+export function useAccessibleVaults() {
+  const ctx = useVaultAccessContext()
+  return useMemo(() => getAccessibleVaults(ctx), [ctx])
+}
+
+export function useCanWriteVault(vaultId: string | null | undefined) {
+  const ctx = useVaultAccessContext()
+  return useMemo(
+    () => canWriteVault(vaultId ?? VAULT_PERSONAL_ID, ctx),
+    [vaultId, ctx],
   )
 }

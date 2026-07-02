@@ -1,9 +1,11 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import { Plus, FileText, FolderPlus, Upload, Calendar, LayoutTemplate } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { useFeatureVisible } from '../hooks/useFeatureGate'
+import { useVaultAccessContext } from '../hooks/useAccessibleVaults'
+import { canWriteVault } from '../lib/vaultAccess'
 import { EMAIL_FILES_FOLDER_ID } from '../types'
-import { EMAIL_FILES_WORK_FOLDER_ID } from '../data/seed'
+import { EMAIL_FILES_WORK_FOLDER_ID, VAULT_PERSONAL_ID } from '../data/seed'
 import { getTemplateNotes } from '../lib/noteFeatures'
 
 const MAX_UPLOAD_BYTES = 512_000
@@ -21,8 +23,17 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
   const createFolder = useEtherMailStore((s) => s.createFolder)
   const uploadVaultFile = useEtherMailStore((s) => s.uploadVaultFile)
   const notes = useEtherMailStore((s) => s.notes)
+  const folders = useEtherMailStore((s) => s.folders)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
+  const vaultAccess = useVaultAccessContext()
   const canUpload = useFeatureVisible('vault_file_upload')
+
+  const targetVaultId = useMemo(() => {
+    const folder = folders.find((f) => f.id === folderId)
+    return folder?.vaultId ?? activeVaultId ?? VAULT_PERSONAL_ID
+  }, [folders, folderId, activeVaultId])
+
+  const canWrite = canWriteVault(targetVaultId, vaultAccess)
 
   const [open, setOpen] = useState(false)
   const [folderPrompt, setFolderPrompt] = useState(false)
@@ -33,7 +44,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const folderInputRef = useRef<HTMLInputElement>(null)
 
-  const disabled = SYSTEM_FOLDER_IDS.has(folderId)
+  const disabled = SYSTEM_FOLDER_IDS.has(folderId) || !canWrite
   const templates = getTemplateNotes(notes, activeVaultId ?? undefined)
 
   useEffect(() => {
@@ -114,10 +125,11 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
     <div className="relative shrink-0" ref={ref}>
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="p-1.5 rounded-lg btn-accent"
+        onClick={() => canWrite && setOpen((o) => !o)}
+        disabled={!canWrite}
+        className="p-1.5 rounded-lg btn-accent disabled:opacity-40"
         aria-label="Add to vault"
-        title="Add to vault"
+        title={canWrite ? 'Add to vault' : 'Read-only vault'}
       >
         <Plus size={16} />
       </button>

@@ -19,6 +19,9 @@ import { ProactiveAssistant } from './components/ProactiveAssistant'
 import { OrgLoginGate } from './components/OrgLoginGate'
 import { PolicyToast } from './components/PolicyToast'
 import { useScheduledSend } from './hooks/useScheduledSend'
+import { useBackgroundMailboxSync } from './hooks/useBackgroundMailboxSync'
+import { useOrgSessionRefresh } from './hooks/useOrgSessionRefresh'
+import { useVaultAccessGuard } from './hooks/useVaultAccessGuard'
 import { handleOAuthCallback } from './lib/oauth/connect'
 import { validateSsoCallback } from './lib/sso'
 import { hasOrgApi } from './lib/orgApi'
@@ -68,6 +71,9 @@ export default function App() {
   const showCompose = useFeatureVisible('compose_email')
 
   useScheduledSend()
+  useBackgroundMailboxSync()
+  useOrgSessionRefresh()
+  useVaultAccessGuard()
 
   const showDock = view !== 'ai' && !composeDraft
 

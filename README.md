@@ -61,6 +61,8 @@ Server-side gates: when the org API is connected, compose send and AI queries al
 
 When **Enforce SSO** is enabled, members without an org session see a login gate. Supabase access tokens refresh automatically via `POST /org/auth/refresh`. Validate sessions on load via `GET /org/session`. Server-side AI quota limits are enforced on `POST /org/gate/check` for `vault_ai` / `external_ai`. Mailbox connect quotas use `metadata.connectedMailboxes`. View usage in Admin → **Usage** (`GET /org/usage`). Members only see shared vaults they are assigned to.
 
+**Vault access (Phase L):** Shared vault permissions (`read` / `write` / `admin`) gate note and file mutations. Read-only members can browse but cannot create notes, folders, or uploads. The graph and vault tree filter content to accessible vaults. When **Background sync** and **Gmail live sync** are enabled, connected Gmail accounts sync every five minutes. Org sessions and audit logs refresh on the same interval while the app is open.
+
 ### SSO secrets (production)
 
 Set on the org API server or Supabase Edge Function:
