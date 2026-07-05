@@ -1,6 +1,7 @@
 import { ArrowLeft, Key, Shield, Globe, Link2 } from 'lucide-react'
 import { useNexusStore } from '../store/useStore'
 import { providerLabel } from '../lib/utils'
+import { E2eeSettingsPanel } from './E2eeSettingsPanel'
 
 export function SettingsView() {
   const setView = useNexusStore((s) => s.setView)
@@ -18,7 +19,9 @@ export function SettingsView() {
       </button>
 
       <h1 className="text-2xl font-bold text-white mb-1">Settings</h1>
-      <p className="text-sm text-slate-500 mb-8">Configure AI providers and account connections</p>
+      <p className="text-sm text-slate-500 mb-8">Configure encryption, AI providers, and account connections</p>
+
+      <E2eeSettingsPanel />
 
       {/* AI Settings */}
       <section className="glass rounded-xl p-5 mb-6">

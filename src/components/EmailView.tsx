@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Search,
   Star,
@@ -8,10 +8,13 @@ import {
   Sparkles,
   Paperclip,
   ChevronDown,
+  Lock,
+  SquarePen,
 } from 'lucide-react'
 import { useNexusStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
 import { formatDate, providerColor } from '../lib/utils'
+import { decryptArmoredMessage, isArmoredPgpMessage } from '../lib/e2ee/pgpMail'
 
 export function EmailView() {
   const emails = useNexusStore((s) => s.emails)
@@ -27,15 +30,24 @@ export function EmailView() {
   const selectNote = useNexusStore((s) => s.selectNote)
   const addChatMessage = useNexusStore((s) => s.addChatMessage)
   const setAiMode = useNexusStore((s) => s.setAiMode)
+  const openCompose = useNexusStore((s) => s.openCompose)
+  const e2eeUnlocked = useNexusStore((s) => s.e2eeUnlocked)
+  const unlockE2ee = useNexusStore((s) => s.unlockE2ee)
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
   const [showActions, setShowActions] = useState(false)
+  const [decryptedBody, setDecryptedBody] = useState<string | null>(null)
+  const [decryptError, setDecryptError] = useState<string | null>(null)
+  const [unlockPass, setUnlockPass] = useState('')
+  const [decrypting, setDecrypting] = useState(false)
 
   const activeEmail = emails.find((e) => e.id === activeEmailId)
   const linkedNote = activeEmail?.linkedNoteId
     ? notes.find((n) => n.id === activeEmail.linkedNoteId)
     : null
+  const isEncrypted =
+    activeEmail?.encrypted === true || (activeEmail ? isArmoredPgpMessage(activeEmail.body) : false)
 
   const filtered = emails.filter((e) => {
     if (!filter) return true
@@ -51,7 +63,34 @@ export function EmailView() {
     selectEmail(id)
     markEmailRead(id)
     setMobilePanel('detail')
+    setDecryptedBody(null)
+    setDecryptError(null)
   }
+
+  useEffect(() => {
+    setDecryptedBody(null)
+    setDecryptError(null)
+    if (!activeEmail || !isEncrypted || !e2eeUnlocked) return
+
+    let cancelled = false
+    setDecrypting(true)
+    void decryptArmoredMessage(activeEmail.body)
+      .then((text) => {
+        if (!cancelled) setDecryptedBody(text)
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setDecryptError(err instanceof Error ? err.message : 'Decryption failed')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setDecrypting(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [activeEmail, activeEmailId, e2eeUnlocked, isEncrypted])
 
   const draftReply = () => {
     setView('ai')
@@ -73,7 +112,16 @@ export function EmailView() {
         `}
       >
         <div className="p-3 border-b border-white/10">
-          <h2 className="font-semibold text-white mb-2">Unified Inbox</h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold text-white">Unified Inbox</h2>
+            <button
+              type="button"
+              onClick={() => openCompose()}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-600/40 text-indigo-200 text-xs hover:bg-indigo-600/60"
+            >
+              <SquarePen size={12} /> Compose
+            </button>
+          </div>
           <div className="relative">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
             <input
@@ -110,6 +158,9 @@ export function EmailView() {
                   <div className={`w-2 h-2 rounded-full ${e.read ? 'opacity-0' : 'bg-indigo-500'}`} />
                   <span className="text-sm font-medium text-white truncate flex-1">{e.fromName}</span>
                   {e.starred && <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />}
+                  {(e.encrypted || isArmoredPgpMessage(e.body)) && (
+                    <Lock size={12} className="text-emerald-400 shrink-0" aria-label="Encrypted" />
+                  )}
                   {e.linkedNoteId && <Link2 size={12} className="text-indigo-400 shrink-0" />}
                   <span className="text-xs text-slate-500 shrink-0">{formatDate(e.date)}</span>
                 </div>
@@ -153,6 +204,11 @@ export function EmailView() {
                   <span className="shrink-0 px-2 py-1 rounded text-[10px] font-bold bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
                     AETHER
                   </span>
+                  {isEncrypted && (
+                    <span className="shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      <Lock size={10} /> E2EE
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2 mt-3 flex-wrap relative">
                   <button
@@ -226,9 +282,55 @@ export function EmailView() {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4">
-                <div className="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">
-                  {activeEmail.body}
-                </div>
+                {isEncrypted ? (
+                  <div className="space-y-4">
+                    {!e2eeUnlocked ? (
+                      <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                        <p className="text-sm text-emerald-300 font-medium mb-2">Encrypted message</p>
+                        <p className="text-xs text-slate-400 mb-3">
+                          Unlock your OpenPGP keys to read this message. The server never sees plaintext.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            value={unlockPass}
+                            onChange={(e) => setUnlockPass(e.target.value)}
+                            placeholder="Passphrase"
+                            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              void unlockE2ee(unlockPass).then((r) => {
+                                if (!r.ok) setDecryptError(r.error ?? 'Unlock failed')
+                                else setUnlockPass('')
+                              })
+                            }}
+                            className="px-3 py-2 rounded-lg bg-indigo-600/80 text-white text-sm"
+                          >
+                            Unlock
+                          </button>
+                        </div>
+                      </div>
+                    ) : decrypting ? (
+                      <p className="text-sm text-slate-500">Decrypting…</p>
+                    ) : decryptError ? (
+                      <p className="text-sm text-red-400">{decryptError}</p>
+                    ) : decryptedBody ? (
+                      <div className="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">
+                        {decryptedBody}
+                      </div>
+                    ) : (
+                      <pre className="text-xs text-slate-500 font-mono whitespace-pre-wrap break-all">
+                        {activeEmail.body}
+                      </pre>
+                    )}
+                  </div>
+                ) : (
+                  <div className="whitespace-pre-wrap text-sm text-slate-300 leading-relaxed">
+                    {activeEmail.body}
+                  </div>
+                )}
               </div>
             </div>
 

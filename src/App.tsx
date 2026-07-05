@@ -7,6 +7,7 @@ import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
 import { AIView } from './components/AIView'
 import { SettingsView } from './components/SettingsView'
+import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { Menu } from 'lucide-react'
 
 function MainContent() {
@@ -92,6 +93,7 @@ export default function App() {
       </main>
 
       <CommandBar />
+      <ComposeEmailModal />
     </div>
   )
 }

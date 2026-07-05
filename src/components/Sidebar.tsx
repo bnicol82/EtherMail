@@ -7,6 +7,7 @@ import {
   Plus,
   Settings,
   X,
+  SquarePen,
 } from 'lucide-react'
 import { useNexusStore } from '../store/useStore'
 import { providerColor, providerLabel } from '../lib/utils'
@@ -24,6 +25,7 @@ export function Sidebar() {
   const setView = useNexusStore((s) => s.setView)
   const accounts = useNexusStore((s) => s.accounts)
   const createNote = useNexusStore((s) => s.createNote)
+  const openCompose = useNexusStore((s) => s.openCompose)
   const setSidebarOpen = useNexusStore((s) => s.setSidebarOpen)
   const emails = useNexusStore((s) => s.emails)
   const unread = emails.filter((e) => !e.read).length
@@ -44,11 +46,18 @@ export function Sidebar() {
         </div>
         <div className="flex gap-2">
           <button
+            onClick={() => openCompose()}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white text-sm font-medium transition-colors"
+          >
+            <SquarePen size={16} />
+            Compose
+          </button>
+          <button
             onClick={() => createNote()}
             className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium transition-colors"
           >
             <Plus size={16} />
-            New Note
+            Note
           </button>
           <button
             onClick={() => navigate('settings')}

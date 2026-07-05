@@ -11,11 +11,17 @@ After enabling GitHub Pages, the app will be available at:
 ## Phase 1 Features
 
 - **Vault** — Markdown notes, folders, bi-directional `[[links]]`, tags, backlinks, edit/preview/split modes
-- **Email** — Unified inbox (demo data), link emails to notes, AI actions
+- **Email** — Unified inbox (demo data), link emails to notes, AI actions, **OpenPGP E2EE compose**
 - **Vault AI (RAG)** — Private assistant that searches your vault and inbox (client-side hybrid retrieval)
 - **External AI** — API key settings for OpenAI/Anthropic/Google (demo responses on Pages)
 - **Command Bar** — `⌘K` / `/` global search and commands
 - **Mobile** — Responsive layout with collapsible navigation
+
+## End-to-end encryption
+
+Outgoing mail can be encrypted with **OpenPGP** in the browser before send (Settings → End-to-end encryption). Generate a keypair, share your public key with contacts, and add their public keys. Only holders of the private key can read message bodies — mail providers store ciphertext only.
+
+Phase 2 OAuth send will transmit encrypted bodies via Gmail/Outlook APIs unchanged.
 
 ## Local Development
 
