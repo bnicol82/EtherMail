@@ -38,6 +38,34 @@ export interface Email {
   read: boolean
   starred: boolean
   linkedNoteId: string | null
+  /** OpenPGP-encrypted body (armored). Plaintext lives only after client decrypt. */
+  encrypted?: boolean
+  /** Outbound messages encrypted for these addresses. */
+  encryptedFor?: string[]
+}
+
+export interface RecipientPublicKey {
+  email: string
+  publicKeyArmored: string
+  fingerprint?: string
+}
+
+export interface E2eeSettings {
+  /** Encrypt outgoing mail by default when recipient keys exist. */
+  enabled: boolean
+  keyEmail: string | null
+  publicKeyArmored: string | null
+  /** Passphrase-protected private key (never store passphrase). */
+  privateKeyArmored: string | null
+  fingerprint: string | null
+  recipientKeys: RecipientPublicKey[]
+}
+
+export interface ComposeDraft {
+  to: string
+  subject: string
+  body: string
+  encrypt: boolean
 }
 
 export interface ChatMessage {
