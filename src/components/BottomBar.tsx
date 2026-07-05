@@ -260,7 +260,7 @@ export function BottomBar() {
         </div>
       </div>
 
-      <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-0.5 border-t border-[var(--glass-border)] text-[10px] text-theme-muted">
+      <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-2 border-t border-[var(--glass-border)] text-[10px] text-theme-muted min-h-[2.75rem]">
         <span className="truncate flex-1 min-w-0">
           {meetings[0] ? `${meetings[0].title} · ${formatMeetingTime(meetings[0].start)}` : 'No upcoming meetings'}
         </span>

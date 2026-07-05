@@ -17,6 +17,21 @@
   box-sizing: border-box;
 }
 
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  /* Bottom dock height excluding safe-area padding (mobile includes clock/calendar strip) */
+  --bottom-dock-height: 7rem;
+}
+
+@media (min-width: 640px) {
+  :root {
+    --bottom-dock-height: 5.5rem;
+  }
+}
+
 html,
 body,
 #root {
@@ -365,6 +380,17 @@ body {
   -webkit-backdrop-filter: blur(48px) saturate(2);
   border-top: 1px solid var(--glass-border);
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.04);
+  padding-bottom: max(0.625rem, var(--safe-bottom));
+  padding-left: var(--safe-left);
+  padding-right: var(--safe-right);
+}
+
+.main-with-bottom-dock {
+  padding-bottom: calc(var(--bottom-dock-height) + var(--safe-bottom));
+}
+
+.mobile-safe-top {
+  padding-top: max(0.375rem, var(--safe-top));
 }
 
 [data-theme="glass"] .bottom-dock {
