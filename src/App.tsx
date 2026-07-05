@@ -109,7 +109,7 @@ export default function App() {
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
       {/* App shell — sidebar + main only (fixed bars live outside this flex tree) */}
       <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
-        <header className="md:hidden flex items-center gap-2 px-3 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
+        <header className="md:hidden mobile-safe-top flex items-center gap-2 px-3 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
           <button
             onClick={() => {
               buttonClickFeedback()
@@ -157,7 +157,7 @@ export default function App() {
 
         <main
           className={`flex-1 w-full min-w-0 min-h-0 flex flex-col overflow-hidden pt-0 ${
-            showDock ? 'pb-[6.5rem] sm:pb-[5.5rem]' : 'pb-0'
+            showDock ? 'main-with-bottom-dock' : 'pb-0'
           }`}
         >
           <MainContent />
