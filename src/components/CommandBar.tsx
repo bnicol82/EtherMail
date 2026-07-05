@@ -74,13 +74,6 @@ export function CommandBar() {
         setCommandOpen(false)
       },
     },
-    {
-      label: 'Open Knowledge Graph',
-      action: () => {
-        setView('graph')
-        setCommandOpen(false)
-      },
-    },
   ].filter((a) => !query || a.label.toLowerCase().includes(query.toLowerCase()))
 
   return (

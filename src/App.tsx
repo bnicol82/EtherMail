@@ -5,7 +5,6 @@ import { CommandBar } from './components/CommandBar'
 import { Dashboard } from './components/Dashboard'
 import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
-import { GraphView } from './components/GraphView'
 import { AIView } from './components/AIView'
 import { SettingsView } from './components/SettingsView'
 import { Menu } from 'lucide-react'
@@ -20,8 +19,6 @@ function MainContent() {
       return <VaultView />
     case 'email':
       return <EmailView />
-    case 'graph':
-      return <GraphView />
     case 'ai':
       return <AIView />
     case 'settings':

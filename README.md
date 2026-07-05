@@ -1,6 +1,6 @@
 # Nexus Core (EtherMail)
 
-**Obsidian-style knowledge vault** with unified email, knowledge graph, and private RAG AI — Phase 1 MVP.
+**Obsidian-style knowledge vault** with unified email and private RAG AI — Phase 1 MVP.
 
 ## Live Demo
 
@@ -12,7 +12,6 @@ After enabling GitHub Pages, the app will be available at:
 
 - **Vault** — Markdown notes, folders, bi-directional `[[links]]`, tags, backlinks, edit/preview/split modes
 - **Email** — Unified inbox (demo data), link emails to notes, AI actions
-- **Knowledge Graph** — Interactive graph of notes, emails, people, and tags
 - **Vault AI (RAG)** — Private assistant that searches your vault and inbox (client-side hybrid retrieval)
 - **External AI** — API key settings for OpenAI/Anthropic/Google (demo responses on Pages)
 - **Command Bar** — `⌘K` / `/` global search and commands
@@ -42,7 +41,7 @@ npm run preview
 
 | Phase | Features |
 |-------|----------|
-| **1** (current) | Vault, demo email, RAG AI, graph, command bar |
+| **1** (current) | Vault, demo email, RAG AI, command bar |
 | **2** | Real OAuth (Gmail, Outlook, Yahoo), calendar sync |
 | **3** | AI Bridge mode, teams, enterprise Outlook |
 | **4** | Plugins, web clipper, OCR |
@@ -52,4 +51,3 @@ npm run preview
 - React 19 + TypeScript + Vite
 - Tailwind CSS 4
 - Zustand (state + localStorage persistence)
-- Canvas-based graph visualization

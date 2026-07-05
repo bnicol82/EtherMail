@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'vault' | 'email' | 'graph' | 'ai' | 'settings'
+export type View = 'dashboard' | 'vault' | 'email' | 'ai' | 'settings'
 
 export type EmailProvider = 'gmail' | 'outlook' | 'yahoo' | 'enterprise'
 
@@ -38,21 +38,6 @@ export interface Email {
   read: boolean
   starred: boolean
   linkedNoteId: string | null
-}
-
-export interface GraphNode {
-  id: string
-  label: string
-  type: 'note' | 'email' | 'person' | 'tag'
-  x?: number
-  y?: number
-}
-
-export interface GraphEdge {
-  id: string
-  source: string
-  target: string
-  type: 'links_to' | 'references' | 'tagged' | 'from'
 }
 
 export interface ChatMessage {

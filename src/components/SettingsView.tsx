@@ -93,7 +93,7 @@ export function SettingsView() {
           <div>
             <p className="text-sm font-medium text-white">Vault AI (RAG)</p>
             <p className="text-xs text-slate-500 mt-1">
-              Retrieves context from your notes, emails, tags, and graph. Runs hybrid keyword + semantic search.
+              Retrieves context from your notes, emails, and tags. Runs hybrid keyword + semantic search.
               All processing stays oriented around your private data.
             </p>
           </div>

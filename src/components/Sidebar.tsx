@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Network,
   FolderOpen,
   Calendar,
   Bot,
@@ -15,7 +14,6 @@ import type { View } from '../types'
 
 const NAV: { id: View; label: string; icon: typeof Mail }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'graph', label: 'Knowledge Graph', icon: Network },
   { id: 'vault', label: 'Vaults', icon: FolderOpen },
   { id: 'email', label: 'Email', icon: Mail },
   { id: 'ai', label: 'AI Assistant', icon: Bot },
@@ -127,7 +125,7 @@ export function Sidebar() {
       <div className="p-3 border-t border-white/10">
         <div className="glass rounded-lg p-3 text-xs text-slate-500">
           <span className="text-indigo-400 font-medium">Phase 1 MVP</span>
-          <p className="mt-1">Vault · Email · RAG AI · Graph</p>
+          <p className="mt-1">Vault · Email · RAG AI</p>
         </div>
       </div>
     </aside>

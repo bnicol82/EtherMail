@@ -12,9 +12,8 @@ import {
   Tag,
   Link2,
 } from 'lucide-react'
-import { useNexusStore, useGraph } from '../store/useStore'
+import { useNexusStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
-import { MiniGraph } from './MiniGraph'
 import { getBacklinks } from '../lib/utils'
 
 export function VaultView() {
@@ -37,7 +36,6 @@ export function VaultView() {
 
   const [expanded, setExpanded] = useState<Set<string>>(new Set(['root', 'projects', 'athena']))
   const activeNote = notes.find((n) => n.id === activeNoteId)
-  const { nodes, edges } = useGraph()
 
   const folderNotes = notes.filter((n) => {
     if (searchQuery) {
@@ -236,21 +234,6 @@ export function VaultView() {
                       </button>
                     ))}
                   </div>
-                </div>
-
-                <div className="p-3 border-b border-white/10">
-                  <p className="text-xs text-slate-500 mb-2">Mini-graph</p>
-                  <MiniGraph
-                    nodes={nodes}
-                    edges={edges}
-                    focusId={activeNote.id}
-                    width={220}
-                    height={140}
-                    onNodeClick={(id) => {
-                      const note = notes.find((n) => n.id === id)
-                      if (note) selectNote(note.id)
-                    }}
-                  />
                 </div>
 
                 <div className="p-3 space-y-3">

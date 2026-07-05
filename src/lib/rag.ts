@@ -76,7 +76,7 @@ export async function generateVaultAIResponse(
 2. Click **Link to Note** in the action menu (or use the command bar: \`Link email to note\`)
 3. Choose an existing note or create a new one
 
-The link appears in the **Knowledge Graph** as a \`references\` edge between the email and note nodes. Linked items also show in the mini-graph panel when viewing either item.`
+Linked emails show the note preview in the email detail pane, and you can open the note directly in the vault.`
   }
 
   if (q.includes('summarize') || q.includes('summary')) {

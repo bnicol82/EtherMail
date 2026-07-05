@@ -9,9 +9,8 @@ import {
   Paperclip,
   ChevronDown,
 } from 'lucide-react'
-import { useNexusStore, useGraph } from '../store/useStore'
+import { useNexusStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
-import { MiniGraph } from './MiniGraph'
 import { formatDate, providerColor } from '../lib/utils'
 
 export function EmailView() {
@@ -28,7 +27,6 @@ export function EmailView() {
   const selectNote = useNexusStore((s) => s.selectNote)
   const addChatMessage = useNexusStore((s) => s.addChatMessage)
   const setAiMode = useNexusStore((s) => s.setAiMode)
-  const { nodes, edges } = useGraph()
 
   const [filter, setFilter] = useState('')
   const [showLinkMenu, setShowLinkMenu] = useState(false)
@@ -244,16 +242,6 @@ export function EmailView() {
                   </div>
                   <div className="flex-1 overflow-y-auto p-3">
                     <MarkdownContent content={linkedNote.content} />
-                  </div>
-                  <div className="p-3 border-t border-white/10">
-                    <p className="text-xs text-slate-500 mb-2">Connection graph</p>
-                    <MiniGraph
-                      nodes={nodes}
-                      edges={edges}
-                      focusId={activeEmail.id}
-                      width={280}
-                      height={120}
-                    />
                   </div>
                   <button
                     onClick={() => selectNote(linkedNote.id)}

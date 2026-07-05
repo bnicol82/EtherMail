@@ -5,7 +5,6 @@ import {
   SEED_EMAILS,
   SEED_FOLDERS,
   SEED_NOTES,
-  buildGraphFromData,
 } from '../data/seed'
 import type {
   AISettings,
@@ -163,6 +162,11 @@ export const useNexusStore = create<NexusState>()(
     }),
     {
       name: 'nexus-core-v1',
+      migrate: (persisted) => {
+        const state = persisted as { view?: string }
+        if (state.view === 'graph') state.view = 'dashboard'
+        return persisted
+      },
       partialize: (s) => ({
         notes: s.notes,
         emails: s.emails,
@@ -178,9 +182,3 @@ export const useNexusStore = create<NexusState>()(
     },
   ),
 )
-
-export function useGraph() {
-  const notes = useNexusStore((s) => s.notes)
-  const emails = useNexusStore((s) => s.emails)
-  return buildGraphFromData(notes, emails)
-}

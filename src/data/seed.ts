@@ -1,4 +1,4 @@
-import type { Email, EmailAccount, Folder, GraphEdge, GraphNode, Note } from '../types'
+import type { Email, EmailAccount, Folder, Note } from '../types'
 
 export const SEED_FOLDERS: Folder[] = [
   { id: 'root', name: "Sarah J's Personal Vault", parentId: null },
@@ -261,56 +261,3 @@ This event relates to your Budget Q4 planning notes.`,
     linkedNoteId: 'note-budget',
   },
 ]
-
-export function buildGraphFromData(notes: Note[], emails: Email[]): { nodes: GraphNode[]; edges: GraphEdge[] } {
-  const nodes: GraphNode[] = []
-  const edges: GraphEdge[] = []
-  const seen = new Set<string>()
-
-  const addNode = (node: GraphNode) => {
-    if (!seen.has(node.id)) {
-      seen.add(node.id)
-      nodes.push(node)
-    }
-  }
-
-  notes.forEach((note) => {
-    addNode({ id: note.id, label: note.title, type: 'note' })
-    note.tags.forEach((tag) => {
-      const tagId = `tag-${tag}`
-      addNode({ id: tagId, label: tag, type: 'tag' })
-      edges.push({ id: `${note.id}-${tagId}`, source: note.id, target: tagId, type: 'tagged' })
-    })
-    const linkRegex = /\[\[([^\]]+)\]\]/g
-    let match
-    while ((match = linkRegex.exec(note.content)) !== null) {
-      const linkedTitle = match[1]
-      const linked = notes.find((n) => n.title === linkedTitle)
-      if (linked) {
-        edges.push({
-          id: `${note.id}-${linked.id}`,
-          source: note.id,
-          target: linked.id,
-          type: 'links_to',
-        })
-      }
-    }
-  })
-
-  emails.forEach((email) => {
-    addNode({ id: email.id, label: email.subject.slice(0, 30), type: 'email' })
-    const personId = `person-${email.from}`
-    addNode({ id: personId, label: email.fromName, type: 'person' })
-    edges.push({ id: `${email.id}-${personId}`, source: personId, target: email.id, type: 'from' })
-    if (email.linkedNoteId) {
-      edges.push({
-        id: `${email.id}-${email.linkedNoteId}`,
-        source: email.id,
-        target: email.linkedNoteId,
-        type: 'references',
-      })
-    }
-  })
-
-  return { nodes, edges }
-}

@@ -1,5 +1,4 @@
-import { useNexusStore, useGraph } from '../store/useStore'
-import { MiniGraph } from './MiniGraph'
+import { useNexusStore } from '../store/useStore'
 import { formatDate } from '../lib/utils'
 import { Sparkles, Tag, Link2 } from 'lucide-react'
 
@@ -10,7 +9,6 @@ export function Dashboard() {
   const selectEmail = useNexusStore((s) => s.selectEmail)
   const setView = useNexusStore((s) => s.setView)
   const chatMessages = useNexusStore((s) => s.chatMessages)
-  const { nodes, edges } = useGraph()
 
   const recentEmails = [...emails].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 4)
   const unread = emails.filter((e) => !e.read)
@@ -74,25 +72,6 @@ export function Dashboard() {
               ))}
             </div>
             <p className="text-xs text-slate-500 mt-3">Full calendar sync in Phase 2</p>
-          </div>
-
-          {/* Graph */}
-          <div className="glass rounded-xl p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="font-semibold text-white">Knowledge Graph</h2>
-              <button
-                onClick={() => setView('graph')}
-                className="text-xs text-indigo-400 hover:text-indigo-300"
-              >
-                Open full graph →
-              </button>
-            </div>
-            <MiniGraph nodes={nodes} edges={edges} width={400} height={220} />
-            <div className="flex gap-3 mt-3 text-[10px] text-slate-500">
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-indigo-500" /> Notes</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400" /> Email</span>
-              <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-400" /> People</span>
-            </div>
           </div>
 
           {/* AI History + quick chat */}
