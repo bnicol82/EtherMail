@@ -862,5 +862,3 @@ export const SEED_CALENDAR: CalendarEvent[] = [
     room: '2A',
   },
 ]
-
-export { buildContactGraph as buildGraphFromData } from '../lib/contactGraph'

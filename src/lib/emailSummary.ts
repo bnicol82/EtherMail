@@ -38,7 +38,7 @@ export function summarizeEmail(email: Email, notes: Note[]): string {
   if (linked) {
     lines.push('')
     lines.push(`**Linked vault note:** [[${linked.title}]]`)
-    lines.push(`This email is connected to your ${linked.title} note in the knowledge graph.`)
+    lines.push(`This email is linked to your ${linked.title} note in the vault.`)
   }
 
   lines.push('')

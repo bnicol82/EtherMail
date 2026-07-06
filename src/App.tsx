@@ -5,7 +5,6 @@ import { BottomBar } from './components/BottomBar'
 import { Dashboard } from './components/Dashboard'
 import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
-import { GraphView } from './components/GraphView'
 import { AIView } from './components/AIView'
 import { NotesView } from './components/NotesView'
 import { CalendarView } from './components/CalendarView'
@@ -34,8 +33,6 @@ function MainContent() {
       return <VaultView />
     case 'email':
       return <EmailView />
-    case 'graph':
-      return <GraphView />
     case 'calendar':
       return <CalendarView />
     case 'notes':

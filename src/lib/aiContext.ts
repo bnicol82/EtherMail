@@ -103,15 +103,6 @@ export function getAIContext(
     }
   }
 
-  if (view === 'graph') {
-    return {
-      label: 'Knowledge Graph',
-      placeholder: 'Ask about connections in your graph...',
-      suggestions: ['Explain this cluster', 'Find orphaned notes', 'Suggest new links', 'Show email-note bridges'],
-      contextPrefix: 'User is viewing the knowledge graph. ',
-    }
-  }
-
   if (view === 'dashboard') {
     const unread = emails.filter((e) => !e.read).length
     return {

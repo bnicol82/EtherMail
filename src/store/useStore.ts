@@ -1,4 +1,3 @@
-import { useMemo } from 'react'
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import {
@@ -18,7 +17,6 @@ import {
   EMAIL_FILES_WORK_FOLDER_ID,
   getDemoEmailsForAccount,
 } from '../data/seed'
-import { buildContactGraph } from '../lib/contactGraph'
 import { getClientIdForProvider, simulateOAuthDelay } from '../lib/oauth/connect'
 import { GmailSyncError, syncGmailAccount } from '../lib/sync/gmail'
 import { syncGmailDemoInbox } from '../lib/sync/gmailDemo'
@@ -138,8 +136,6 @@ interface EtherMailState {
   vaults: Vault[]
   activeVaultId: string | null
   setActiveVault: (vaultId: string | null) => void
-  graphPersonFilter: string | null
-  setGraphPersonFilter: (personId: string | null) => void
   emails: Email[]
   emailAttachments: EmailAttachment[]
   vaultFiles: VaultFile[]
@@ -354,12 +350,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     (set, get) => ({
       view: 'dashboard',
       setView: (view) => {
-        void (async () => {
-          if (view === 'graph') {
-            if (!(await withFullGate(get, set, 'graph_view', 'Open graph view'))) return
-          }
-          set({ view, mobilePanel: 'list' })
-        })()
+        set({ view, mobilePanel: 'list' })
       },
 
       theme: 'glass',
@@ -370,24 +361,20 @@ export const useEtherMailStore = create<EtherMailState>()(
 
       setActiveVault: (activeVaultId) => {
         if (!activeVaultId) {
-          set({ activeVaultId: null, graphPersonFilter: null })
+          set({ activeVaultId: null })
           return
         }
         const root = get().folders.find((f) => f.parentId === null && f.vaultId === activeVaultId)
         set({
           activeVaultId,
           activeFolderId: root?.id ?? get().activeFolderId,
-          graphPersonFilter: null,
         })
       },
-
-      setGraphPersonFilter: (graphPersonFilter) => set({ graphPersonFilter }),
 
       notes: SEED_NOTES,
       folders: SEED_FOLDERS,
       vaults: SEED_VAULTS,
       activeVaultId: null,
-      graphPersonFilter: null,
       emails: SEED_EMAILS,
       emailAttachments: SEED_ATTACHMENTS,
       emailLabels: SEED_EMAIL_LABELS,
@@ -2263,7 +2250,7 @@ export const useEtherMailStore = create<EtherMailState>()(
     }),
     {
       name: 'ethermail-v1',
-      version: 17,
+      version: 18,
       migrate: (persisted, version) => {
         const s = persisted as Record<string, unknown>
         let next = { ...s }
@@ -2403,7 +2390,6 @@ export const useEtherMailStore = create<EtherMailState>()(
             ...next,
             vaults: SEED_VAULTS,
             activeVaultId: null,
-            graphPersonFilter: null,
             folders,
             notes,
             accounts,
@@ -2504,6 +2490,13 @@ export const useEtherMailStore = create<EtherMailState>()(
             auditSyncCursor: null,
           }
         }
+        if (version < 18) {
+          // Graph feature removed — redirect any persisted graph view to dashboard
+          if (next.view === 'graph') {
+            next = { ...next, view: 'dashboard' }
+          }
+          delete next.graphPersonFilter
+        }
         return next
       },
       onRehydrateStorage: () => (state) => {
@@ -2601,18 +2594,6 @@ export const useEtherMailStore = create<EtherMailState>()(
 
 /** @deprecated use useEtherMailStore */
 export const useNexusStore = useEtherMailStore
-
-export function useGraph() {
-  const notes = useEtherMailStore((s) => s.notes)
-  const emails = useEtherMailStore((s) => s.emails)
-  const calendarEvents = useEtherMailStore((s) => s.calendarEvents)
-  const accounts = useEtherMailStore((s) => s.accounts)
-  const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
-  return useMemo(
-    () => buildContactGraph(notes, emails, calendarEvents, accounts, activeVaultId),
-    [notes, emails, calendarEvents, accounts, activeVaultId],
-  )
-}
 
 export function useStats() {
   const notes = useEtherMailStore((s) => s.notes)

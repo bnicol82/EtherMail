@@ -35,7 +35,6 @@ import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
-import { emailMatchesPerson } from '../lib/contactGraph'
 import { sortEmails, sortEmailThreads } from '../lib/emailListSort'
 import { VAULT_PERSONAL_ID } from '../data/seed'
 import { useFeatureVisible } from '../hooks/useFeatureGate'
@@ -48,8 +47,6 @@ export function EmailView() {
   const activeEmailId = useEtherMailStore((s) => s.activeEmailId)
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
-  const graphPersonFilter = useEtherMailStore((s) => s.graphPersonFilter)
-  const setGraphPersonFilter = useEtherMailStore((s) => s.setGraphPersonFilter)
   const activeEmailFolder = useEtherMailStore((s) => s.activeEmailFolder)
   const emailFolderSort = useEtherMailStore((s) => s.emailFolderSort)
   const setEmailFolderSort = useEtherMailStore((s) => s.setEmailFolderSort)
@@ -182,7 +179,6 @@ export function EmailView() {
     if (!acc?.connected) return false
     if (activeAccountId && e.accountId !== activeAccountId) return false
     if (activeVaultId && (acc.defaultVaultId ?? VAULT_PERSONAL_ID) !== activeVaultId) return false
-    if (graphPersonFilter && !emailMatchesPerson(e, graphPersonFilter)) return false
     return true
   }
 
@@ -201,7 +197,7 @@ export function EmailView() {
       counts[f]++
     }
     return counts
-  }, [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter])
+  }, [emails, accounts, activeAccountId, activeVaultId])
 
   const currentFolderSort = emailFolderSort[activeEmailFolder]
 
@@ -234,7 +230,6 @@ export function EmailView() {
     activeEmailFolder,
     activeAccountId,
     activeVaultId,
-    graphPersonFilter,
     accounts,
     aiInboxEnabled,
     aiOutboxEnabled,
@@ -249,7 +244,7 @@ export function EmailView() {
 
   const accountEmailPool = useMemo(
     () => emails.filter((e) => emailInScope(e)),
-    [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter],
+    [emails, accounts, activeAccountId, activeVaultId],
   )
 
   const threadedList = useMemo(() => {
@@ -305,24 +300,6 @@ export function EmailView() {
         <PanelRestoreTab panelId="email-detail" label="Email" />
         <PanelRestoreTab panelId="email-ai" label="AI Summary" />
       </div>
-
-      {graphPersonFilter && (
-        <div className="shrink-0 px-3 py-2 border-b border-[var(--glass-border)] glass flex items-center justify-between gap-2 text-xs">
-          <span className="text-theme-secondary">
-            Showing mail with{' '}
-            <span className="text-pink-400 font-medium">
-              {graphPersonFilter.replace(/^person-/, '').replace(/-/g, ' ')}
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setGraphPersonFilter(null)}
-            className="text-accent hover:underline shrink-0"
-          >
-            Clear contact filter
-          </button>
-        </div>
-      )}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* Folder + list column */}

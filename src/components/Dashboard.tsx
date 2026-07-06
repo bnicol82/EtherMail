@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
-import { useEtherMailStore, useGraph } from '../store/useStore'
-import { MiniGraph } from './MiniGraph'
+import { useEtherMailStore } from '../store/useStore'
 import { AccountDot } from './AccountDot'
 import { EventDetailBox } from './EventDetailBox'
 import { WeekCalendarGrid, EVENT_COLORS } from './WeekCalendarGrid'
@@ -22,7 +21,6 @@ export function Dashboard() {
   const setView = useEtherMailStore((s) => s.setView)
   const setAiAssistantOpen = useEtherMailStore((s) => s.setAiAssistantOpen)
   const submitAiQuery = useEtherMailStore((s) => s.submitAiQuery)
-  const { nodes, edges } = useGraph()
 
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
 
@@ -235,24 +233,6 @@ export function Dashboard() {
           </div>
         </div>
 
-        {/* Knowledge graph — bottom of dashboard */}
-        <div className="mt-4 glass rounded-xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-theme">Knowledge Graph</h2>
-            <button
-              onClick={() => setView('graph')}
-              className="text-xs text-accent hover:text-accent"
-            >
-              Open full graph →
-            </button>
-          </div>
-          <MiniGraph nodes={nodes} edges={edges} width={400} height={220} />
-          <div className="flex gap-3 mt-3 text-[10px] text-theme-muted">
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-[var(--accent)]" /> Notes</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-400" /> Email</span>
-            <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-pink-400" /> People</span>
-          </div>
-        </div>
       </div>
 
       {selectedEvent && (

@@ -1,4 +1,4 @@
-export type View = 'dashboard' | 'email' | 'vault' | 'calendar' | 'notes' | 'graph' | 'ai' | 'settings' | 'admin'
+export type View = 'dashboard' | 'email' | 'vault' | 'calendar' | 'notes' | 'ai' | 'settings' | 'admin'
 
 export type EmailFolder = 'inbox' | 'sent' | 'drafts' | 'scheduled' | 'archive' | 'trash'
 
@@ -203,29 +203,6 @@ export interface ComposeDraft {
   scheduledAt?: string
   /** Email being replied to / forwarded — powers vault-aware chips */
   contextEmailId?: string
-}
-
-export interface GraphNodeMetadata {
-  email?: string
-  emailCount?: number
-  calendarCount?: number
-  totalInteractions?: number
-}
-
-export interface GraphNode {
-  id: string
-  label: string
-  type: 'note' | 'email' | 'person' | 'tag' | 'calendar'
-  x?: number
-  y?: number
-  metadata?: GraphNodeMetadata
-}
-
-export interface GraphEdge {
-  id: string
-  source: string
-  target: string
-  type: 'links_to' | 'references' | 'tagged' | 'from' | 'emailed' | 'attended'
 }
 
 export interface ChatMessage {

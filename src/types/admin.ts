@@ -35,7 +35,6 @@ export type FeatureId =
   | 'note_share'
   | 'note_ai_assist'
   | 'vault_file_upload'
-  | 'graph_view'
   | 'shared_vaults'
   // Integrations
   | 'oauth_byo_client'
@@ -112,7 +111,6 @@ export const FEATURE_CATALOG: FeatureDefinition[] = [
   { id: 'note_share', label: 'Note share', description: 'Native share sheet and copy', category: 'vault', risk: 'high' },
   { id: 'note_ai_assist', label: 'Note AI assist', description: 'Format, polish, and link suggestions', category: 'vault', risk: 'medium' },
   { id: 'vault_file_upload', label: 'Vault file upload', description: 'Upload files to vault folders', category: 'vault', risk: 'medium' },
-  { id: 'graph_view', label: 'Graph view', description: 'Contact and note relationship graph', category: 'vault', risk: 'low' },
   { id: 'shared_vaults', label: 'Shared vaults', description: 'Team vault collaboration', category: 'vault', risk: 'high' },
   { id: 'oauth_byo_client', label: 'Bring-your-own OAuth clients', description: 'User-defined OAuth client IDs', category: 'integrations', risk: 'high' },
   { id: 'provider_gmail', label: 'Gmail provider', description: 'Connect Google mailboxes', category: 'integrations', risk: 'medium' },
