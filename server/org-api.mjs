@@ -19,6 +19,16 @@ const SEED_PATH = path.join(__dirname, 'org-store.seed.json')
 /** @type {Map<string, { memberId: string, email: string, role: string }>} */
 const sessions = new Map()
 
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN ?? 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
+function corsOrigin(req) {
+  const origin = req.headers.origin
+  return typeof origin === 'string' && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+}
+
 function loadStore() {
   if (!fs.existsSync(STORE_PATH)) {
     fs.copyFileSync(SEED_PATH, STORE_PATH)
@@ -30,12 +40,13 @@ function saveStore(store) {
   fs.writeFileSync(STORE_PATH, JSON.stringify(store, null, 2))
 }
 
-function json(res, status, body) {
+function json(req, res, status, body) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Origin': corsOrigin(req),
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-EtherMail-Session',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    Vary: 'Origin',
   })
   res.end(JSON.stringify(body))
 }
@@ -69,18 +80,29 @@ function policyResponse(store) {
   }
 }
 
+const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000
+
 function sessionFromReq(req) {
   const header = req.headers['x-ethermail-session']
-  if (typeof header === 'string' && sessions.has(header)) return sessions.get(header)
-  return null
+  if (typeof header !== 'string') return null
+  const session = sessions.get(header)
+  if (!session) return null
+  if (session.expiresAt < Date.now()) {
+    sessions.delete(header)
+    return null
+  }
+  return session
 }
 
 function requireAdmin(req, res, store) {
   const session = sessionFromReq(req)
-  if (!session) return true
+  if (!session) {
+    json(req, res, 401, { error: 'Authentication required' })
+    return false
+  }
   const member = store.members.find((m) => m.id === session.memberId)
   if (!member || (member.role !== 'admin' && member.role !== 'owner')) {
-    json(res, 403, { error: 'Admin access required' })
+    json(req, res, 403, { error: 'Admin access required' })
     return false
   }
   return true
@@ -88,7 +110,7 @@ function requireAdmin(req, res, store) {
 
 const server = http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
-    json(res, 204, {})
+    json(req, res, 204, {})
     return
   }
 
@@ -116,12 +138,12 @@ const server = http.createServer(async (req, res) => {
         )
         saveStore(store)
       }
-      json(res, 200, { allowed: result.allowed, message: result.message ?? null })
+      json(req, res, 200, { allowed: result.allowed, message: result.message ?? null })
       return
     }
 
     if (req.method === 'GET' && url.pathname === '/org/policy') {
-      json(res, 200, policyResponse(store))
+      json(req, res, 200, policyResponse(store))
       return
     }
 
@@ -131,7 +153,7 @@ const server = http.createServer(async (req, res) => {
       store.policy = { ...store.policy, ...body, features: { ...store.policy.features, ...body.features } }
       store.auditEvents.push(auditRow(store, 'admin', 'policy_updated'))
       saveStore(store)
-      json(res, 200, policyResponse(store))
+      json(req, res, 200, policyResponse(store))
       return
     }
 
@@ -139,7 +161,7 @@ const server = http.createServer(async (req, res) => {
       const since = url.searchParams.get('since')
       let events = store.auditEvents ?? []
       if (since) events = events.filter((e) => e.timestamp > since)
-      json(res, 200, { events: events.slice(-200), cursor: events.at(-1)?.timestamp })
+      json(req, res, 200, { events: events.slice(-200), cursor: events.at(-1)?.timestamp })
       return
     }
 
@@ -161,7 +183,7 @@ const server = http.createServer(async (req, res) => {
       }
       store.auditEvents = store.auditEvents.slice(-1000)
       saveStore(store)
-      json(res, 201, { accepted: incoming.length })
+      json(req, res, 201, { accepted: incoming.length })
       return
     }
 
@@ -170,15 +192,15 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       const email = String(body?.email ?? '').trim().toLowerCase()
       if (!email) {
-        json(res, 400, { error: 'email required' })
+        json(req, res, 400, { error: 'email required' })
         return
       }
       if (store.members.some((m) => m.email.toLowerCase() === email)) {
-        json(res, 409, { error: 'Member already exists' })
+        json(req, res, 409, { error: 'Member already exists' })
         return
       }
       const member = {
-        id: `member-${Date.now()}`,
+        id: `member-${randomUUID()}`,
         email,
         name: String(body?.name ?? email.split('@')[0]),
         role: body?.role ?? 'member',
@@ -188,7 +210,7 @@ const server = http.createServer(async (req, res) => {
       store.members.push(member)
       store.auditEvents.push(auditRow(store, 'admin', 'member_invited', { detail: email }))
       saveStore(store)
-      json(res, 201, member)
+      json(req, res, 201, member)
       return
     }
 
@@ -197,7 +219,7 @@ const server = http.createServer(async (req, res) => {
       const memberId = memberMatch[1]
       const idx = store.members.findIndex((m) => m.id === memberId)
       if (idx < 0) {
-        json(res, 404, { error: 'Member not found' })
+        json(req, res, 404, { error: 'Member not found' })
         return
       }
       if (req.method === 'PATCH') {
@@ -206,7 +228,7 @@ const server = http.createServer(async (req, res) => {
         store.members[idx] = { ...store.members[idx], ...body }
         store.auditEvents.push(auditRow(store, 'admin', 'member_updated', { detail: memberId }))
         saveStore(store)
-        json(res, 200, store.members[idx])
+        json(req, res, 200, store.members[idx])
         return
       }
       if (req.method === 'DELETE') {
@@ -218,7 +240,7 @@ const server = http.createServer(async (req, res) => {
         }))
         store.auditEvents.push(auditRow(store, 'admin', 'member_removed', { detail: removed.email }))
         saveStore(store)
-        json(res, 200, { ok: true })
+        json(req, res, 200, { ok: true })
         return
       }
     }
@@ -232,7 +254,7 @@ const server = http.createServer(async (req, res) => {
       }
       store.auditEvents.push(auditRow(store, 'vault', 'vault_shares_updated'))
       saveStore(store)
-      json(res, 200, { vaultShares: store.vaultShares, vaultShared: store.vaultShared })
+      json(req, res, 200, { vaultShares: store.vaultShares, vaultShared: store.vaultShared })
       return
     }
 
@@ -242,7 +264,7 @@ const server = http.createServer(async (req, res) => {
       store.sso = { ...store.sso, ...body }
       store.auditEvents.push(auditRow(store, 'admin', 'sso_config_updated'))
       saveStore(store)
-      json(res, 200, store.sso)
+      json(req, res, 200, store.sso)
       return
     }
 
@@ -250,7 +272,7 @@ const server = http.createServer(async (req, res) => {
       const body = await readBody(req)
       const code = body?.code
       if (!code) {
-        json(res, 400, { error: 'code required' })
+        json(req, res, 400, { error: 'code required' })
         return
       }
 
@@ -271,7 +293,7 @@ const server = http.createServer(async (req, res) => {
           email = 'demo@acme.com'
         }
       } catch (err) {
-        json(res, 400, {
+        json(req, res, 400, {
           error: err instanceof Error ? err.message : 'SSO exchange failed',
         })
         return
@@ -280,7 +302,7 @@ const server = http.createServer(async (req, res) => {
       let member = store.members.find((m) => m.email.toLowerCase() === email)
       if (!member) {
         member = {
-          id: `member-${Date.now()}`,
+          id: `member-${randomUUID()}`,
           email,
           name: email.split('@')[0],
           role: 'member',
@@ -293,10 +315,15 @@ const server = http.createServer(async (req, res) => {
         member.joinedAt = new Date().toISOString()
       }
       const sessionToken = randomUUID()
-      sessions.set(sessionToken, { memberId: member.id, email: member.email, role: member.role })
+      sessions.set(sessionToken, {
+        memberId: member.id,
+        email: member.email,
+        role: member.role,
+        expiresAt: Date.now() + SESSION_TTL_MS,
+      })
       store.auditEvents.push(auditRow(store, 'auth', 'sso_login', { detail: email, actorEmail: email }))
       saveStore(store)
-      json(res, 200, {
+      json(req, res, 200, {
         sessionToken,
         member,
         role: member.role,
@@ -305,14 +332,14 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'GET' && url.pathname === '/health') {
-      json(res, 200, { ok: true })
+      json(req, res, 200, { ok: true })
       return
     }
 
-    json(res, 404, { error: 'Not found' })
+    json(req, res, 404, { error: 'Not found' })
   } catch (err) {
     console.error(err)
-    json(res, 500, { error: err instanceof Error ? err.message : 'Server error' })
+    json(req, res, 500, { error: err instanceof Error ? err.message : 'Server error' })
   }
 })
 

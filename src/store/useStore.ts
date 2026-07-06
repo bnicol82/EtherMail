@@ -2548,7 +2548,12 @@ export const useEtherMailStore = create<EtherMailState>()(
         activeVaultId: s.activeVaultId,
         emails: s.emails,
         vaultFiles: s.vaultFiles,
-        accounts: s.accounts,
+        accounts: s.accounts.map((a) => ({
+          ...a,
+          oauthAccessToken: undefined,
+          oauthRefreshToken: undefined,
+          oauthExpiresAt: undefined,
+        })),
         calendarEvents: s.calendarEvents,
         oauthSettings: s.oauthSettings,
         theme: s.theme,
