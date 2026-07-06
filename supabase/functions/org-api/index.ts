@@ -18,6 +18,31 @@ function corsHeaders(req: Request) {
   }
 }
 
+// Per-isolate in-memory limiter — a soft defense-in-depth layer, not a substitute for a
+// persisted/shared limiter if this ever runs behind multiple concurrent instances.
+const rateBuckets = new Map<string, { count: number; resetAt: number }>()
+const GENERAL_RATE_LIMIT = { max: 120, windowMs: 60_000 }
+const AUTH_RATE_LIMIT = { max: 10, windowMs: 5 * 60_000 }
+
+function clientIp(req: Request): string {
+  const forwarded = req.headers.get('x-forwarded-for')
+  return forwarded ? forwarded.split(',')[0].trim() : 'unknown'
+}
+
+function checkRateLimit(key: string, max: number, windowMs: number) {
+  const now = Date.now()
+  const bucket = rateBuckets.get(key)
+  if (!bucket || bucket.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + windowMs })
+    return { limited: false }
+  }
+  if (bucket.count >= max) {
+    return { limited: true, retryAfterSec: Math.ceil((bucket.resetAt - now) / 1000) }
+  }
+  bucket.count += 1
+  return { limited: false }
+}
+
 Deno.serve(async (req) => {
   const CORS = corsHeaders(req)
   if (req.method === 'OPTIONS') {
@@ -25,7 +50,14 @@ Deno.serve(async (req) => {
   }
 
   // Shadows the module-level jsonResponse with this request's CORS headers.
-  const json = (status: number, body: unknown) => jsonResponse(status, body, CORS)
+  const json = (status: number, body: unknown, extraHeaders?: Record<string, string>) =>
+    jsonResponse(status, body, { ...CORS, ...extraHeaders })
+
+  const ip = clientIp(req)
+  const general = checkRateLimit(`${ip}:general`, GENERAL_RATE_LIMIT.max, GENERAL_RATE_LIMIT.windowMs)
+  if (general.limited) {
+    return json(429, { error: 'Too many requests, please slow down' }, { 'Retry-After': String(general.retryAfterSec) })
+  }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -191,6 +223,10 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === 'POST' && pathname === '/org/auth/sso/callback') {
+      const auth = checkRateLimit(`${ip}:auth`, AUTH_RATE_LIMIT.max, AUTH_RATE_LIMIT.windowMs)
+      if (auth.limited) {
+        return json(429, { error: 'Too many requests, please slow down' }, { 'Retry-After': String(auth.retryAfterSec) })
+      }
       const body = await req.json()
       if (!body?.code) return json(400, { error: 'code required' })
 

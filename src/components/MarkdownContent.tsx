@@ -8,6 +8,7 @@ import {
   slugifyHeading,
   stripFrontmatter,
 } from '../lib/noteFeatures'
+import { isSafeImageUrl, isSafeLinkUrl } from '../lib/urlSafety'
 
 interface Props {
   content: string
@@ -77,14 +78,19 @@ export function MarkdownContent({ content, onWikiLinkClick }: Props) {
           blockquote: ({ children }) => (
             <blockquote className="note-callout">{children}</blockquote>
           ),
-          img: ({ src, alt }) => (
-            <img
-              src={src}
-              alt={alt ?? ''}
-              className="note-inline-image"
-              loading="lazy"
-            />
-          ),
+          img: ({ src, alt }) =>
+            isSafeImageUrl(src) ? (
+              <img
+                src={src}
+                alt={alt ?? ''}
+                className="note-inline-image"
+                loading="lazy"
+              />
+            ) : (
+              <span className="note-embed-missing text-xs text-theme-muted">
+                [blocked image: unsafe source]
+              </span>
+            ),
           a: ({ href, children }) => {
             if (href?.startsWith('wiki:')) {
               const title = decodeURIComponent(href.slice(5))
@@ -103,6 +109,9 @@ export function MarkdownContent({ content, onWikiLinkClick }: Props) {
             if (href?.startsWith('embed:')) {
               const title = decodeURIComponent(href.slice(6))
               return renderEmbed(title)
+            }
+            if (!isSafeLinkUrl(href)) {
+              return <span title="Blocked link: unsafe URL">{children}</span>
             }
             return (
               <a href={href} target="_blank" rel="noopener noreferrer">

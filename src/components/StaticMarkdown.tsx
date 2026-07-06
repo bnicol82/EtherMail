@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { preprocessWikiLinks } from '../lib/markdownWiki'
+import { isSafeImageUrl, isSafeLinkUrl } from '../lib/urlSafety'
 
 interface Props {
   content: string
@@ -15,9 +16,10 @@ export function StaticMarkdown({ content }: Props) {
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
-          img: ({ src, alt }) => (
-            <img src={src} alt={alt ?? ''} className="note-inline-image" />
-          ),
+          img: ({ src, alt }) =>
+            isSafeImageUrl(src) ? (
+              <img src={src} alt={alt ?? ''} className="note-inline-image" />
+            ) : null,
           a: ({ href, children }) => {
             if (href?.startsWith('wiki:')) {
               const title = decodeURIComponent(href.slice(5))
@@ -26,6 +28,9 @@ export function StaticMarkdown({ content }: Props) {
                   {children}
                 </span>
               )
+            }
+            if (!isSafeLinkUrl(href)) {
+              return <span title="Blocked link: unsafe URL">{children}</span>
             }
             return (
               <a href={href} target="_blank" rel="noopener noreferrer">

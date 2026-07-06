@@ -29,6 +29,51 @@ function corsOrigin(req) {
   return typeof origin === 'string' && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
 }
 
+/** @type {Map<string, { count: number, resetAt: number }>} */
+const rateBuckets = new Map()
+
+function clientIp(req) {
+  const forwarded = req.headers['x-forwarded-for']
+  if (typeof forwarded === 'string' && forwarded.length > 0) return forwarded.split(',')[0].trim()
+  return req.socket.remoteAddress ?? 'unknown'
+}
+
+/** Fixed-window limiter. Returns { limited: boolean, retryAfterSec } */
+function checkRateLimit(key, max, windowMs) {
+  const now = Date.now()
+  const bucket = rateBuckets.get(key)
+  if (!bucket || bucket.resetAt <= now) {
+    rateBuckets.set(key, { count: 1, resetAt: now + windowMs })
+    return { limited: false }
+  }
+  if (bucket.count >= max) {
+    return { limited: true, retryAfterSec: Math.ceil((bucket.resetAt - now) / 1000) }
+  }
+  bucket.count += 1
+  return { limited: false }
+}
+
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, bucket] of rateBuckets) {
+    if (bucket.resetAt <= now) rateBuckets.delete(key)
+  }
+}, 60_000).unref()
+
+const GENERAL_RATE_LIMIT = { max: 120, windowMs: 60_000 }
+const AUTH_RATE_LIMIT = { max: 10, windowMs: 5 * 60_000 }
+
+function rateLimited(req, res, bucketSuffix, { max, windowMs }) {
+  const key = `${clientIp(req)}:${bucketSuffix}`
+  const result = checkRateLimit(key, max, windowMs)
+  if (result.limited) {
+    res.setHeader('Retry-After', String(result.retryAfterSec))
+    json(req, res, 429, { error: 'Too many requests, please slow down' })
+    return true
+  }
+  return false
+}
+
 function loadStore() {
   if (!fs.existsSync(STORE_PATH)) {
     fs.copyFileSync(SEED_PATH, STORE_PATH)
@@ -113,6 +158,8 @@ const server = http.createServer(async (req, res) => {
     json(req, res, 204, {})
     return
   }
+
+  if (rateLimited(req, res, 'general', GENERAL_RATE_LIMIT)) return
 
   const url = new URL(req.url ?? '/', `http://localhost:${PORT}`)
   let store = loadStore()
@@ -269,6 +316,7 @@ const server = http.createServer(async (req, res) => {
     }
 
     if (req.method === 'POST' && url.pathname === '/org/auth/sso/callback') {
+      if (rateLimited(req, res, 'auth', AUTH_RATE_LIMIT)) return
       const body = await readBody(req)
       const code = body?.code
       if (!code) {
