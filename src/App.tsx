@@ -119,16 +119,16 @@ export default function App() {
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
       {/* App shell — sidebar + main only (fixed bars live outside this flex tree) */}
       <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
-        <header className="md:hidden mobile-safe-top flex items-center gap-2 px-3 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
+        <header className="md:hidden mobile-safe-top flex items-center gap-2 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
           <button
             onClick={() => {
               buttonClickFeedback()
               setSidebarOpen(!sidebarOpen)
             }}
-            className="p-1.5 rounded-lg hover-theme"
+            className="touch-target rounded-xl hover-theme -ml-1"
             aria-label="Toggle menu"
           >
-            <Menu size={18} className="text-theme" />
+            <Menu size={22} className="text-theme" />
           </button>
           <div className="flex items-center gap-1.5 flex-1 min-w-0">
             <div className="w-6 h-6 rounded-md bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md shrink-0">
@@ -138,10 +138,10 @@ export default function App() {
           </div>
           <button
             onClick={() => openCompose()}
-            className="p-1.5 rounded-lg btn-accent shrink-0"
+            className="touch-target rounded-xl btn-accent shrink-0 -mr-1"
             aria-label="Compose email"
           >
-            <SquarePen size={16} />
+            <SquarePen size={20} />
           </button>
         </header>
 
@@ -159,6 +159,7 @@ export default function App() {
             md:translate-x-0
             fixed md:static inset-y-0 left-0 z-50 md:z-auto
             h-full shrink-0
+            max-md:pt-[var(--safe-top)] max-md:pl-[var(--safe-left)]
             transition-transform duration-200 ease-out
           `}
         >

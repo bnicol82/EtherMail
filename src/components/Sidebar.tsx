@@ -87,7 +87,7 @@ export function Sidebar() {
         <div className="flex gap-2">
           <button
             onClick={() => createNote()}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs md:text-sm font-medium transition-colors shadow-md"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 md:px-3 md:py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs md:text-sm font-medium transition-colors shadow-md"
           >
             <Plus size={15} />
             New Note
@@ -97,7 +97,7 @@ export function Sidebar() {
               openCompose()
               setSidebarOpen(false)
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-xl glass hover-theme text-theme text-xs md:text-sm font-medium transition-colors border border-[var(--glass-border)]"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 md:px-3 md:py-2 rounded-xl glass hover-theme text-theme text-xs md:text-sm font-medium transition-colors border border-[var(--glass-border)]"
           >
             <SquarePen size={15} />
             Compose
@@ -108,17 +108,17 @@ export function Sidebar() {
               navigate('settings')
             }}
             onMouseEnter={onMenuHover}
-            className="p-1.5 md:p-2 rounded-xl hover-theme text-theme-muted shrink-0"
+            className="touch-target md:min-h-0 md:min-w-0 md:p-2 rounded-xl hover-theme text-theme-muted shrink-0"
             aria-label="Settings"
           >
-            <Settings size={18} />
+            <Settings size={20} />
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-1.5 rounded-xl hover-theme text-theme-muted shrink-0"
+            className="md:hidden touch-target rounded-xl hover-theme text-theme-muted shrink-0"
             aria-label="Close sidebar"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
         <button
