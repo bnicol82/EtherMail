@@ -174,7 +174,7 @@ export function Sidebar() {
 
       <nav
         ref={navRef}
-        className="flex-1 overflow-y-auto p-3 space-y-1 touch-pan-y"
+        className="sidebar-menu flex-1 overflow-y-auto p-3 space-y-1 touch-pan-y"
         onPointerDown={menuScrollHaptic.onPointerDown}
         onPointerMove={menuScrollHaptic.onPointerMove}
         onPointerUp={menuScrollHaptic.onPointerUp}

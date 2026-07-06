@@ -72,6 +72,8 @@ body {
   --hover-bg: rgba(255, 255, 255, 0.5);
   --active-bg: rgba(37, 99, 235, 0.14);
   --bottom-bar-bg: rgba(255, 255, 255, 0.38);
+  --sidebar-nav: #334155;
+  --sidebar-nav-active: #0f172a;
 }
 
 /* ── Theme: Dark Frosted Glass ── */
@@ -213,6 +215,24 @@ body {
   background: var(--active-bg);
   border: 1px solid var(--accent-border);
   color: var(--text-primary);
+}
+
+/* Clear Glass — sidebar main nav reads stronger against luminous panels */
+[data-theme="glass"] .sidebar-menu button {
+  font-weight: 600;
+}
+
+[data-theme="glass"] .sidebar-menu button:not(.nav-active) {
+  color: var(--sidebar-nav, var(--text-secondary));
+}
+
+[data-theme="glass"] .sidebar-menu button:not(.nav-active):hover {
+  color: var(--sidebar-nav-active, var(--text-primary));
+}
+
+[data-theme="glass"] .sidebar-menu button.nav-active {
+  color: var(--sidebar-nav-active, var(--text-primary));
+  font-weight: 700;
 }
 
 ::-webkit-scrollbar {
