@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Network,
   FolderOpen,
   Calendar,
   Bot,
@@ -17,9 +16,8 @@ import {
   Home,
   Shield,
 } from 'lucide-react'
-import { useRef, useMemo } from 'react'
+import { useRef } from 'react'
 import { useEtherMailStore, useUnreadAlertCount } from '../store/useStore'
-import { isFeatureVisibleFromStore } from '../lib/featureGates'
 import { providerColor } from '../lib/utils'
 import type { View } from '../types'
 import { useMenuScrollHaptic } from '../hooks/useMenuScrollHaptic'
@@ -31,7 +29,6 @@ const NAV: { id: View; label: string; icon: typeof Mail }[] = [
   { id: 'vault', label: 'Vault', icon: FolderOpen },
   { id: 'calendar', label: 'Calendar', icon: Calendar },
   { id: 'notes', label: 'Notes', icon: FileText },
-  { id: 'graph', label: 'Graph', icon: Network },
 ]
 
 export function Sidebar() {
@@ -53,11 +50,7 @@ export function Sidebar() {
   const unreadAlertCount = useUnreadAlertCount()
   const userRole = useEtherMailStore((s) => s.userRole)
   const canAccessAdmin = userRole === 'admin' || userRole === 'owner'
-  const canGraph = useEtherMailStore((s) => isFeatureVisibleFromStore('graph_view', s))
-  const navItems = useMemo(
-    () => NAV.filter(({ id }) => id !== 'graph' || canGraph),
-    [canGraph],
-  )
+  const navItems = NAV
   const navRef = useRef<HTMLElement>(null)
   const menuScrollHaptic = useMenuScrollHaptic(navRef)
 
@@ -320,7 +313,7 @@ export function Sidebar() {
       <div className="p-3 border-t border-[var(--glass-border)]">
         <div className="glass rounded-xl p-3 text-xs text-theme-muted">
           <span className="text-accent font-medium">EtherMail</span>
-          <p className="mt-1">Vault · Email · RAG AI · Graph</p>
+          <p className="mt-1">Vault · Email · RAG AI</p>
         </div>
       </div>
     </aside>

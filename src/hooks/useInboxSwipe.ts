@@ -11,8 +11,15 @@ interface Options {
   ackEnabled?: boolean
 }
 
+/** Horizontal movement (px) before we treat the gesture as a swipe and capture the pointer */
+const DRAG_START_PX = 10
+
 export function useInboxSwipe({ onDelete, ackEnabled = true }: Options) {
   const startX = useRef(0)
+  // Capturing the pointer on pointerdown retargets the eventual `click` to the
+  // swipe container, which swallows taps on the row button. Only capture once
+  // the pointer has actually moved horizontally.
+  const capturedRef = useRef(false)
   const [offset, setOffset] = useState(0)
   const [dragging, setDragging] = useState(false)
   const [snapped, setSnapped] = useState<InboxSwipeSnap>('none')
@@ -21,12 +28,14 @@ export function useInboxSwipe({ onDelete, ackEnabled = true }: Options) {
     setDragging(false)
     setOffset(0)
     setSnapped('none')
+    capturedRef.current = false
   }
 
   const snapAck = () => {
     setDragging(false)
     setSnapped('ack')
     setOffset(INBOX_SWIPE_ACK_WIDTH)
+    capturedRef.current = false
   }
 
   const handlers = {
@@ -37,24 +46,32 @@ export function useInboxSwipe({ onDelete, ackEnabled = true }: Options) {
         return
       }
       startX.current = e.clientX
+      capturedRef.current = false
       setDragging(true)
-      ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
     },
     onPointerMove: (e: ReactPointerEvent) => {
       if (!dragging || snapped === 'ack') return
       const dx = e.clientX - startX.current
+      if (!capturedRef.current) {
+        if (Math.abs(dx) < DRAG_START_PX) return
+        capturedRef.current = true
+        ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+      }
       const min = -(INBOX_SWIPE_DELETE_WIDTH + 20)
       const max = ackEnabled ? INBOX_SWIPE_ACK_WIDTH + 20 : 0
       setOffset(Math.min(max, Math.max(dx, min)))
     },
     onPointerUp: (e: ReactPointerEvent) => {
       if (!dragging || snapped === 'ack') return
-      try {
-        ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
-      } catch {
-        /* released */
+      if (capturedRef.current) {
+        try {
+          ;(e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId)
+        } catch {
+          /* released */
+        }
       }
       setDragging(false)
+      capturedRef.current = false
       if (offset < -INBOX_SWIPE_THRESHOLD) {
         onDelete()
         reset()

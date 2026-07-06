@@ -128,9 +128,6 @@ export function SwipeableEmailRow({
               <CategoryBadge category={category} />
             )}
           </div>
-          {ackEnabled && snapped === 'none' && (
-            <p className="text-[9px] text-theme-muted/70 pl-4 mt-1 lg:hidden">Swipe right to ack · left to delete</p>
-          )}
         </button>
       </div>
     </div>

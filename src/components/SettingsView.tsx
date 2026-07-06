@@ -494,7 +494,7 @@ export function SettingsView() {
           <div>
             <p className="text-sm font-medium text-theme">Vault AI (RAG)</p>
             <p className="text-xs text-theme-muted mt-1">
-              Retrieves context from your notes, emails, tags, and graph. All processing stays oriented around your private data.
+              Retrieves context from your notes, emails, and tags. All processing stays oriented around your private data.
             </p>
           </div>
         </div>

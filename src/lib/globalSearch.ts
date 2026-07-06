@@ -12,7 +12,6 @@ const NAV_ITEMS: { view: View; title: string; subtitle: string }[] = [
   { view: 'vault', title: 'Vault', subtitle: 'Notes and files' },
   { view: 'notes', title: 'Notes', subtitle: 'All notes' },
   { view: 'calendar', title: 'Calendar', subtitle: 'Events and meetings' },
-  { view: 'graph', title: 'Knowledge Graph', subtitle: 'Connections map' },
   { view: 'ai', title: 'AI Assistant', subtitle: 'Chat with vault AI' },
   { view: 'settings', title: 'Settings', subtitle: 'Preferences' },
 ]

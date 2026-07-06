@@ -36,6 +36,8 @@ export function useProactiveAssistant() {
             const text = formatNewEmailAnnouncement(bootEmail, assistantSettings)
             await speakText(text, assistantSettings)
             markProactiveAnnounced(`email-${bootEmail.id}`)
+          } catch {
+            // Speech can fail without a user gesture or supported voices — stay silent
           } finally {
             speakingRef.current = false
           }
@@ -59,6 +61,8 @@ export function useProactiveAssistant() {
           const text = formatNewEmailAnnouncement(email, assistantSettings)
           await speakText(text, assistantSettings)
           markProactiveAnnounced(key)
+        } catch {
+          // Speech can fail without a user gesture or supported voices — stay silent
         } finally {
           speakingRef.current = false
         }
@@ -79,21 +83,7 @@ export function useProactiveAssistant() {
       const now = Date.now()
       const windowMs = assistantSettings.meetingReminderMinutes * 60 * 1000
 
-      let events = [...calendarEvents]
-      const hasSoon = events.some((e) => {
-        const diff = new Date(e.start).getTime() - now
-        return diff > 0 && diff <= windowMs
-      })
-      if (!hasSoon) {
-        const demoStart = new Date(now + 8 * 60 * 1000).toISOString()
-        const demoEnd = new Date(now + 38 * 60 * 1000).toISOString()
-        events = [
-          ...events,
-          { id: 'demo-proactive-meeting', title: 'Project Sync', start: demoStart, end: demoEnd },
-        ]
-      }
-
-      for (const event of events) {
+      for (const event of calendarEvents) {
         const start = new Date(event.start).getTime()
         const diff = start - now
         if (diff <= 0 || diff > windowMs) continue
@@ -109,6 +99,8 @@ export function useProactiveAssistant() {
             const text = formatMeetingReminder(event, minutesUntil, assistantSettings)
             await speakText(text, assistantSettings)
             markProactiveAnnounced(key)
+          } catch {
+            // Speech can fail without a user gesture or supported voices — stay silent
           } finally {
             speakingRef.current = false
           }

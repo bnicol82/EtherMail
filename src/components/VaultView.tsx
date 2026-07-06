@@ -14,11 +14,10 @@ import {
   ExternalLink,
   PanelRight,
 } from 'lucide-react'
-import { useNexusStore, useGraph } from '../store/useStore'
+import { useNexusStore } from '../store/useStore'
 import { getAIContext } from '../lib/aiContext'
 import { MarkdownContent } from './MarkdownContent'
 import { NoteMarkdownEditor } from './NoteMarkdownEditor'
-import { MiniGraph } from './MiniGraph'
 import { AccountDot } from './AccountDot'
 import { PanelHideButton, PanelRestoreTab } from './PanelHideButton'
 import { ShareNoteButton } from './ShareNoteButton'
@@ -91,7 +90,6 @@ export function VaultView() {
     const order = (id?: string) => (id === VAULT_PERSONAL_ID ? 0 : 1)
     return order(a.vaultId) - order(b.vaultId)
   })
-  const { nodes, edges } = useGraph()
 
   const folderNotes = notes.filter((n) => {
     if (activeVaultId && n.vaultId !== activeVaultId) return false
@@ -582,21 +580,6 @@ export function VaultView() {
                     onComposeFromNote={() => openComposeFromNote(activeNote.id)}
                     onMeetingPrepNote={createMeetingPrepNote}
                     onAiAction={aiAction}
-                  />
-                </div>
-
-                <div className="p-3 border-b border-[var(--glass-border)]">
-                  <p className="text-xs text-theme-muted mb-2">Mini-graph</p>
-                  <MiniGraph
-                    nodes={nodes}
-                    edges={edges}
-                    focusId={activeNote.id}
-                    width={220}
-                    height={140}
-                    onNodeClick={(id) => {
-                      const note = notes.find((n) => n.id === id)
-                      if (note) selectNote(note.id)
-                    }}
                   />
                 </div>
               </div>

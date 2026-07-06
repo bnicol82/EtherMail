@@ -1,16 +1,18 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import { useEtherMailStore } from './store/useStore'
 import { Sidebar } from './components/Sidebar'
 import { BottomBar } from './components/BottomBar'
 import { Dashboard } from './components/Dashboard'
 import { VaultView } from './components/VaultView'
 import { EmailView } from './components/EmailView'
-import { GraphView } from './components/GraphView'
 import { AIView } from './components/AIView'
 import { NotesView } from './components/NotesView'
 import { CalendarView } from './components/CalendarView'
 import { SettingsView } from './components/SettingsView'
-import { AdminView } from './components/AdminView'
+
+const AdminView = lazy(() =>
+  import('./components/AdminView').then((m) => ({ default: m.AdminView })),
+)
 import { ConnectAccountModal } from './components/ConnectAccountModal'
 import { ComposeEmailModal } from './components/ComposeEmailModal'
 import { EventEditModal } from './components/EventEditModal'
@@ -34,8 +36,6 @@ function MainContent() {
       return <VaultView />
     case 'email':
       return <EmailView />
-    case 'graph':
-      return <GraphView />
     case 'calendar':
       return <CalendarView />
     case 'notes':
@@ -45,7 +45,17 @@ function MainContent() {
     case 'settings':
       return <SettingsView />
     case 'admin':
-      return <AdminView />
+      return (
+        <Suspense
+          fallback={
+            <div className="flex-1 flex items-center justify-center text-theme-muted text-sm">
+              Loading admin…
+            </div>
+          }
+        >
+          <AdminView />
+        </Suspense>
+      )
     default:
       return <Dashboard />
   }

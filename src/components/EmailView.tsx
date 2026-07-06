@@ -13,6 +13,10 @@ import {
   Pencil,
   Send,
   Clock,
+  Mail,
+  MailOpen,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { MarkdownContent } from './MarkdownContent'
@@ -35,7 +39,6 @@ import { classifyEmail, computeInboxStats } from '../lib/aiInbox'
 import { followUpEmailIds } from '../lib/followUp'
 import { getThreadForEmail, threadsForFilteredList } from '../lib/emailThreads'
 import { formatScheduledAt } from '../lib/scheduledSend'
-import { emailMatchesPerson } from '../lib/contactGraph'
 import { sortEmails, sortEmailThreads } from '../lib/emailListSort'
 import { VAULT_PERSONAL_ID } from '../data/seed'
 import { useFeatureVisible } from '../hooks/useFeatureGate'
@@ -48,8 +51,6 @@ export function EmailView() {
   const activeEmailId = useEtherMailStore((s) => s.activeEmailId)
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
   const activeVaultId = useEtherMailStore((s) => s.activeVaultId)
-  const graphPersonFilter = useEtherMailStore((s) => s.graphPersonFilter)
-  const setGraphPersonFilter = useEtherMailStore((s) => s.setGraphPersonFilter)
   const activeEmailFolder = useEtherMailStore((s) => s.activeEmailFolder)
   const emailFolderSort = useEtherMailStore((s) => s.emailFolderSort)
   const setEmailFolderSort = useEtherMailStore((s) => s.setEmailFolderSort)
@@ -117,6 +118,8 @@ export function EmailView() {
   const [filter, setFilter] = useState('')
   const [batchConfirmDelete, setBatchConfirmDelete] = useState(false)
   const [batchLabelId, setBatchLabelId] = useState('')
+  // AI summary collapses to a slim header bar on mobile so the email body leads
+  const [aiPanelMobileOpen, setAiPanelMobileOpen] = useState(false)
 
   const listHidden = hiddenPanels['email-list'] ?? false
   const detailHidden = hiddenPanels['email-detail'] ?? false
@@ -182,7 +185,6 @@ export function EmailView() {
     if (!acc?.connected) return false
     if (activeAccountId && e.accountId !== activeAccountId) return false
     if (activeVaultId && (acc.defaultVaultId ?? VAULT_PERSONAL_ID) !== activeVaultId) return false
-    if (graphPersonFilter && !emailMatchesPerson(e, graphPersonFilter)) return false
     return true
   }
 
@@ -201,7 +203,7 @@ export function EmailView() {
       counts[f]++
     }
     return counts
-  }, [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter])
+  }, [emails, accounts, activeAccountId, activeVaultId])
 
   const currentFolderSort = emailFolderSort[activeEmailFolder]
 
@@ -234,7 +236,6 @@ export function EmailView() {
     activeEmailFolder,
     activeAccountId,
     activeVaultId,
-    graphPersonFilter,
     accounts,
     aiInboxEnabled,
     aiOutboxEnabled,
@@ -249,7 +250,7 @@ export function EmailView() {
 
   const accountEmailPool = useMemo(
     () => emails.filter((e) => emailInScope(e)),
-    [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter],
+    [emails, accounts, activeAccountId, activeVaultId],
   )
 
   const threadedList = useMemo(() => {
@@ -305,24 +306,6 @@ export function EmailView() {
         <PanelRestoreTab panelId="email-detail" label="Email" />
         <PanelRestoreTab panelId="email-ai" label="AI Summary" />
       </div>
-
-      {graphPersonFilter && (
-        <div className="shrink-0 px-3 py-2 border-b border-[var(--glass-border)] glass flex items-center justify-between gap-2 text-xs">
-          <span className="text-theme-secondary">
-            Showing mail with{' '}
-            <span className="text-pink-400 font-medium">
-              {graphPersonFilter.replace(/^person-/, '').replace(/-/g, ' ')}
-            </span>
-          </span>
-          <button
-            type="button"
-            onClick={() => setGraphPersonFilter(null)}
-            className="text-accent hover:underline shrink-0"
-          >
-            Clear contact filter
-          </button>
-        </div>
-      )}
 
       <div className="flex-1 flex min-h-0 overflow-hidden">
       {/* Folder + list column */}
@@ -564,22 +547,25 @@ export function EmailView() {
                     activeEmail.folder !== 'scheduled' && (
                   <button
                     onClick={() => openCompose({ replyAllTo: activeEmail })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                    title="Reply all"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
-                    <ReplyAll size={14} /> Reply all
+                    <ReplyAll size={14} /> <span className="hidden sm:inline">Reply all</span>
                   </button>
                   )}
                   <button
                     onClick={() => openCompose({ forwardEmail: activeEmail })}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                    title="Forward"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
-                    <Forward size={14} /> Forward
+                    <Forward size={14} /> <span className="hidden sm:inline">Forward</span>
                   </button>
                   <button
                     onClick={() => runAiAction('Draft a reply to this email')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                    title="AI Draft"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
-                    <Sparkles size={14} /> AI Draft
+                    <Sparkles size={14} /> <span className="hidden sm:inline">AI Draft</span>
                   </button>
                   <button
                     onClick={() =>
@@ -587,33 +573,43 @@ export function EmailView() {
                         ? markEmailUnread(activeEmail.id)
                         : markEmailRead(activeEmail.id)
                     }
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                    title={activeEmail.read ? 'Mark unread' : 'Mark read'}
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
-                    {activeEmail.read ? 'Mark unread' : 'Mark read'}
+                    {activeEmail.read ? <Mail size={14} /> : <MailOpen size={14} />}
+                    <span className="hidden sm:inline">
+                      {activeEmail.read ? 'Mark unread' : 'Mark read'}
+                    </span>
                   </button>
                   <button
                     onClick={() => toggleEmailStar(activeEmail.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs ${
+                    title={activeEmail.starred ? 'Unstar' : 'Star'}
+                    className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs ${
                       activeEmail.starred ? 'text-amber-400' : 'text-theme-secondary hover-theme'
                     }`}
                   >
-                    <Star size={14} className={activeEmail.starred ? 'fill-amber-400' : ''} /> Star
+                    <Star size={14} className={activeEmail.starred ? 'fill-amber-400' : ''} />
+                    <span className="hidden sm:inline">Star</span>
                   </button>
                   <button
                     onClick={() => archiveEmail(activeEmail.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
+                    title="Archive"
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs text-theme-secondary hover-theme"
                   >
-                    <Archive size={14} /> Archive
+                    <Archive size={14} /> <span className="hidden sm:inline">Archive</span>
                   </button>
                   {(activeEmail.folder ?? 'inbox') === 'inbox' && (
                     <SnoozeMenu onSnooze={(preset) => snoozeEmail(activeEmail.id, preset)} />
                   )}
                   <button
                     onClick={() => deleteEmail(activeEmail.id)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass text-xs text-red-400 hover-theme"
+                    title={(activeEmail.folder ?? 'inbox') === 'trash' ? 'Delete forever' : 'Delete'}
+                    className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg glass text-xs text-red-400 hover-theme"
                   >
                     <Trash2 size={14} />
-                    {(activeEmail.folder ?? 'inbox') === 'trash' ? 'Delete forever' : 'Delete'}
+                    <span className="hidden sm:inline">
+                      {(activeEmail.folder ?? 'inbox') === 'trash' ? 'Delete forever' : 'Delete'}
+                    </span>
                   </button>
                   <EmailLinkNoteMenu
                     notes={notes}
@@ -700,14 +696,29 @@ export function EmailView() {
             </div>
 
             {!aiHidden && (
-              <aside className="order-1 lg:order-2 w-full lg:w-72 xl:w-80 shrink-0 flex flex-col glass-frost border-[var(--glass-border)] lg:border-l min-h-[200px] lg:min-h-0 max-h-[45vh] lg:max-h-none overflow-hidden">
+              <aside
+                className={`order-1 lg:order-2 w-full lg:w-72 xl:w-80 shrink-0 flex flex-col glass-frost border-[var(--glass-border)] lg:border-l lg:min-h-0 overflow-hidden ${
+                  aiPanelMobileOpen ? 'min-h-[200px] max-h-[45vh]' : 'max-h-none'
+                } lg:max-h-none`}
+              >
                 <div className="p-3 border-b border-[var(--glass-border)] flex items-center gap-2 shrink-0 bg-accent-soft">
                   <Sparkles size={16} className="text-accent" />
                   <span className="text-sm font-semibold text-theme">AI Summary</span>
                   <span className="ml-auto text-[10px] text-accent px-2 py-0.5 rounded-full glass">Vault AI</span>
+                  <button
+                    type="button"
+                    onClick={() => setAiPanelMobileOpen((o) => !o)}
+                    className="lg:hidden p-1 rounded-md text-theme-muted hover-theme"
+                    title={aiPanelMobileOpen ? 'Collapse AI summary' : 'Expand AI summary'}
+                    aria-expanded={aiPanelMobileOpen}
+                  >
+                    {aiPanelMobileOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                  </button>
                   <PanelHideButton panelId="email-ai" label="AI summary" />
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                <div
+                  className={`${aiPanelMobileOpen ? 'block' : 'hidden'} lg:block flex-1 overflow-y-auto p-4 min-h-0`}
+                >
                   {aiSummary ? (
                     <div className="text-sm">
                       <MarkdownContent content={aiSummary} />
@@ -717,7 +728,9 @@ export function EmailView() {
                   )}
                 </div>
 
-                <div className="shrink-0 border-t border-[var(--glass-border)] p-2 flex gap-1 flex-wrap">
+                <div
+                  className={`${aiPanelMobileOpen ? 'flex' : 'hidden'} lg:flex shrink-0 border-t border-[var(--glass-border)] p-2 gap-1 flex-wrap`}
+                >
                   {['Summarize', 'Draft reply', 'Find related notes'].map((a) => (
                     <button
                       key={a}
@@ -730,7 +743,9 @@ export function EmailView() {
                 </div>
 
                 {linkedNote && (
-                  <div className="border-t border-[var(--glass-border)] shrink-0 p-2">
+                  <div
+                    className={`${aiPanelMobileOpen ? 'block' : 'hidden'} lg:block border-t border-[var(--glass-border)] shrink-0 p-2`}
+                  >
                     <div className="flex items-center gap-2 mb-2">
                       <Link2 size={12} className="text-accent" />
                       <span className="text-xs font-medium text-theme truncate">{linkedNote.title}</span>
