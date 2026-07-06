@@ -33,7 +33,7 @@ import {
 import { canUseFeatureFromStore } from '../lib/featureGates'
 import type { FeatureId, OrgPolicy, OrgRole } from '../types/admin'
 import { appendAudit, auditAiQuery } from '../lib/storePolicy'
-import { withFullGate } from '../lib/serverGate'
+import { withFullGate, gateClientAndServer } from '../lib/serverGate'
 import { trimAuditLog } from '../lib/auditLog'
 import type { AuditEvent } from '../types/audit'
 import type { OrgMember, OrgSession, SsoConfig, VaultShare, VaultSharePermission } from '../types/orgApi'
@@ -489,7 +489,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           set({ aiContextResponse: denial, aiAssistantOpen: true })
           return
         }
-        const bridgeOk = canUseFeatureFromStore('ai_bridge', state)
+        const bridgeOk = (await gateClientAndServer(state, 'ai_bridge', 'AI Bridge')).ok
         set({ aiLoading: true })
         state.addChatMessage({ role: 'user', content: query, mode })
         const fullQuery = contextPrefix ? `${contextPrefix}${query}` : query
@@ -553,16 +553,20 @@ export const useEtherMailStore = create<EtherMailState>()(
         externalProvider: 'openai',
         bridgeEnabled: false,
       },
-      setAISettings: (settings) =>
-        set((s) => {
+      setAISettings: (settings) => {
+        void (async () => {
+          const state = get()
           const filtered = { ...settings }
-          if (!canUseFeatureFromStore('ai_bridge', s)) delete filtered.bridgeEnabled
-          if (!canUseFeatureFromStore('external_ai', s)) {
+          if (!(await gateClientAndServer(state, 'ai_bridge', 'AI Bridge')).ok) {
+            delete filtered.bridgeEnabled
+          }
+          if (!(await gateClientAndServer(state, 'external_ai', 'External AI')).ok) {
             delete filtered.externalApiKey
             delete filtered.externalProvider
           }
-          return { aiSettings: { ...s.aiSettings, ...filtered } }
-        }),
+          set((s) => ({ aiSettings: { ...s.aiSettings, ...filtered } }))
+        })()
+      },
 
       weatherSettings: {
         fallbackCity: 'San Francisco',
@@ -941,7 +945,7 @@ export const useEtherMailStore = create<EtherMailState>()(
 
         let to = initial?.to ?? ''
         let cc = initial?.cc ?? ''
-        let bcc = initial?.bcc ?? ''
+        const bcc = initial?.bcc ?? ''
         let subject = initial?.subject ?? ''
         let body = initial?.body ?? ''
         let contextEmailId = initial?.contextEmailId
@@ -1724,10 +1728,8 @@ export const useEtherMailStore = create<EtherMailState>()(
       setConnectingAccountId: (connectingAccountId) => set({ connectingAccountId }),
 
       startConnectAccount: (accountId) => {
-        const state = get()
-        const account = state.accounts.find((a) => a.id === accountId)
+        const account = get().accounts.find((a) => a.id === accountId)
         if (!account || account.connected) return
-        if (!canUseFeatureFromStore('connect_mailbox', state)) return
         const providerFeature: FeatureId =
           account.provider === 'gmail'
             ? 'provider_gmail'
@@ -1736,10 +1738,13 @@ export const useEtherMailStore = create<EtherMailState>()(
               : account.provider === 'yahoo'
                 ? 'provider_yahoo'
                 : 'provider_enterprise'
-        if (!canUseFeatureFromStore(providerFeature, state)) return
-        const connectedCount = state.accounts.filter((a) => a.connected).length
-        if (!canConnectMailbox(connectedCount, state.planTier)) return
-        set({ connectingAccountId: accountId })
+        void (async () => {
+          if (!(await withFullGate(get, set, 'connect_mailbox', 'Connect mailbox'))) return
+          if (!(await withFullGate(get, set, providerFeature, 'Use this email provider'))) return
+          const connectedCount = get().accounts.filter((a) => a.connected).length
+          if (!canConnectMailbox(connectedCount, get().planTier)) return
+          set({ connectingAccountId: accountId })
+        })()
       },
 
       connectGmailDemo: async (accountId) => {
@@ -2355,7 +2360,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
         if (version < 9) {
           const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
-          let folders = ((next.folders as Folder[]) ?? SEED_FOLDERS).map((f) => {
+          const folders = ((next.folders as Folder[]) ?? SEED_FOLDERS).map((f) => {
             const vaultId =
               f.vaultId ??
               (workFolderIds.has(f.id) || f.parentId === 'projects' || f.parentId === ROOT_WORK_ID
@@ -2413,7 +2418,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         }
         if (version < 10) {
           const workFolderIds = new Set(['projects', 'athena', ROOT_WORK_ID, 'email-files-work'])
-          let folders = ((next.folders as Folder[]) ?? SEED_FOLDERS).map((f) => {
+          const folders = ((next.folders as Folder[]) ?? SEED_FOLDERS).map((f) => {
             const vaultId =
               f.vaultId ??
               (workFolderIds.has(f.id) || f.parentId === 'projects' || f.parentId === ROOT_WORK_ID
