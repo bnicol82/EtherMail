@@ -17,7 +17,7 @@ export async function imageFileToDataUrl(file: File): Promise<string> {
 }
 
 export function buildImageMarkdown(dataUrl: string, alt = 'Image'): string {
-  const safeAlt = alt.replace(/[\[\]()]/g, '').trim() || 'Image'
+  const safeAlt = alt.replace(/[[\]()]/g, '').trim() || 'Image'
   return `\n\n![${safeAlt}](${dataUrl})\n\n`
 }
 

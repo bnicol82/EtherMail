@@ -114,6 +114,7 @@ export function parseIcsContent(content: string): CalendarEvent[] {
   const events: CalendarEvent[] = []
   let inEvent = false
   let current: Record<string, string> = {}
+  let attendeeLines: string[] = []
 
   const flush = () => {
     if (!current.SUMMARY && !current.DTSTART) return
@@ -121,13 +122,12 @@ export function parseIcsContent(content: string): CalendarEvent[] {
     const uid = current.UID
     const start = parseIcsDate(current.DTSTART ?? '')
     const end = current.DTEND ? parseIcsDate(current.DTEND) : new Date(new Date(start).getTime() + 3600000).toISOString()
-    const attendees: string[] = []
-    for (const [key, val] of Object.entries(current)) {
-      if (key.startsWith('ATTENDEE')) {
-        const cn = val.match(/CN=([^;:]+)/i)?.[1]
-        attendees.push(cn ? unescapeIcsText(cn) : val.split(':').pop()?.split('@')[0] ?? val)
-      }
-    }
+    const attendees = attendeeLines.map((line) => {
+      const cn = line.match(/CN=([^;:]+)/i)?.[1]
+      if (cn) return unescapeIcsText(cn)
+      const value = line.slice(line.indexOf(':') + 1)
+      return value.split(':').pop()?.split('@')[0] ?? value
+    })
     events.push({
       id: `cal-import-${Date.now()}-${events.length}`,
       uid,
@@ -145,6 +145,7 @@ export function parseIcsContent(content: string): CalendarEvent[] {
     if (line === 'BEGIN:VEVENT') {
       inEvent = true
       current = {}
+      attendeeLines = []
       continue
     }
     if (line === 'END:VEVENT') {
@@ -157,6 +158,10 @@ export function parseIcsContent(content: string): CalendarEvent[] {
     const idx = line.indexOf(':')
     if (idx === -1) continue
     const key = line.slice(0, idx).split(';')[0].toUpperCase()
+    if (key === 'ATTENDEE') {
+      attendeeLines.push(line)
+      continue
+    }
     const value = line.slice(idx + 1)
     current[key] = value
   }

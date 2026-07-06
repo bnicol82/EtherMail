@@ -256,7 +256,7 @@ export async function syncGmailAccount(
   expiresAt?: string
 }> {
   let accessToken = account.oauthAccessToken
-  let refreshToken = account.oauthRefreshToken
+  const refreshToken = account.oauthRefreshToken
   let expiresAt = account.oauthExpiresAt
 
   if (!accessToken) throw new GmailSyncError('No Gmail access token — reconnect the account.')
