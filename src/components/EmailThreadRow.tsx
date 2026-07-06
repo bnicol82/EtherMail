@@ -85,27 +85,27 @@ export function EmailThreadRow({
         }}
         {...handlers}
       >
-        <button type="button" onClick={handleRowClick} className="w-full text-left p-2.5">
-          <div className="flex items-center gap-2 mb-1">
+        <button type="button" onClick={handleRowClick} className="email-list-row w-full text-left md:p-2.5">
+          <div className="flex items-center gap-2 mb-1.5 md:mb-1">
             {selectionMode && (
               <input
                 type="checkbox"
                 checked={selected}
                 onChange={onToggleSelect}
                 onClick={(e) => e.stopPropagation()}
-                className="shrink-0 rounded border-[var(--glass-border)] accent-[var(--accent)]"
+                className="shrink-0 w-5 h-5 md:w-4 md:h-4 rounded border-[var(--glass-border)] accent-[var(--accent)]"
                 aria-label={`Select thread ${thread.subject}`}
               />
             )}
             {multi ? (
-              <MessagesSquare size={14} className="text-accent shrink-0" />
+              <MessagesSquare size={16} className="text-accent shrink-0 md:w-[14px] md:h-[14px]" />
             ) : (
               <AccountDot account={account} />
             )}
             {thread.unreadCount > 0 && (
-              <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0" />
+              <div className="w-2 h-2 md:w-1.5 md:h-1.5 rounded-full bg-[var(--accent)] shrink-0" />
             )}
-            <span className="text-sm font-medium text-theme truncate flex-1">
+            <span className="email-sender md:text-sm md:font-medium text-theme truncate flex-1">
               {multi
                 ? thread.participantNames.slice(0, 2).join(', ') +
                   (thread.participantNames.length > 2
@@ -114,27 +114,27 @@ export function EmailThreadRow({
                 : email.fromName}
             </span>
             {multi && (
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-accent-soft text-accent font-medium shrink-0">
+              <span className="text-xs md:text-[10px] px-2 py-0.5 md:px-1.5 rounded-full bg-accent-soft text-accent font-medium shrink-0">
                 {thread.emails.length}
               </span>
             )}
-            {email.starred && <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />}
-            {email.linkedNoteId && <Link2 size={12} className="text-accent shrink-0" />}
+            {email.starred && <Star size={16} className="text-amber-400 fill-amber-400 shrink-0 md:w-3 md:h-3" />}
+            {email.linkedNoteId && <Link2 size={16} className="text-accent shrink-0 md:w-3 md:h-3" />}
             {email.attachmentIds && email.attachmentIds.length > 0 && (
-              <Paperclip size={12} className="text-theme-muted shrink-0" />
+              <Paperclip size={16} className="text-theme-muted shrink-0 md:w-3 md:h-3" />
             )}
             {(email.acknowledgements?.length ?? 0) > 0 && (
-              <CheckCircle2 size={12} className="text-emerald-400 shrink-0" aria-label="Acknowledged" />
+              <CheckCircle2 size={16} className="text-emerald-400 shrink-0 md:w-3 md:h-3" aria-label="Acknowledged" />
             )}
-            <span className="text-xs text-theme-muted shrink-0">{formatDate(email.date)}</span>
+            <span className="text-sm md:text-xs text-theme-muted shrink-0">{formatDate(email.date)}</span>
           </div>
           <p
-            className={`text-sm truncate pl-4 ${thread.unreadCount > 0 ? 'text-theme-secondary font-medium' : 'text-theme-muted'}`}
+            className={`email-subject md:text-sm truncate pl-0 md:pl-4 ${thread.unreadCount > 0 ? 'text-theme font-semibold md:text-theme-secondary md:font-medium' : 'text-theme-muted font-normal'}`}
           >
             {thread.subject}
           </p>
-          <div className="flex items-center gap-1.5 pl-4 mt-0.5 flex-wrap">
-            <p className="text-xs text-theme-muted truncate flex-1 min-w-0">{email.preview}</p>
+          <div className="flex items-center gap-2 pl-0 md:pl-4 mt-1 md:mt-0.5 flex-wrap">
+            <p className="email-preview md:text-xs text-theme-muted truncate flex-1 min-w-0">{email.preview}</p>
             {labels.slice(0, 2).map((label) => (
               <EmailLabelChip key={label.id} label={label} />
             ))}

@@ -15,11 +15,11 @@ export function PanelHideButton({ panelId, label = 'Hide', className = '' }: Pro
     <button
       type="button"
       onClick={() => togglePanelHidden(panelId)}
-      className={`p-1.5 rounded-lg hover-theme text-theme-muted hover:text-theme ${className}`}
+      className={`touch-target md:min-h-0 md:min-w-0 md:p-1.5 rounded-lg hover-theme text-theme-muted hover:text-theme ${className}`}
       title={hidden ? `Show ${label}` : `Collapse ${label}`}
       aria-label={hidden ? `Show ${label}` : `Collapse ${label}`}
     >
-      {hidden ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
+      {hidden ? <ChevronDown size={18} className="md:w-[14px] md:h-[14px]" /> : <ChevronUp size={18} className="md:w-[14px] md:h-[14px]" />}
     </button>
   )
 }

@@ -85,36 +85,36 @@ export function SwipeableEmailRow({
         }}
         {...handlers}
       >
-        <button type="button" onClick={handleRowClick} className="w-full text-left p-2.5">
-          <div className="flex items-center gap-2 mb-1">
+        <button type="button" onClick={handleRowClick} className="email-list-row w-full text-left md:p-2.5">
+          <div className="flex items-center gap-2 mb-1.5 md:mb-1">
             {selectionMode && (
               <input
                 type="checkbox"
                 checked={selected}
                 onChange={onToggleSelect}
                 onClick={(e) => e.stopPropagation()}
-                className="shrink-0 rounded border-[var(--glass-border)] accent-[var(--accent)]"
+                className="shrink-0 w-5 h-5 md:w-4 md:h-4 rounded border-[var(--glass-border)] accent-[var(--accent)]"
                 aria-label={`Select ${email.subject}`}
               />
             )}
             <AccountDot account={account} />
-            {!email.read && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] shrink-0" />}
-            <span className="text-sm font-medium text-theme truncate flex-1">{email.fromName}</span>
-            {email.starred && <Star size={12} className="text-amber-400 fill-amber-400 shrink-0" />}
-            {email.linkedNoteId && <Link2 size={12} className="text-accent shrink-0" />}
+            {!email.read && <div className="w-2 h-2 md:w-1.5 md:h-1.5 rounded-full bg-[var(--accent)] shrink-0" />}
+            <span className="email-sender md:text-sm md:font-medium text-theme truncate flex-1">{email.fromName}</span>
+            {email.starred && <Star size={16} className="text-amber-400 fill-amber-400 shrink-0 md:w-3 md:h-3" />}
+            {email.linkedNoteId && <Link2 size={16} className="text-accent shrink-0 md:w-3 md:h-3" />}
             {email.attachmentIds && email.attachmentIds.length > 0 && (
-              <Paperclip size={12} className="text-theme-muted shrink-0" />
+              <Paperclip size={16} className="text-theme-muted shrink-0 md:w-3 md:h-3" />
             )}
             {(email.acknowledgements?.length ?? 0) > 0 && (
-              <CheckCircle2 size={12} className="text-emerald-400 shrink-0" aria-label="Acknowledged" />
+              <CheckCircle2 size={16} className="text-emerald-400 shrink-0 md:w-3 md:h-3" aria-label="Acknowledged" />
             )}
-            <span className="text-xs text-theme-muted shrink-0">{formatDate(email.date)}</span>
+            <span className="text-sm md:text-xs text-theme-muted shrink-0">{formatDate(email.date)}</span>
           </div>
-          <p className={`text-sm truncate pl-4 ${email.read ? 'text-theme-muted' : 'text-theme-secondary'}`}>
+          <p className={`email-subject md:text-sm truncate pl-0 md:pl-4 ${email.read ? 'text-theme-muted font-normal' : 'text-theme font-semibold md:font-normal md:text-theme-secondary'}`}>
             {email.subject}
           </p>
-          <div className="flex items-center gap-1.5 pl-4 mt-0.5 flex-wrap">
-            <p className="text-xs text-theme-muted truncate flex-1 min-w-0">{email.preview}</p>
+          <div className="flex items-center gap-2 pl-0 md:pl-4 mt-1 md:mt-0.5 flex-wrap">
+            <p className="email-preview md:text-xs text-theme-muted truncate flex-1 min-w-0">{email.preview}</p>
             {email.scheduledAt && (
               <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-accent-soft text-[9px] text-accent shrink-0">
                 <Clock size={9} />

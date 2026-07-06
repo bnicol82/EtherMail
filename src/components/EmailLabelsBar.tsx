@@ -47,7 +47,7 @@ export function EmailLabelsBar({
         <button
           type="button"
           onClick={() => onFilter(null)}
-          className={`px-2 py-0.5 rounded-full text-[10px] border transition-colors ${
+          className={`px-3 py-1.5 md:px-2 md:py-0.5 rounded-full text-sm md:text-[10px] border transition-colors min-h-[2.25rem] md:min-h-0 ${
             activeLabelId === null
               ? 'bg-[var(--accent)] text-white border-transparent'
               : 'glass text-theme-muted hover-theme border-[var(--glass-border)]'
@@ -62,7 +62,7 @@ export function EmailLabelsBar({
               key={label.id}
               type="button"
               onClick={() => onFilter(activeLabelId === label.id ? null : label.id)}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] border transition-colors ${
+              className={`inline-flex items-center gap-1 px-3 py-1.5 md:px-2 md:py-0.5 rounded-full text-sm md:text-[10px] border transition-colors min-h-[2.25rem] md:min-h-0 ${
                 activeLabelId === label.id
                   ? 'text-white border-transparent'
                   : 'glass text-theme-secondary hover-theme border-[var(--glass-border)]'
@@ -85,9 +85,9 @@ export function EmailLabelsBar({
         <button
           type="button"
           onClick={() => setCreating((c) => !c)}
-          className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-[10px] glass text-theme-muted hover-theme"
+          className="inline-flex items-center gap-1 px-3 py-1.5 md:px-2 md:py-0.5 rounded-full text-sm md:text-[10px] glass text-theme-muted hover-theme min-h-[2.25rem] md:min-h-0"
         >
-          <Plus size={11} />
+          <Plus size={14} className="md:w-[11px] md:h-[11px]" />
           New
         </button>
       </div>
