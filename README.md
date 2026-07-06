@@ -59,6 +59,8 @@ npm run dev
 
 Server-side gates: when the org API is connected, compose send and AI queries also check `POST /org/gate/check` for authoritative policy enforcement. All gated store actions use client + server checks via `withFullGate`.
 
+CORS is locked to an allow-list (defaults to `http://localhost:5173`). Set `ALLOWED_ORIGIN` (comma-separated for multiple origins) on the org API server or Supabase Edge Function to the real app origin(s) before deploying.
+
 ### SSO secrets (production)
 
 Set on the org API server or Supabase Edge Function:

@@ -2,16 +2,30 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import * as jose from 'https://esm.sh/jose@5.9.6'
 
 const DEMO_ORG_ID = '00000000-0000-4000-8000-000000000001'
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-ethermail-session',
-  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGIN') ?? 'http://localhost:5173')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean)
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get('origin')
+  const allowOrigin = origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0]
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-ethermail-session',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+    Vary: 'Origin',
+  }
 }
 
 Deno.serve(async (req) => {
+  const CORS = corsHeaders(req)
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: CORS })
   }
+
+  // Shadows the module-level jsonResponse with this request's CORS headers.
+  const json = (status: number, body: unknown) => jsonResponse(status, body, CORS)
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
@@ -236,10 +250,10 @@ Deno.serve(async (req) => {
   }
 })
 
-function json(status: number, body: unknown) {
+function jsonResponse(status: number, body: unknown, headers: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...CORS, 'Content-Type': 'application/json' },
+    headers: { ...headers, 'Content-Type': 'application/json' },
   })
 }
 
@@ -257,7 +271,7 @@ async function sessionFromRequest(db: ReturnType<typeof createClient>, req: Requ
 }
 
 async function requireAdmin(db: ReturnType<typeof createClient>, session: { role: string } | null) {
-  if (!session) return true
+  if (!session) return false
   return session.role === 'admin' || session.role === 'owner'
 }
 
