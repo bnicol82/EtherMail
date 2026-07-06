@@ -404,6 +404,25 @@ body {
   justify-content: center;
 }
 
+/* Mobile UI scale — larger text, inputs, and tap targets across the app */
+@media (max-width: 767px) {
+  html {
+    font-size: 18px;
+  }
+
+  .touch-target {
+    min-height: 3rem;
+    min-width: 3rem;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 1rem;
+    min-height: 2.75rem;
+  }
+}
+
 [data-theme="glass"] .bottom-dock {
   background: linear-gradient(
     180deg,
