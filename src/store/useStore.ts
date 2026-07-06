@@ -409,7 +409,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       },
 
       assistantSettings: {
-        userName: 'Billy',
+        userName: '',
         voiceURI: '',
         voiceRate: 1,
         voicePitch: 1,

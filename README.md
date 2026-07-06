@@ -1,6 +1,6 @@
 # EtherMail
 
-**Obsidian-style knowledge vault** with unified email, knowledge graph, and private RAG AI — Phase 1 MVP.
+**Obsidian-style knowledge vault** with unified email and private RAG AI.
 
 ## Live Demo
 
@@ -8,15 +8,16 @@ After enabling GitHub Pages, the app will be available at:
 
 **https://bnicol82.github.io/EtherMail/**
 
-## Phase 1 Features
+## Features
 
 - **Vault** — Markdown notes, folders, bi-directional `[[links]]`, tags, backlinks, edit/preview/split modes
-- **Email** — Unified inbox (demo data), link emails to notes, AI actions
-- **Knowledge Graph** — Interactive graph of notes, emails, people, and tags
+- **Email** — Unified inbox (demo data), threads, labels, snooze, scheduled send, AI inbox/outbox filtering
+- **Calendar** — Week view, event editing, `.ics` import/export, meeting-prep AI briefs
 - **Vault AI (RAG)** — Private assistant that searches your vault and inbox (client-side hybrid retrieval)
 - **External AI** — API key settings for OpenAI/Anthropic/Google (demo responses on Pages)
 - **Command Bar** — `⌘K` / `/` global search and commands
-- **Mobile** — Responsive layout with collapsible navigation
+- **Enterprise Admin** — Org policy, feature gates, SSO config, audit log, shared vaults
+- **Mobile / PWA** — Responsive layout, safe-area aware, installable from the browser
 
 ## Local Development
 
@@ -80,7 +81,7 @@ When secrets are set, authorization codes are exchanged for tokens and `id_token
 
 | Phase | Features |
 |-------|----------|
-| **1** (current) | Vault, demo email, RAG AI, graph, command bar |
+| **1** (done) | Vault, demo email, RAG AI, command bar |
 | **2** (in progress) | OAuth connect, calendar sync from emails, Email Files vault |
 | **3** | AI Bridge mode, teams, enterprise Outlook, live API sync |
 | **4** | Plugins, web clipper, OCR |
@@ -90,4 +91,3 @@ When secrets are set, authorization codes are exchanged for tokens and `id_token
 - React 19 + TypeScript + Vite
 - Tailwind CSS 4
 - Zustand (state + localStorage persistence)
-- Canvas-based graph visualization

@@ -2,14 +2,14 @@ import type { AssistantPersonality, AssistantSettings, CalendarEvent, Email } fr
 import { stripMarkdownForSpeech } from './voice'
 
 const PERSONALITY_PREFIX: Record<AssistantPersonality, (name: string) => string> = {
-  professional: (name) => `Hi ${name},`,
-  friendly: (name) => `Hey ${name}!`,
-  concise: (name) => `${name},`,
-  warm: (name) => `Hi there ${name},`,
+  professional: (name) => (name ? `Hi ${name},` : 'Hi,'),
+  friendly: (name) => (name ? `Hey ${name}!` : 'Hey!'),
+  concise: (name) => (name ? `${name},` : ''),
+  warm: (name) => (name ? `Hi there ${name},` : 'Hi there,'),
 }
 
 function prefix(settings: AssistantSettings): string {
-  return PERSONALITY_PREFIX[settings.personality](settings.userName)
+  return PERSONALITY_PREFIX[settings.personality](settings.userName.trim()).trim()
 }
 
 export function formatNewEmailAnnouncement(email: Email, settings: AssistantSettings): string {
