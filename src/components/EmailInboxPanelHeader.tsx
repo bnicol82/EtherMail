@@ -19,6 +19,7 @@ import {
   ArrowUpDown,
   ChevronDown,
   ChevronUp,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { PanelHideButton } from './PanelHideButton'
 import { AIInboxBar } from './AIInboxBar'
@@ -153,6 +154,8 @@ export function EmailInboxPanelHeader({
   const [labelsOpen, setLabelsOpen] = useState(!!activeLabelFilter)
   const [aiDetailsOpen, setAiDetailsOpen] = useState(aiOutboxEnabled)
   const [confirmDeleteOutbox, setConfirmDeleteOutbox] = useState(false)
+  // On mobile the tool strip is collapsed behind a filter toggle to reduce clutter
+  const [toolsOpen, setToolsOpen] = useState(false)
 
   useEffect(() => {
     if (aiOutboxEnabled) setAiDetailsOpen(true)
@@ -166,6 +169,13 @@ export function EmailInboxPanelHeader({
   const labelsActive = !!activeLabelFilter
   const filtersActive =
     threadViewEnabled || followUpFilterEnabled || emailSelectionMode || labelsActive || aiActive
+  const activeFilterCount = [
+    aiActive,
+    labelsActive,
+    threadViewEnabled,
+    followUpFilterEnabled,
+    emailSelectionMode,
+  ].filter(Boolean).length
 
   return (
     <div className="shrink-0 border-b border-[var(--glass-border)] p-2 space-y-1.5">
@@ -214,7 +224,7 @@ export function EmailInboxPanelHeader({
               }`}
             >
               <Icon size={11} className="shrink-0" />
-              <span className="hidden sm:inline">{label}</span>
+              <span className={`${active ? 'inline' : 'hidden'} sm:inline`}>{label}</span>
               {count > 0 && (
                 <span className={`tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>{count}</span>
               )}
@@ -250,10 +260,28 @@ export function EmailInboxPanelHeader({
             ))}
           </select>
         </label>
+        <button
+          type="button"
+          onClick={() => setToolsOpen((o) => !o)}
+          title="Filters and tools"
+          aria-expanded={toolsOpen}
+          className={`sm:hidden relative shrink-0 p-1.5 rounded-lg transition-colors ${
+            toolsOpen || filtersActive
+              ? 'bg-accent-soft text-accent'
+              : 'glass text-theme-muted hover-theme'
+          }`}
+        >
+          <SlidersHorizontal size={13} />
+          {!toolsOpen && activeFilterCount > 0 && (
+            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-[var(--accent)] text-white text-[8px] font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
 
-      {/* Compact tool strip */}
-      <div className="flex items-center gap-0.5 flex-wrap">
+      {/* Compact tool strip — collapsed behind the filter toggle on mobile */}
+      <div className={`${toolsOpen ? 'flex' : 'hidden sm:flex'} items-center gap-0.5 flex-wrap`}>
         {isInbox && (
           <>
             {showAiInbox && (
