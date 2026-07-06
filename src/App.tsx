@@ -119,29 +119,29 @@ export default function App() {
     <div className="ethermail-bg h-full min-h-dvh overflow-hidden">
       {/* App shell — sidebar + main only (fixed bars live outside this flex tree) */}
       <div className="app-shell relative z-10 flex h-full min-h-0 flex-col md:flex-row">
-        <header className="md:hidden mobile-safe-top flex items-center gap-2 py-1.5 glass border-b border-[var(--glass-border)] shrink-0">
+        <header className="md:hidden mobile-safe-top flex items-center gap-3 py-2 glass border-b border-[var(--glass-border)] shrink-0">
           <button
             onClick={() => {
               buttonClickFeedback()
               setSidebarOpen(!sidebarOpen)
             }}
-            className="touch-target rounded-xl hover-theme -ml-1"
+            className="touch-target rounded-xl hover-theme"
             aria-label="Toggle menu"
           >
-            <Menu size={22} className="text-theme" />
+            <Menu size={24} className="text-theme" />
           </button>
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <div className="w-6 h-6 rounded-md bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-[10px] font-bold text-white shadow-md shrink-0">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-blue-600 flex items-center justify-center text-xs font-bold text-white shadow-md shrink-0">
               E
             </div>
-            <span className="font-semibold text-theme text-sm truncate">EtherMail</span>
+            <span className="font-semibold text-theme text-base truncate">EtherMail</span>
           </div>
           <button
             onClick={() => openCompose()}
-            className="touch-target rounded-xl btn-accent shrink-0 -mr-1"
+            className="touch-target rounded-xl btn-accent shrink-0"
             aria-label="Compose email"
           >
-            <SquarePen size={20} />
+            <SquarePen size={22} />
           </button>
         </header>
 
@@ -155,7 +155,7 @@ export default function App() {
 
         <div
           className={`
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full max-md:invisible max-md:pointer-events-none'}
             md:translate-x-0
             fixed md:static inset-y-0 left-0 z-50 md:z-auto
             h-full shrink-0

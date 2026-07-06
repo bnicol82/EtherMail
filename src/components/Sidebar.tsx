@@ -37,6 +37,7 @@ export function Sidebar() {
   const accounts = useEtherMailStore((s) => s.accounts)
   const createNote = useEtherMailStore((s) => s.createNote)
   const setSidebarOpen = useEtherMailStore((s) => s.setSidebarOpen)
+  const sidebarOpen = useEtherMailStore((s) => s.sidebarOpen)
   const emails = useEtherMailStore((s) => s.emails)
   const activeAccountId = useEtherMailStore((s) => s.activeAccountId)
   const selectAccount = useEtherMailStore((s) => s.selectAccount)
@@ -87,9 +88,9 @@ export function Sidebar() {
         <div className="flex gap-2">
           <button
             onClick={() => createNote()}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 md:px-3 md:py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-xs md:text-sm font-medium transition-colors shadow-md"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2.5 md:px-3 md:py-2 rounded-xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-400 hover:to-blue-500 text-white text-sm md:text-sm font-medium transition-colors shadow-md"
           >
-            <Plus size={15} />
+            <Plus size={17} />
             New Note
           </button>
           <button
@@ -97,9 +98,9 @@ export function Sidebar() {
               openCompose()
               setSidebarOpen(false)
             }}
-            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2 md:px-3 md:py-2 rounded-xl glass hover-theme text-theme text-xs md:text-sm font-medium transition-colors border border-[var(--glass-border)]"
+            className="flex-1 flex items-center justify-center gap-1.5 px-2.5 py-2.5 md:px-3 md:py-2 rounded-xl glass hover-theme text-theme text-sm md:text-sm font-medium transition-colors border border-[var(--glass-border)]"
           >
-            <SquarePen size={15} />
+            <SquarePen size={17} />
             Compose
           </button>
           <button
@@ -111,24 +112,26 @@ export function Sidebar() {
             className="touch-target md:min-h-0 md:min-w-0 md:p-2 rounded-xl hover-theme text-theme-muted shrink-0"
             aria-label="Settings"
           >
-            <Settings size={20} />
+            <Settings size={22} />
           </button>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden touch-target rounded-xl hover-theme text-theme-muted shrink-0"
-            aria-label="Close sidebar"
-          >
-            <X size={20} />
-          </button>
+          {sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden touch-target rounded-xl hover-theme text-theme-muted shrink-0"
+              aria-label="Close sidebar"
+            >
+              <X size={22} />
+            </button>
+          )}
         </div>
         <button
           onClick={() => {
             setCommandPaletteOpen(true)
             setSidebarOpen(false)
           }}
-          className="mt-2 w-full flex items-center gap-2 px-3 py-2 rounded-xl glass text-xs text-theme-muted hover-theme"
+          className="mt-2 w-full flex items-center gap-2 px-3 py-2.5 rounded-xl glass text-sm text-theme-muted hover-theme"
         >
-          <Search size={14} />
+          <Search size={16} />
           <span className="flex-1 text-left">Search vault & inbox</span>
           <kbd className="text-[10px] px-1 rounded bg-black/10">⌘K</kbd>
         </button>
@@ -183,13 +186,13 @@ export function Sidebar() {
             data-menu-item={`nav-${id}`}
             onMouseEnter={onMenuHover}
             onClick={() => navigate(id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+            className={`w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-base md:text-sm transition-all ${
               view === id && (id !== 'email' || !activeAccountId)
                 ? 'nav-active'
                 : 'text-theme-muted hover-theme hover:text-theme'
             }`}
           >
-            <Icon size={18} />
+            <Icon size={20} className="md:w-[18px] md:h-[18px]" />
             <span className="flex-1 text-left">{label}</span>
             {id === 'email' && unread > 0 && (
               <span className="px-1.5 py-0.5 rounded-full bg-[var(--accent)] text-white text-xs">
@@ -203,13 +206,13 @@ export function Sidebar() {
           data-menu-item="nav-ai"
           onMouseEnter={onMenuHover}
           onClick={() => navigate('ai')}
-          className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mt-2 ${
+          className={`w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-base md:text-sm transition-all mt-2 ${
             view === 'ai'
               ? 'nav-active'
               : 'text-theme-muted hover-theme hover:text-theme'
           }`}
         >
-          <Bot size={18} />
+          <Bot size={20} className="md:w-[18px] md:h-[18px]" />
           <span className="flex-1 text-left">AI Assistant</span>
           {unreadAlertCount > 0 && (
             <span
@@ -227,19 +230,19 @@ export function Sidebar() {
             data-menu-item="nav-admin"
             onMouseEnter={onMenuHover}
             onClick={() => navigate('admin')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all mt-2 ${
+            className={`w-full flex items-center gap-3 px-3 py-3 md:py-2.5 rounded-xl text-base md:text-sm transition-all mt-2 ${
               view === 'admin'
                 ? 'nav-active'
                 : 'text-theme-muted hover-theme hover:text-theme'
             }`}
           >
-            <Shield size={18} />
+            <Shield size={20} className="md:w-[18px] md:h-[18px]" />
             <span className="flex-1 text-left">Admin</span>
           </button>
         )}
 
         <div className="pt-2">
-          <p className="px-3 text-xs font-medium text-theme-muted uppercase tracking-wider mb-2">
+          <p className="px-3 text-sm font-medium text-theme-muted uppercase tracking-wider mb-2">
             Email Accounts
           </p>
 
@@ -250,13 +253,13 @@ export function Sidebar() {
               selectAccount(null)
               setSidebarOpen(false)
             }}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors mb-1 ${
+            className={`w-full flex items-center gap-2.5 px-3 py-3 md:py-2 rounded-xl text-base md:text-sm transition-colors mb-1 ${
               view === 'email' && !activeAccountId
                 ? 'nav-active'
                 : 'text-theme-muted hover-theme hover:text-theme'
             }`}
           >
-            <Inbox size={16} className="shrink-0" />
+            <Inbox size={18} className="shrink-0 md:w-4 md:h-4" />
             <span className="truncate text-left flex-1">All Inboxes</span>
             {unread > 0 && (
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--accent-soft)] text-accent">
@@ -282,7 +285,7 @@ export function Sidebar() {
                     setSidebarOpen(false)
                   }
                 }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm transition-colors ${
+                className={`w-full flex items-center gap-2.5 px-3 py-3 md:py-2 rounded-xl text-base md:text-sm transition-colors ${
                   isActive
                     ? 'nav-active'
                     : 'text-theme-muted hover-theme hover:text-theme'

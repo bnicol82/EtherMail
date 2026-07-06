@@ -82,16 +82,16 @@ export function SettingsView() {
   const mailboxLimitReached = !canConnectMailbox(connectedMailboxCount, planTier)
 
   return (
-    <div className="flex-1 overflow-y-auto p-3 md:p-6 max-w-2xl">
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 max-w-2xl">
       <button
         onClick={() => setView('dashboard')}
-        className="flex items-center gap-2 text-sm text-theme-muted hover:text-theme mb-4 md:mb-6"
+        className="hidden md:flex items-center gap-2 text-sm text-theme-muted hover:text-theme mb-4 md:mb-6"
       >
         <ArrowLeft size={16} /> Back to Dashboard
       </button>
 
-      <h1 className="text-xl md:text-2xl font-bold text-theme mb-0.5">Settings</h1>
-      <p className="text-xs md:text-sm text-theme-muted mb-6 md:mb-8">Configure appearance, AI providers, and accounts</p>
+      <h1 className="text-2xl md:text-2xl font-bold text-theme mb-1">Settings</h1>
+      <p className="text-sm md:text-sm text-theme-muted mb-6 md:mb-8">Configure appearance, AI providers, and accounts</p>
 
       {/* Plan */}
       <section className="glass rounded-xl p-5 mb-6">
@@ -102,7 +102,7 @@ export function SettingsView() {
         <div className="flex items-center justify-between gap-3 mb-3">
           <div>
             <p className="text-sm font-medium text-theme">{PLAN_LABELS[planTier]} plan</p>
-            <p className="text-xs text-theme-muted mt-0.5">
+            <p className="text-sm text-theme-muted mt-0.5">
               {connectedMailboxCount} of {limits.maxMailboxes === Number.POSITIVE_INFINITY ? '∞' : limits.maxMailboxes}{' '}
               mailboxes · {limits.aiQueriesPerMonth === Number.POSITIVE_INFINITY ? 'Unlimited' : limits.aiQueriesPerMonth}{' '}
               AI queries/mo
@@ -127,14 +127,14 @@ export function SettingsView() {
                 <Shield size={18} className="text-accent" />
                 <h2 className="font-semibold text-theme">Organization admin</h2>
               </div>
-              <p className="text-xs text-theme-muted">
+              <p className="text-sm text-theme-muted">
                 Manage feature allow/deny policy for all members.
               </p>
             </div>
             <button
               type="button"
               onClick={() => setView('admin')}
-              className="shrink-0 px-4 py-2 rounded-xl btn-accent text-sm font-medium"
+              className="shrink-0 px-4 py-2.5 rounded-xl btn-accent text-base md:text-sm font-medium"
             >
               Open admin
             </button>
@@ -158,7 +158,7 @@ export function SettingsView() {
               }`}
             >
               <p className="text-sm font-medium text-theme">{t.label}</p>
-              <p className="text-xs text-theme-muted mt-0.5">{t.description}</p>
+              <p className="text-sm text-theme-muted mt-0.5">{t.description}</p>
             </button>
           ))}
         </div>
@@ -197,7 +197,7 @@ export function SettingsView() {
         <button
           type="button"
           onClick={() => buttonClickFeedback()}
-          className="mt-4 flex items-center gap-2 px-4 py-2 rounded-xl glass text-sm text-theme-secondary hover-theme"
+          className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-xl glass text-base md:text-sm text-theme-secondary hover-theme"
         >
           <Vibrate size={16} />
           Test feedback
@@ -289,7 +289,7 @@ export function SettingsView() {
 
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <label className="block text-xs text-theme-muted mb-1">Speed ({assistantSettings.voiceRate.toFixed(1)}×)</label>
+            <label className="block text-sm text-theme-muted mb-1">Speed ({assistantSettings.voiceRate.toFixed(1)}×)</label>
             <input
               type="range"
               min="0.5"
@@ -301,7 +301,7 @@ export function SettingsView() {
             />
           </div>
           <div>
-            <label className="block text-xs text-theme-muted mb-1">Pitch ({assistantSettings.voicePitch.toFixed(1)})</label>
+            <label className="block text-sm text-theme-muted mb-1">Pitch ({assistantSettings.voicePitch.toFixed(1)})</label>
             <input
               type="range"
               min="0.5"
@@ -359,7 +359,7 @@ export function SettingsView() {
         <button
           type="button"
           onClick={testVoice}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl btn-accent text-sm"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl btn-accent text-base md:text-sm"
         >
           <Volume2 size={16} />
           Test voice
@@ -410,7 +410,7 @@ export function SettingsView() {
         <button
           type="button"
           onClick={clearInboxTraining}
-          className="flex items-center gap-2 px-3 py-2 rounded-xl glass text-xs text-theme-muted hover:text-red-400"
+          className="flex items-center gap-2 px-3 py-2 rounded-xl glass text-sm text-theme-muted hover:text-red-400"
         >
           <Trash2 size={14} />
           Reset AI Inbox training
@@ -455,7 +455,7 @@ export function SettingsView() {
           placeholder="sk-..."
           className="w-full px-3 py-2 rounded-lg input-theme text-sm outline-none"
         />
-        <p className="text-xs text-theme-muted mt-2 opacity-70">
+        <p className="text-sm text-theme-muted mt-2 opacity-70">
           Demo mode: responses are simulated on GitHub Pages. Production will call your provider directly.
         </p>
         </>
@@ -493,7 +493,7 @@ export function SettingsView() {
           <Shield size={20} className="text-emerald-500 shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-theme">Vault AI (RAG)</p>
-            <p className="text-xs text-theme-muted mt-1">
+            <p className="text-sm text-theme-muted mt-1">
               Retrieves context from your notes, emails, and tags. All processing stays oriented around your private data.
             </p>
           </div>
@@ -502,7 +502,7 @@ export function SettingsView() {
           <Globe size={20} className="text-accent shrink-0 mt-0.5" />
           <div>
             <p className="text-sm font-medium text-theme">External AI</p>
-            <p className="text-xs text-theme-muted mt-1">
+            <p className="text-sm text-theme-muted mt-1">
               Uses your API key to call third-party models. With Bridge mode, receives curated vault excerpts only.
             </p>
           </div>
@@ -525,7 +525,7 @@ export function SettingsView() {
         ) : (
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-theme-muted mb-1">Google (Gmail)</label>
+            <label className="block text-sm text-theme-muted mb-1">Google (Gmail)</label>
             <input
               value={oauthSettings.googleClientId}
               onChange={(e) => setOAuthSettings({ googleClientId: e.target.value })}
@@ -534,7 +534,7 @@ export function SettingsView() {
             />
           </div>
           <div>
-            <label className="block text-xs text-theme-muted mb-1">Microsoft (Outlook)</label>
+            <label className="block text-sm text-theme-muted mb-1">Microsoft (Outlook)</label>
             <input
               value={oauthSettings.microsoftClientId}
               onChange={(e) => setOAuthSettings({ microsoftClientId: e.target.value })}
@@ -543,7 +543,7 @@ export function SettingsView() {
             />
           </div>
           <div>
-            <label className="block text-xs text-theme-muted mb-1">Yahoo</label>
+            <label className="block text-sm text-theme-muted mb-1">Yahoo</label>
             <input
               value={oauthSettings.yahooClientId}
               onChange={(e) => setOAuthSettings({ yahooClientId: e.target.value })}
@@ -570,7 +570,7 @@ export function SettingsView() {
             >
               <div className="min-w-0">
                 <p className="text-sm text-theme truncate">{acc.email}</p>
-                <p className="text-xs text-theme-muted">
+                <p className="text-sm text-theme-muted">
                   {providerLabel(acc.provider)}
                   {acc.syncMode === 'oauth' && ' · Live Gmail sync'}
                   {acc.syncMode === 'demo' && acc.connected && acc.provider === 'gmail' && ' · Gmail demo inbox'}
