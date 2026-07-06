@@ -140,20 +140,20 @@ export function BottomBar() {
       )}
 
       {/* Contextual suggestion pills */}
-      <div className="px-2 sm:px-3 py-1.5 border-b border-[var(--glass-border)] flex items-center gap-2 overflow-x-auto">
-        <div className="flex items-center gap-1.5 shrink-0">
-          <Bot size={13} className="text-accent" />
-          <span className="text-[10px] sm:text-[11px] font-semibold text-theme max-w-[100px] sm:max-w-[180px] truncate">
+      <div className="px-3 md:px-2 sm:px-3 py-2 md:py-1.5 border-b border-[var(--glass-border)] flex items-center gap-2 overflow-x-auto">
+        <div className="flex items-center gap-2 shrink-0">
+          <Bot size={18} className="text-accent md:w-[13px] md:h-[13px]" />
+          <span className="text-sm md:text-[10px] sm:text-[11px] font-semibold text-theme max-w-[120px] sm:max-w-[180px] truncate">
             {ctx.label}
           </span>
         </div>
-        <div className="flex gap-1 flex-1 min-w-0 overflow-x-auto">
+        <div className="flex gap-1.5 md:gap-1 flex-1 min-w-0 overflow-x-auto">
           {ctx.suggestions.map((s) => (
             <button
               key={s}
               onClick={() => submitAiQuery(s, ctx.contextPrefix)}
               disabled={aiLoading}
-              className="text-[10px] sm:text-[11px] px-2 py-0.5 sm:py-1 rounded-full glass hover-theme text-theme-secondary disabled:opacity-50 whitespace-nowrap shrink-0"
+              className="text-sm md:text-[10px] sm:text-[11px] px-3 py-2 md:px-2 md:py-0.5 sm:py-1 rounded-full glass hover-theme text-theme-secondary disabled:opacity-50 whitespace-nowrap shrink-0 min-h-[2.5rem] md:min-h-0"
             >
               {s}
             </button>
@@ -237,7 +237,7 @@ export function BottomBar() {
           </div>
         </div>
 
-        <div className="flex-1 flex items-center gap-2 px-2 sm:px-3 py-1.5 sm:py-2 min-w-0">
+        <div className="flex-1 flex items-center gap-2 px-3 md:px-2 sm:px-3 py-2 md:py-1.5 sm:py-2 min-w-0">
           <input
             ref={inputRef}
             value={input}
@@ -246,21 +246,21 @@ export function BottomBar() {
               if (e.key === 'Enter') submit()
             }}
             placeholder={ctx.placeholder}
-            className="flex-1 min-w-0 px-3 py-1.5 sm:py-2 rounded-lg input-theme text-sm sm:text-base outline-none focus:border-[var(--accent-border)]"
+            className="flex-1 min-w-0 px-3 py-2.5 md:py-1.5 sm:py-2 rounded-xl md:rounded-lg input-theme text-base sm:text-base outline-none focus:border-[var(--accent-border)] min-h-[2.75rem] md:min-h-0"
           />
           <button
             onClick={submit}
             disabled={aiLoading || !input.trim()}
-            className="p-1.5 sm:p-2 rounded-lg btn-accent disabled:opacity-40 shrink-0"
+            className="touch-target md:min-h-0 md:min-w-0 md:p-2 rounded-xl md:rounded-lg btn-accent disabled:opacity-40 shrink-0"
             aria-label="Ask AI"
             title="Ask AI"
           >
-            <Send size={16} />
+            <Send size={22} className="md:w-4 md:h-4" />
           </button>
         </div>
       </div>
 
-      <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-2 border-t border-[var(--glass-border)] text-[10px] text-theme-muted min-h-[2.75rem]">
+      <div className="sm:hidden flex items-center justify-between gap-2 px-3 py-2.5 border-t border-[var(--glass-border)] text-sm text-theme-muted min-h-[3rem]">
         <span className="truncate flex-1 min-w-0">
           {meetings[0] ? `${meetings[0].title} · ${formatMeetingTime(meetings[0].start)}` : 'No upcoming meetings'}
         </span>

@@ -178,25 +178,25 @@ export function EmailInboxPanelHeader({
   ].filter(Boolean).length
 
   return (
-    <div className="shrink-0 border-b border-[var(--glass-border)] p-2 space-y-1.5">
+    <div className="shrink-0 border-b border-[var(--glass-border)] p-3 md:p-2 space-y-2 md:space-y-1.5">
       {/* Title */}
-      <div className="flex items-center gap-1.5 min-h-[26px]">
+      <div className="flex items-center gap-2 min-h-[32px] md:min-h-[26px]">
         {activeAccount && (
           <span
-            className="w-2 h-2 rounded-full shrink-0"
+            className="w-2.5 h-2.5 md:w-2 md:h-2 rounded-full shrink-0"
             style={{ background: providerColor(activeAccount.provider) }}
             title={providerLabel(activeAccount.provider)}
           />
         )}
-        <h2 className="font-semibold text-theme truncate text-sm flex-1 min-w-0">{inboxTitle}</h2>
+        <h2 className="email-list-title md:font-semibold md:text-sm font-bold text-theme truncate flex-1 min-w-0">{inboxTitle}</h2>
         {activeAccountId && (
           <button
             type="button"
             onClick={onClearAccount}
-            className="p-1 rounded-md hover-theme text-theme-muted"
+            className="touch-target md:touch-target md:min-h-0 md:min-w-0 md:p-1 rounded-lg hover-theme text-theme-muted"
             title="Show all inboxes"
           >
-            <X size={13} />
+            <X size={18} className="md:w-[13px] md:h-[13px]" />
           </button>
         )}
         <PanelHideButton panelId="email-list" label="inbox" />
@@ -217,13 +217,13 @@ export function EmailInboxPanelHeader({
               type="button"
               onClick={() => onFolderChange(id)}
               title={label}
-              className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] whitespace-nowrap shrink-0 transition-colors ${
+              className={`flex items-center gap-1.5 px-3 py-2 md:px-2 md:py-1 rounded-lg md:rounded-md text-sm md:text-[10px] whitespace-nowrap shrink-0 transition-colors ${
                 active
                   ? 'bg-accent-soft text-accent font-medium'
                   : 'text-theme-muted hover-theme'
               }`}
             >
-              <Icon size={11} className="shrink-0" />
+              <Icon size={16} className="shrink-0 md:w-[11px] md:h-[11px]" />
               <span className={`${active ? 'inline' : 'hidden'} sm:inline`}>{label}</span>
               {count > 0 && (
                 <span className={`tabular-nums ${active ? 'opacity-90' : 'opacity-60'}`}>{count}</span>
@@ -234,22 +234,22 @@ export function EmailInboxPanelHeader({
       </nav>
 
       {/* Search + sort */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center gap-2 md:gap-1.5">
         <div className="relative flex-1 min-w-0">
-          <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-theme-muted" />
+          <Search size={18} className="absolute left-3 md:left-2 top-1/2 -translate-y-1/2 text-theme-muted md:w-[13px] md:h-[13px]" />
           <input
             value={filter}
             onChange={(e) => onFilterChange(e.target.value)}
             placeholder={`Search ${currentFolderLabel.toLowerCase()}…`}
-            className="w-full pl-7 pr-2 py-1 rounded-lg input-theme text-xs outline-none"
+            className="w-full pl-10 md:pl-7 pr-3 md:pr-2 py-2.5 md:py-1 rounded-xl md:rounded-lg input-theme text-base md:text-xs outline-none"
           />
         </div>
-        <label className="shrink-0 flex items-center gap-1 text-[10px] text-theme-muted">
-          <ArrowUpDown size={11} className="text-accent" aria-hidden />
+        <label className="shrink-0 flex items-center gap-1.5 md:gap-1 text-sm md:text-[10px] text-theme-muted">
+          <ArrowUpDown size={16} className="text-accent md:w-[11px] md:h-[11px]" aria-hidden />
           <select
             value={folderSort}
             onChange={(e) => onFolderSortChange(e.target.value as EmailSortKey)}
-            className="max-w-[5.5rem] sm:max-w-none px-1.5 py-1 rounded-lg glass text-[10px] text-theme-secondary outline-none"
+            className="max-w-[6.5rem] sm:max-w-none px-2 md:px-1.5 py-2 md:py-1 rounded-xl md:rounded-lg glass text-sm md:text-[10px] text-theme-secondary outline-none min-h-[2.75rem] md:min-h-0"
             title="Sort order for this folder"
             aria-label={`Sort ${currentFolderLabel}`}
           >
@@ -265,15 +265,15 @@ export function EmailInboxPanelHeader({
           onClick={() => setToolsOpen((o) => !o)}
           title="Filters and tools"
           aria-expanded={toolsOpen}
-          className={`sm:hidden relative shrink-0 p-1.5 rounded-lg transition-colors ${
+          className={`sm:hidden relative shrink-0 touch-target rounded-xl md:rounded-lg transition-colors ${
             toolsOpen || filtersActive
               ? 'bg-accent-soft text-accent'
               : 'glass text-theme-muted hover-theme'
           }`}
         >
-          <SlidersHorizontal size={13} />
+          <SlidersHorizontal size={20} className="md:w-[13px] md:h-[13px]" />
           {!toolsOpen && activeFilterCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-0.5 rounded-full bg-[var(--accent)] text-white text-[8px] font-bold flex items-center justify-center">
+            <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-0.5 rounded-full bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center">
               {activeFilterCount}
             </span>
           )}
@@ -281,7 +281,7 @@ export function EmailInboxPanelHeader({
       </div>
 
       {/* Compact tool strip — collapsed behind the filter toggle on mobile */}
-      <div className={`${toolsOpen ? 'flex' : 'hidden sm:flex'} items-center gap-0.5 flex-wrap`}>
+      <div className={`${toolsOpen ? 'flex' : 'hidden sm:flex'} items-center gap-1 md:gap-0.5 flex-wrap`}>
         {isInbox && (
           <>
             {showAiInbox && (
@@ -291,7 +291,7 @@ export function EmailInboxPanelHeader({
                 title="AI Inbox — show important mail only"
                 label="AI In"
               >
-                <Bot size={12} />
+                <Bot size={18} className="md:w-3 md:h-3" />
               </ToolButton>
             )}
             {showAiOutbox && (
@@ -302,7 +302,7 @@ export function EmailInboxPanelHeader({
                 label="AI Out"
                 activeClass="bg-red-500/90 text-white"
               >
-                <ShieldOff size={12} />
+                <ShieldOff size={18} className="md:w-3 md:h-3" />
               </ToolButton>
             )}
             {showAiOutbox && aiOutboxEnabled && inboxStats.hidden > 0 && (
@@ -313,7 +313,7 @@ export function EmailInboxPanelHeader({
                 label={String(inboxStats.hidden)}
                 activeClass="bg-red-500/90 text-white"
               >
-                <Trash2 size={12} />
+                <Trash2 size={18} className="md:w-3 md:h-3" />
               </ToolButton>
             )}
             {showFollowUp && (
@@ -324,7 +324,7 @@ export function EmailInboxPanelHeader({
                 label={followUpCount > 0 ? String(followUpCount) : undefined}
                 activeClass="bg-amber-500/20 text-amber-400 border border-amber-500/30"
               >
-                <MailWarning size={12} />
+                <MailWarning size={18} className="md:w-3 md:h-3" />
               </ToolButton>
             )}
           </>
@@ -335,7 +335,7 @@ export function EmailInboxPanelHeader({
             onClick={onToggleThreadView}
             title={threadViewEnabled ? 'Thread view' : 'List view'}
           >
-            {threadViewEnabled ? <MessagesSquare size={12} /> : <List size={12} />}
+            {threadViewEnabled ? <MessagesSquare size={18} className="md:w-3 md:h-3" /> : <List size={18} className="md:w-3 md:h-3" />}
           </ToolButton>
         )}
         {showBatchSelect && (
@@ -347,7 +347,7 @@ export function EmailInboxPanelHeader({
             }}
             title="Select messages"
           >
-            {emailSelectionMode ? <CheckSquare size={12} /> : <Square size={12} />}
+            {emailSelectionMode ? <CheckSquare size={18} className="md:w-3 md:h-3" /> : <Square size={18} className="md:w-3 md:h-3" />}
           </ToolButton>
         )}
         {showLabels && emailLabels.length > 0 && (
@@ -357,18 +357,18 @@ export function EmailInboxPanelHeader({
             title="Labels"
             label={labelsActive ? '1' : undefined}
           >
-            <Tag size={12} />
+            <Tag size={18} className="md:w-3 md:h-3" />
           </ToolButton>
         )}
         {isInbox && (aiInboxEnabled || aiOutboxEnabled) && (
           <button
             type="button"
             onClick={() => setAiDetailsOpen((o) => !o)}
-            className="ml-auto p-1 rounded-md text-theme-muted hover-theme"
+            className="ml-auto touch-target md:min-h-0 md:min-w-0 md:p-1 rounded-lg text-theme-muted hover-theme"
             title={aiDetailsOpen ? 'Hide AI details' : 'Show AI details'}
             aria-expanded={aiDetailsOpen}
           >
-            {aiDetailsOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+            {aiDetailsOpen ? <ChevronUp size={18} className="md:w-3 md:h-3" /> : <ChevronDown size={18} className="md:w-3 md:h-3" />}
           </button>
         )}
         {!isInbox && filtersActive && (
@@ -509,12 +509,12 @@ function ToolButton({
       onClick={onClick}
       title={title}
       aria-pressed={active}
-      className={`inline-flex items-center gap-0.5 p-1.5 rounded-md text-[10px] transition-colors ${
+      className={`inline-flex items-center gap-1 px-3 py-2 md:px-1.5 md:py-1.5 rounded-lg md:rounded-md text-sm md:text-[10px] min-h-[2.75rem] md:min-h-0 transition-colors ${
         active ? activeClass : 'glass text-theme-muted hover-theme'
       }`}
     >
       {children}
-      {label && <span className="tabular-nums text-[9px]">{label}</span>}
+      {label && <span className="tabular-nums text-xs md:text-[9px]">{label}</span>}
     </button>
   )
 }
@@ -532,7 +532,7 @@ function BatchBtn({
     <button
       type="button"
       onClick={onClick}
-      className={`px-1.5 py-0.5 rounded-md text-[10px] ${
+      className={`px-3 py-1.5 md:px-1.5 md:py-0.5 rounded-lg md:rounded-md text-sm md:text-[10px] min-h-[2.25rem] md:min-h-0 ${
         danger
           ? 'text-red-400 glass border border-red-500/30 hover-theme'
           : 'glass text-theme-secondary hover-theme'
