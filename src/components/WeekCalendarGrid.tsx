@@ -1,11 +1,6 @@
 import type { CalendarEvent } from '../types'
+import { EVENT_COLORS, eventsForDay } from '../lib/calendarGrid'
 import { isSameDay } from '../lib/utils'
-
-export const EVENT_COLORS = ['#6366f1', '#22d3ee', '#f472b6', '#a78bfa', '#34d399']
-
-export function eventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
-  return events.filter((e) => isSameDay(new Date(e.start), day))
-}
 
 export function EventChip({
   event,

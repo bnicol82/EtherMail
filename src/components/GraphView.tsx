@@ -251,40 +251,43 @@ export function GraphView() {
     [selectNote, selectEmail, setView, setGraphPersonFilter],
   )
 
-  const drawArrow = (
-    ctx: CanvasRenderingContext2D,
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    color: string,
-    width: number,
-  ) => {
-    const dx = x2 - x1
-    const dy = y2 - y1
-    const dist = Math.max(Math.hypot(dx, dy), 1)
-    const ux = dx / dist
-    const uy = dy / dist
-    const endX = x2 - ux * 10
-    const endY = y2 - uy * 10
-    ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(endX, endY)
-    ctx.strokeStyle = color
-    ctx.lineWidth = width
-    ctx.stroke()
-    if (showArrows) {
-      const head = 7
-      const angle = Math.atan2(dy, dx)
+  const drawArrow = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      color: string,
+      width: number,
+    ) => {
+      const dx = x2 - x1
+      const dy = y2 - y1
+      const dist = Math.max(Math.hypot(dx, dy), 1)
+      const ux = dx / dist
+      const uy = dy / dist
+      const endX = x2 - ux * 10
+      const endY = y2 - uy * 10
       ctx.beginPath()
-      ctx.moveTo(endX, endY)
-      ctx.lineTo(endX - head * Math.cos(angle - 0.45), endY - head * Math.sin(angle - 0.45))
-      ctx.lineTo(endX - head * Math.cos(angle + 0.45), endY - head * Math.sin(angle + 0.45))
-      ctx.closePath()
-      ctx.fillStyle = color
-      ctx.fill()
-    }
-  }
+      ctx.moveTo(x1, y1)
+      ctx.lineTo(endX, endY)
+      ctx.strokeStyle = color
+      ctx.lineWidth = width
+      ctx.stroke()
+      if (showArrows) {
+        const head = 7
+        const angle = Math.atan2(dy, dx)
+        ctx.beginPath()
+        ctx.moveTo(endX, endY)
+        ctx.lineTo(endX - head * Math.cos(angle - 0.45), endY - head * Math.sin(angle - 0.45))
+        ctx.lineTo(endX - head * Math.cos(angle + 0.45), endY - head * Math.sin(angle + 0.45))
+        ctx.closePath()
+        ctx.fillStyle = color
+        ctx.fill()
+      }
+    },
+    [showArrows],
+  )
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -386,7 +389,7 @@ export function GraphView() {
     highlightIds,
     focusId,
     selectedId,
-    showArrows,
+    drawArrow,
   ])
 
   const onPointerDown = (e: React.PointerEvent) => {

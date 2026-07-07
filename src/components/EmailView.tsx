@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Star,
   Link2,
@@ -177,14 +177,17 @@ export function EmailView() {
     ? classifyEmail(activeEmail, inboxTraining, emailInboxOverrides[activeEmail.id])
     : null
 
-  const emailInScope = (e: (typeof emails)[number]) => {
-    const acc = accounts.find((a) => a.id === e.accountId)
-    if (!acc?.connected) return false
-    if (activeAccountId && e.accountId !== activeAccountId) return false
-    if (activeVaultId && (acc.defaultVaultId ?? VAULT_PERSONAL_ID) !== activeVaultId) return false
-    if (graphPersonFilter && !emailMatchesPerson(e, graphPersonFilter)) return false
-    return true
-  }
+  const emailInScope = useCallback(
+    (e: (typeof emails)[number]) => {
+      const acc = accounts.find((a) => a.id === e.accountId)
+      if (!acc?.connected) return false
+      if (activeAccountId && e.accountId !== activeAccountId) return false
+      if (activeVaultId && (acc.defaultVaultId ?? VAULT_PERSONAL_ID) !== activeVaultId) return false
+      if (graphPersonFilter && !emailMatchesPerson(e, graphPersonFilter)) return false
+      return true
+    },
+    [accounts, activeAccountId, activeVaultId, graphPersonFilter],
+  )
 
   const folderCounts = useMemo(() => {
     const counts: Record<EmailFolder, number> = {
@@ -201,7 +204,7 @@ export function EmailView() {
       counts[f]++
     }
     return counts
-  }, [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter])
+  }, [emails, emailInScope])
 
   const currentFolderSort = emailFolderSort[activeEmailFolder]
 
@@ -231,11 +234,8 @@ export function EmailView() {
     return sortEmails(list, currentFolderSort)
   }, [
     emails,
+    emailInScope,
     activeEmailFolder,
-    activeAccountId,
-    activeVaultId,
-    graphPersonFilter,
-    accounts,
     aiInboxEnabled,
     aiOutboxEnabled,
     inboxTraining,
@@ -249,7 +249,7 @@ export function EmailView() {
 
   const accountEmailPool = useMemo(
     () => emails.filter((e) => emailInScope(e)),
-    [emails, accounts, activeAccountId, activeVaultId, graphPersonFilter],
+    [emails, emailInScope],
   )
 
   const threadedList = useMemo(() => {

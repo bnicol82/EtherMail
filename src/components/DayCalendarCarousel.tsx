@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { CalendarEvent } from '../types'
 import { addDays, isSameDay, startOfDay } from '../lib/utils'
 import { useSnapScrollFeedback } from '../hooks/useSnapScrollFeedback'
-import { EventChip, EVENT_COLORS, eventsForDay } from './WeekCalendarGrid'
+import { EventChip } from './WeekCalendarGrid'
+import { EVENT_COLORS, eventsForDay } from '../lib/calendarGrid'
 
 const TOTAL_DAYS = 731
 const CENTER_INDEX = Math.floor(TOTAL_DAYS / 2)
@@ -16,7 +17,7 @@ interface Props {
   onFocusDayChange: (day: Date) => void
 }
 
-export function dayKey(day: Date): string {
+function dayKey(day: Date): string {
   return startOfDay(day).toISOString().slice(0, 10)
 }
 
