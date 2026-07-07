@@ -165,7 +165,7 @@ export function Dashboard() {
             <button
               onClick={() => {
                 setAiAssistantOpen(true)
-                submitAiQuery('Summarize my recent activity')
+                void submitAiQuery('Summarize my recent activity')
               }}
               className="w-full py-2 rounded-lg btn-accent text-sm"
             >

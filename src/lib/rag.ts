@@ -77,6 +77,7 @@ export interface VaultAIContext {
   eventId?: string
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await -- kept async: demo response today, will call a real LLM later
 export async function generateVaultAIResponse(
   query: string,
   notes: Note[],
@@ -279,6 +280,7 @@ Try:
 - "Any conflicts today?"`
 }
 
+// eslint-disable-next-line @typescript-eslint/require-await -- kept async: demo response today, will call a real external AI API later
 export async function generateExternalAIResponse(
   query: string,
   apiKey: string,

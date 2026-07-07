@@ -233,7 +233,7 @@ export function VaultAddMenu({ folderId, onFolderCreated }: Props) {
         ref={fileRef}
         type="file"
         className="hidden"
-        onChange={onFileChange}
+        onChange={(e) => void onFileChange(e)}
       />
     </div>
   )

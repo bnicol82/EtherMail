@@ -84,7 +84,7 @@ export default function App() {
       return
     }
 
-    handleOAuthCallback(code, state, oauthSettings).then((result) => {
+    void handleOAuthCallback(code, state, oauthSettings).then((result) => {
       if (result) {
         void completeOAuthConnect(result.accountId, {
           accessToken: result.accessToken,

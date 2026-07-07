@@ -67,7 +67,7 @@ export function getDeviceLocation(): Promise<{ lat: number; lon: number }> {
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
-      (err) => reject(err),
+      (err) => reject(new Error(err.message)),
       { timeout: 8000, maximumAge: 600_000 },
     )
   })

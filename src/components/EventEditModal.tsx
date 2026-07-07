@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { X, Lightbulb } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import type { CalendarEvent } from '../types'
@@ -18,16 +18,22 @@ export function EventEditModal() {
   const [location, setLocation] = useState('')
   const [room, setRoom] = useState('')
   const [attendees, setAttendees] = useState('')
+  const [prevEvent, setPrevEvent] = useState(event)
 
-  useEffect(() => {
-    if (!event) return
-    setTitle(event.title)
-    setStart(event.start.slice(0, 16))
-    setEnd(event.end.slice(0, 16))
-    setLocation(event.location ?? '')
-    setRoom(event.room ?? '')
-    setAttendees(event.attendees?.join(', ') ?? '')
-  }, [event])
+  // Reset the form whenever a different event is opened for editing, computed
+  // during render (see https://react.dev/learn/you-might-not-need-an-effect)
+  // instead of a setState-in-effect.
+  if (event !== prevEvent) {
+    setPrevEvent(event)
+    if (event) {
+      setTitle(event.title)
+      setStart(event.start.slice(0, 16))
+      setEnd(event.end.slice(0, 16))
+      setLocation(event.location ?? '')
+      setRoom(event.room ?? '')
+      setAttendees(event.attendees?.join(', ') ?? '')
+    }
+  }
 
   const roomSuggestions = useMemo(
     () =>

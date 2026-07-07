@@ -53,6 +53,9 @@ export function AIView() {
     )
     if (hasResponse) return
 
+    // Debounced async reply to the last user message; the loading flag must flip
+    // as soon as we decide to respond, before the timer/await below runs.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     const respond = async () => {
       const content =
@@ -81,7 +84,7 @@ export function AIView() {
     return () => clearTimeout(t)
   }, [chatMessages, notes, emails, calendarEvents, aiSettings, assistantSettings, addChatMessage])
 
-  const send = async () => {
+  const send = () => {
     if (!input.trim() || loading) return
     const q = input.trim()
     setInput('')
@@ -247,7 +250,7 @@ export function AIView() {
         <div className="flex gap-2 max-w-3xl mx-auto">
           {assistantSettings.voiceChatEnabled && (
             <button
-              onClick={startVoice}
+              onClick={() => void startVoice()}
               disabled={loading || listening}
               className={`px-3 sm:px-4 py-3 rounded-xl transition-colors shrink-0 ${
                 listening
@@ -263,7 +266,9 @@ export function AIView() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) void send()
+            }}
             placeholder={
               listening
                 ? 'Listening…'
@@ -275,7 +280,7 @@ export function AIView() {
             className="flex-1 px-4 py-3 rounded-xl input-theme text-base min-w-0"
           />
           <button
-            onClick={send}
+            onClick={() => void send()}
             disabled={loading || !input.trim() || listening}
             className="px-4 py-3 rounded-xl bg-[var(--accent)] hover:opacity-90 disabled:opacity-40 text-theme transition-colors shrink-0"
           >

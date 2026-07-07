@@ -909,7 +909,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         } else {
           set({
             emails: state.emails.map((e) =>
-              e.id === emailId ? { ...e, folder: 'trash' as EmailFolder } : e,
+              e.id === emailId ? { ...e, folder: 'trash' } : e,
             ),
             activeEmailId: state.activeEmailId === emailId ? null : state.activeEmailId,
           })
@@ -919,7 +919,7 @@ export const useEtherMailStore = create<EtherMailState>()(
       archiveEmail: (emailId) =>
         set((s) => ({
           emails: s.emails.map((e) =>
-            e.id === emailId ? { ...e, folder: 'archive' as EmailFolder } : e,
+            e.id === emailId ? { ...e, folder: 'archive' } : e,
           ),
         })),
 
@@ -1056,7 +1056,7 @@ export const useEtherMailStore = create<EtherMailState>()(
                       body: draft.body,
                       preview,
                       date: now,
-                      folder: 'sent' as EmailFolder,
+                      folder: 'sent',
                       read: true,
                       scheduledAt: undefined,
                       attachmentIds,
@@ -1137,7 +1137,7 @@ export const useEtherMailStore = create<EtherMailState>()(
                     body: draft.body,
                     preview,
                     date: now,
-                    folder: 'drafts' as EmailFolder,
+                    folder: 'drafts',
                     scheduledAt: undefined,
                     attachmentIds,
                   }
@@ -1232,7 +1232,7 @@ export const useEtherMailStore = create<EtherMailState>()(
 
           set({
             emails: state.emails.map((e) =>
-              e.id === draft.id ? upsertScheduled(draft.id!, attachmentIds) : e,
+              e.id === draft.id ? upsertScheduled(draft.id, attachmentIds) : e,
             ),
             emailAttachments: draft.attachments?.length
               ? [
@@ -1276,7 +1276,7 @@ export const useEtherMailStore = create<EtherMailState>()(
             dueIds.has(e.id)
               ? {
                   ...e,
-                  folder: 'sent' as EmailFolder,
+                  folder: 'sent',
                   date: sentAt,
                   scheduledAt: undefined,
                   preview: e.body.trim().slice(0, 120) || e.preview,
@@ -1290,11 +1290,11 @@ export const useEtherMailStore = create<EtherMailState>()(
         set((s) => ({
           emails: s.emails.map((e) =>
             e.id === emailId
-              ? { ...e, folder: 'drafts' as EmailFolder, scheduledAt: undefined }
+              ? { ...e, folder: 'drafts', scheduledAt: undefined }
               : e,
           ),
           activeEmailFolder:
-            s.activeEmailId === emailId ? ('drafts' as EmailFolder) : s.activeEmailFolder,
+            s.activeEmailId === emailId ? 'drafts' : s.activeEmailFolder,
         }))
       },
 
@@ -1308,7 +1308,7 @@ export const useEtherMailStore = create<EtherMailState>()(
             e.id === emailId
               ? {
                   ...e,
-                  folder: 'sent' as EmailFolder,
+                  folder: 'sent',
                   date: sentAt,
                   scheduledAt: undefined,
                   preview: e.body.trim().slice(0, 120) || e.preview,
@@ -1493,7 +1493,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         if (outboxIds.size === 0) return
         set({
           emails: state.emails.map((e) =>
-            outboxIds.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e,
+            outboxIds.has(e.id) ? { ...e, folder: 'trash' } : e,
           ),
           activeEmailId:
             state.activeEmailId && outboxIds.has(state.activeEmailId)
@@ -1602,7 +1602,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           if (!(await withFullGate(get, set, 'batch_email_actions', 'Batch archive'))) return
           const ids = new Set(emailIds)
           set((s) => ({
-            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'archive' as EmailFolder } : e)),
+            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'archive' } : e)),
             selectedEmailIds: [],
             emailSelectionMode: false,
             activeEmailId:
@@ -1615,7 +1615,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           if (!(await withFullGate(get, set, 'batch_email_actions', 'Batch delete'))) return
           const ids = new Set(emailIds)
           set((s) => ({
-            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'trash' as EmailFolder } : e)),
+            emails: s.emails.map((e) => (ids.has(e.id) ? { ...e, folder: 'trash' } : e)),
             selectedEmailIds: [],
             emailSelectionMode: false,
             activeEmailId:
@@ -1715,7 +1715,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         })),
 
       oauthSettings: {
-        googleClientId: (import.meta.env.VITE_GOOGLE_CLIENT_ID as string) ?? '',
+        googleClientId: import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '',
         microsoftClientId: '',
         yahooClientId: '',
       },
@@ -2152,7 +2152,7 @@ export const useEtherMailStore = create<EtherMailState>()(
         {
           vaultId: VAULT_WORK_ID,
           memberIds: SEED_ORG_MEMBERS.filter((m) => m.status === 'active').map((m) => m.id),
-          permission: 'write' as VaultSharePermission,
+          permission: 'write',
         },
       ],
       setVaultShared: (vaultId, shared) => {
@@ -2170,7 +2170,7 @@ export const useEtherMailStore = create<EtherMailState>()(
                     memberIds: s.orgMembers
                       .filter((m) => m.status === 'active')
                       .map((m) => m.id),
-                    permission: 'read' as VaultSharePermission,
+                    permission: 'read',
                   },
                 ]
             : s.vaultShares.filter((vs) => vs.vaultId !== vaultId),
@@ -2451,7 +2451,7 @@ export const useEtherMailStore = create<EtherMailState>()(
           next = { ...next, gmailSyncingAccountId: null }
         }
         if (version < 12) {
-          next = { ...next, planTier: 'free' as PlanTier }
+          next = { ...next, planTier: 'free' }
         }
         if (version < 13) {
           next = {
@@ -2664,6 +2664,11 @@ export function useAIAlerts() {
   const alertMeta = useEtherMailStore((s) => s.alertMeta)
 
   const computed = computeAIAlerts(notes, emails, calendarEvents, accounts)
+  // Snapshot the current time to compare against stored snooze timestamps. Filtering
+  // only re-runs when this hook's consumer re-renders for another reason (store change),
+  // so a snooze can take effect a little late — a real reactive clock (timer + state)
+  // would be needed to fix that precisely, which is a bigger change than this lint pass.
+  // eslint-disable-next-line react-hooks/purity
   const now = Date.now()
   return computed
     .filter((a) => {

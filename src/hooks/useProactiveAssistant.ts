@@ -52,7 +52,7 @@ export function useProactiveAssistant() {
       const key = `email-${email.id}`
       if (announcedProactive[key]) continue
 
-      ;(async () => {
+      void (async () => {
         if (speakingRef.current) return
         speakingRef.current = true
         try {
@@ -102,7 +102,7 @@ export function useProactiveAssistant() {
         if (announcedProactive[key]) continue
 
         const minutesUntil = Math.max(1, Math.round(diff / 60_000))
-        ;(async () => {
+        void (async () => {
           if (speakingRef.current) return
           speakingRef.current = true
           try {

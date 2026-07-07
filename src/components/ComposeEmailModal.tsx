@@ -65,10 +65,35 @@ export function ComposeEmailModal() {
   const [scheduleLater, setScheduleLater] = useState(false)
   const [scheduledAt, setScheduledAt] = useState(() => scheduledAtFromPreset('tomorrow9'))
 
+  const [prevComposeDraft, setPrevComposeDraft] = useState(composeDraft)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
   const bodyRef = useRef<HTMLTextAreaElement>(null)
 
   const templates = getEmailTemplates(notes)
+
+  // Reset the form whenever a new compose session starts, computed during render
+  // (see https://react.dev/learn/you-might-not-need-an-effect) instead of a
+  // setState-in-effect keyed on the composeDraft reference.
+  if (composeDraft !== prevComposeDraft) {
+    setPrevComposeDraft(composeDraft)
+    if (composeDraft) {
+      setTo(composeDraft.to)
+      setCc(composeDraft.cc ?? '')
+      setBcc(composeDraft.bcc ?? '')
+      setSubject(composeDraft.subject)
+      setBody(composeDraft.body)
+      setAccountId(composeDraft.accountId)
+      setShowCcBcc(!!(composeDraft.cc || composeDraft.bcc))
+      setAttachments(composeDraft.attachments ?? [])
+      setAttachError(null)
+      setSavedHint(null)
+      setPanel('none')
+      setReplyToEmail(undefined)
+      setScheduleLater(!!composeDraft.scheduledAt)
+      setScheduledAt(composeDraft.scheduledAt ?? scheduledAtFromPreset('tomorrow9'))
+    }
+  }
 
   useEffect(() => {
     if (!composeDraft) return
@@ -76,24 +101,6 @@ export function ComposeEmailModal() {
       bodyRef.current?.focus()
     }, 350)
     return () => window.clearTimeout(focusTimer)
-  }, [composeDraft])
-
-  useEffect(() => {
-    if (!composeDraft) return
-    setTo(composeDraft.to)
-    setCc(composeDraft.cc ?? '')
-    setBcc(composeDraft.bcc ?? '')
-    setSubject(composeDraft.subject)
-    setBody(composeDraft.body)
-    setAccountId(composeDraft.accountId)
-    setShowCcBcc(!!(composeDraft.cc || composeDraft.bcc))
-    setAttachments(composeDraft.attachments ?? [])
-    setAttachError(null)
-    setSavedHint(null)
-    setPanel('none')
-    setReplyToEmail(undefined)
-    setScheduleLater(!!composeDraft.scheduledAt)
-    setScheduledAt(composeDraft.scheduledAt ?? scheduledAtFromPreset('tomorrow9'))
   }, [composeDraft])
 
   const buildDraft = useCallback((): ComposeDraft => {
@@ -422,7 +429,7 @@ export function ComposeEmailModal() {
             type="file"
             multiple
             className="hidden"
-            onChange={(e) => handleFiles(e.target.files)}
+            onChange={(e) => void handleFiles(e.target.files)}
           />
           <button
             type="button"
@@ -503,7 +510,7 @@ export function ComposeEmailModal() {
                       <button
                         type="button"
                         disabled={aiLoading}
-                        onClick={() => runAiTemplate(tpl.id)}
+                        onClick={() => void runAiTemplate(tpl.id)}
                         className="text-xs px-2 py-1 rounded-full btn-accent flex items-center gap-1 disabled:opacity-50"
                       >
                         {aiLoading ? <Loader2 size={10} className="animate-spin" /> : <Wand2 size={10} />}
@@ -539,7 +546,7 @@ export function ComposeEmailModal() {
                       key={action}
                       type="button"
                       disabled={aiLoading || !body.trim()}
-                      onClick={() => runAssist(action)}
+                      onClick={() => void runAssist(action)}
                       className="text-xs px-2.5 py-1 rounded-full glass hover-theme text-theme-secondary disabled:opacity-40"
                     >
                       {label}

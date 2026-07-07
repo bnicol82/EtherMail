@@ -277,7 +277,7 @@ export function CalendarView() {
                     type="file"
                     accept=".ics,text/calendar"
                     className="hidden"
-                    onChange={(e) => handleImport(e.target.files)}
+                    onChange={(e) => void handleImport(e.target.files)}
                   />
                 </>
               )}

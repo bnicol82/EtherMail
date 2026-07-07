@@ -35,16 +35,17 @@ export function DayCalendarCarousel({
   const viewportRef = useRef<HTMLDivElement>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const dayRefs = useRef<Map<string, HTMLDivElement>>(new Map())
-  const anchorDay = useRef(startOfDay(today))
+  // Fixed at mount (never changes after), so plain state is safe to read during
+  // render — unlike a ref, whose .current React doesn't guarantee is stable to
+  // read directly in the render phase.
+  const [anchorDay] = useState(() => startOfDay(today))
   const skipFeedback = useRef(false)
   const [colWidth, setColWidth] = useState(0)
 
   const days = useMemo(
     () =>
-      Array.from({ length: TOTAL_DAYS }, (_, i) =>
-        addDays(anchorDay.current, i - CENTER_INDEX),
-      ),
-    [],
+      Array.from({ length: TOTAL_DAYS }, (_, i) => addDays(anchorDay, i - CENTER_INDEX)),
+    [anchorDay],
   )
 
   const focusIndex = useMemo(

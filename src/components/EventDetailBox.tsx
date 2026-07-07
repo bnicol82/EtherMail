@@ -129,7 +129,7 @@ export function EventDetailBox({ event, color, onClose }: Props) {
             <button
               type="button"
               onClick={() => {
-                openMeetingPrepBrief(event.id)
+                void openMeetingPrepBrief(event.id)
                 onClose()
               }}
               className="flex items-center gap-1.5 px-3 py-2 rounded-xl btn-accent text-xs"

@@ -93,7 +93,7 @@ export function MembersPanel() {
               </span>
               <select
                 value={member.role}
-                onChange={(e) => updateOrgMemberRole(member.id, e.target.value as OrgRole)}
+                onChange={(e) => void updateOrgMemberRole(member.id, e.target.value as OrgRole)}
                 className="text-xs px-2 py-1 rounded-lg input-theme outline-none"
               >
                 {ROLES.map((r) => (
@@ -104,7 +104,7 @@ export function MembersPanel() {
               </select>
               <button
                 type="button"
-                onClick={() => removeOrgMember(member.id)}
+                onClick={() => void removeOrgMember(member.id)}
                 className="p-1.5 rounded-lg hover-theme text-theme-muted hover:text-red-400"
                 aria-label={`Remove ${member.email}`}
               >

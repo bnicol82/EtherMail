@@ -1,5 +1,5 @@
 import { AlertTriangle, Bell, Calendar, Check, ChevronDown, ChevronUp, Mail, ListTodo, FolderOpen, X } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useEtherMailStore, useAIAlerts } from '../store/useStore'
 import { SnoozeMenu } from './SnoozeMenu'
 import type { AIAlert, AIAlertCategory } from '../types'
@@ -43,10 +43,12 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
 
   const unreadCount = alerts.filter((a) => !a.read).length
   const [expanded, setExpanded] = useState(true)
+  const [prevUnreadCount, setPrevUnreadCount] = useState(unreadCount)
 
-  useEffect(() => {
+  if (unreadCount !== prevUnreadCount) {
+    setPrevUnreadCount(unreadCount)
     if (unreadCount > 0) setExpanded(true)
-  }, [unreadCount])
+  }
 
   if (alerts.length === 0) {
     if (variant === 'dock') return null
@@ -64,13 +66,13 @@ export function AIAlertsPanel({ variant = 'inline' }: Props) {
   const runSecondaryAction = (alert: AIAlert) => {
     markAlertRead(alert.id)
     if (alert.secondaryActionLabel === 'Prep brief' && alert.sourceId) {
-      openMeetingPrepBrief(alert.sourceId)
+      void openMeetingPrepBrief(alert.sourceId)
       return
     }
     if (alert.secondaryActionQuery) {
       setView('ai')
       setAiAssistantOpen(true)
-      submitAiQuery(alert.secondaryActionQuery)
+      void submitAiQuery(alert.secondaryActionQuery)
     }
   }
 

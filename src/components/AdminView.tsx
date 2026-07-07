@@ -19,7 +19,6 @@ import {
   FEATURE_CATALOG,
   FEATURE_CATEGORIES,
   type FeatureCategory,
-  type FeatureId,
   type OrgRole,
 } from '../types/admin'
 import { PLAN_LABELS, type PlanTier } from '../lib/plan'
@@ -312,7 +311,7 @@ export function AdminView() {
 
             <div className="space-y-2">
               {filteredFeatures.map((feature) => {
-                const allowed = orgPolicy.features[feature.id as FeatureId]
+                const allowed = orgPolicy.features[feature.id]
                 return (
                   <div
                     key={feature.id}
@@ -333,7 +332,7 @@ export function AdminView() {
                       type="button"
                       role="switch"
                       aria-checked={allowed}
-                      onClick={() => setOrgFeature(feature.id as FeatureId, !allowed)}
+                      onClick={() => setOrgFeature(feature.id, !allowed)}
                       className={`shrink-0 relative w-11 h-6 rounded-full transition-colors ${
                         allowed ? 'bg-accent' : 'bg-theme-muted/30'
                       }`}

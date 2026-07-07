@@ -22,7 +22,7 @@ export function CopyButton({ text, label = 'Copy', className = '', size = 14 }: 
   return (
     <button
       type="button"
-      onClick={onCopy}
+      onClick={() => void onCopy()}
       disabled={!text.trim()}
       className={`p-1 rounded-lg hover-theme text-theme-muted disabled:opacity-40 flex items-center gap-1 ${className}`}
       title={copied ? 'Copied' : label}

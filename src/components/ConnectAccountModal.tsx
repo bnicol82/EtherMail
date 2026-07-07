@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Check, Loader2, Shield, X } from 'lucide-react'
 import { useEtherMailStore } from '../store/useStore'
 import { getProviderConfig } from '../lib/oauth/providers'
@@ -26,16 +26,21 @@ export function ConnectAccountModal() {
   const [step, setStep] = useState<Step>('consent')
   const [error, setError] = useState<string | null>(null)
   const [importStats, setImportStats] = useState<ImportStats | null>(null)
+  const [prevConnectingAccountId, setPrevConnectingAccountId] = useState(connectingAccountId)
 
   const account = accounts.find((a) => a.id === connectingAccountId)
 
-  useEffect(() => {
+  // Reset the wizard whenever a new connect session starts, computed during render
+  // (see https://react.dev/learn/you-might-not-need-an-effect) instead of a
+  // setState-in-effect.
+  if (connectingAccountId !== prevConnectingAccountId) {
+    setPrevConnectingAccountId(connectingAccountId)
     if (connectingAccountId) {
       setStep('consent')
       setError(null)
       setImportStats(null)
     }
-  }, [connectingAccountId])
+  }
 
   if (!account) return null
 
@@ -146,7 +151,7 @@ export function ConnectAccountModal() {
                   Cancel
                 </button>
                 <button
-                  onClick={handleAllow}
+                  onClick={() => void handleAllow()}
                   className="flex-1 py-2.5 rounded-xl text-sm font-medium text-white"
                   style={{ background: config.brandColor }}
                 >

@@ -74,7 +74,7 @@ export function ShareNoteButton({ note, className = '' }: Props) {
           {canExport && (
             <button
               type="button"
-              onClick={() => run(() => exportNotePdf(note))}
+              onClick={() => void run(() => exportNotePdf(note))}
               className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
             >
               <Printer size={14} className="text-accent shrink-0" />
@@ -84,7 +84,7 @@ export function ShareNoteButton({ note, className = '' }: Props) {
           {canShare && (
             <button
               type="button"
-              onClick={() => run(() => shareNote(note))}
+              onClick={() => void run(() => shareNote(note))}
               className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
             >
               <Share2 size={14} className="text-accent shrink-0" />
@@ -94,7 +94,7 @@ export function ShareNoteButton({ note, className = '' }: Props) {
           {canExport && (
             <button
               type="button"
-              onClick={() => run(() => copyNoteMarkdown(note))}
+              onClick={() => void run(() => copyNoteMarkdown(note))}
               className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
             >
               <Copy size={14} className="text-accent shrink-0" />
@@ -104,10 +104,12 @@ export function ShareNoteButton({ note, className = '' }: Props) {
           {canExport && (
             <button
               type="button"
-              onClick={() => run(() => {
-                downloadNoteHtml(note)
-                return 'downloaded'
-              })}
+              onClick={() =>
+                void run(() => {
+                  downloadNoteHtml(note)
+                  return 'downloaded'
+                })
+              }
               className="w-full flex items-center gap-2 px-2.5 py-2 rounded-lg text-xs text-theme-secondary hover-theme text-left"
             >
               <FileText size={14} className="text-accent shrink-0" />

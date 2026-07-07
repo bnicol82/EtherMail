@@ -1,7 +1,7 @@
 import type { FeatureId, FeaturePolicy, OrgPolicy } from '../types/admin'
 import { FEATURE_CATALOG } from '../types/admin'
 
-const ALL_FEATURE_IDS = FEATURE_CATALOG.map((f) => f.id) as FeatureId[]
+const ALL_FEATURE_IDS = FEATURE_CATALOG.map((f) => f.id)
 
 /** Build a policy map with every feature set to the same value */
 export function buildFeaturePolicy(allowed: boolean): FeaturePolicy {

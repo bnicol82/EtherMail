@@ -292,7 +292,7 @@ export function EmailView() {
 
   const runAiAction = (action: string) => {
     setAiAssistantOpen(true)
-    submitAiQuery(action, aiCtx.contextPrefix)
+    void submitAiQuery(action, aiCtx.contextPrefix)
   }
 
   const inboxTitle = activeAccount ? activeAccount.email : 'Unified Inbox'

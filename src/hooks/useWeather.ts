@@ -10,6 +10,9 @@ export function useWeather() {
 
   useEffect(() => {
     let cancelled = false
+    // Loading/error flags must flip as soon as a new fetch starts (matches the
+    // data-fetching pattern at https://react.dev/reference/react/useEffect#fetching-data-with-effects).
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setError(false)
 

@@ -270,7 +270,7 @@ export function VaultView() {
   const aiAction = (action: string) => {
     const ctx = getAIContext('vault', { activeNote, emails, notes })
     setAiAssistantOpen(true)
-    submitAiQuery(action, ctx.contextPrefix)
+    void submitAiQuery(action, ctx.contextPrefix)
   }
 
   const openSourceEmail = (emailId: string) => {

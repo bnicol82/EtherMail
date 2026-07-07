@@ -86,7 +86,7 @@ export function NotesView() {
   const aiAction = (action: string) => {
     const ctx = getAIContext('notes', { activeNote, emails, notes })
     setAiAssistantOpen(true)
-    submitAiQuery(action, ctx.contextPrefix)
+    void submitAiQuery(action, ctx.contextPrefix)
   }
 
   const sidebarProps = activeNote

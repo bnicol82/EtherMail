@@ -23,9 +23,26 @@ export function CommandPalette() {
 
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
+  const [prevOpen, setPrevOpen] = useState(open)
+  const [prevQuery, setPrevQuery] = useState(query)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const results = globalSearch(query, notes, emails, calendarEvents)
+
+  // Reset the search state whenever the palette opens or the query changes,
+  // computed during render (see https://react.dev/learn/you-might-not-need-an-effect)
+  // instead of syncing via a setState-in-effect.
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) {
+      setQuery('')
+      setPrevQuery('')
+      setActiveIndex(0)
+    }
+  } else if (query !== prevQuery) {
+    setPrevQuery(query)
+    setActiveIndex(0)
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,16 +59,10 @@ export function CommandPalette() {
   }, [open, setCommandPaletteOpen])
 
   useEffect(() => {
-    if (open) {
-      setQuery('')
-      setActiveIndex(0)
-      setTimeout(() => inputRef.current?.focus(), 50)
-    }
+    if (!open) return
+    const t = setTimeout(() => inputRef.current?.focus(), 50)
+    return () => clearTimeout(t)
   }, [open])
-
-  useEffect(() => {
-    setActiveIndex(0)
-  }, [query])
 
   if (!open) return null
 

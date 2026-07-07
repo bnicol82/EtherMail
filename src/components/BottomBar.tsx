@@ -68,7 +68,10 @@ export function BottomBar() {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const activeEmail = emails.find((e) => e.id === activeEmailId) ?? null
-  const activeNote = notes.find((n) => n.id === activeNoteId) ?? null
+  const activeNote = useMemo(
+    () => notes.find((n) => n.id === activeNoteId) ?? null,
+    [notes, activeNoteId],
+  )
   const ctx = getAIContext(view, { activeEmail, activeNote, emails, notes })
   const hasResponse = aiLoading || aiContextResponse
 
@@ -151,7 +154,7 @@ export function BottomBar() {
           {ctx.suggestions.map((s) => (
             <button
               key={s}
-              onClick={() => submitAiQuery(s, ctx.contextPrefix)}
+              onClick={() => void submitAiQuery(s, ctx.contextPrefix)}
               disabled={aiLoading}
               className="text-[10px] sm:text-[11px] px-2 py-0.5 sm:py-1 rounded-full glass hover-theme text-theme-secondary disabled:opacity-50 whitespace-nowrap shrink-0"
             >
@@ -243,13 +246,13 @@ export function BottomBar() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') submit()
+              if (e.key === 'Enter') void submit()
             }}
             placeholder={ctx.placeholder}
             className="flex-1 min-w-0 px-3 py-1.5 sm:py-2 rounded-lg input-theme text-sm sm:text-base outline-none focus:border-[var(--accent-border)]"
           />
           <button
-            onClick={submit}
+            onClick={() => void submit()}
             disabled={aiLoading || !input.trim()}
             className="p-1.5 sm:p-2 rounded-lg btn-accent disabled:opacity-40 shrink-0"
             aria-label="Ask AI"

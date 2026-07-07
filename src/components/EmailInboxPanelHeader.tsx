@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import {
   Search,
   X,
@@ -153,14 +153,16 @@ export function EmailInboxPanelHeader({
   const [labelsOpen, setLabelsOpen] = useState(!!activeLabelFilter)
   const [aiDetailsOpen, setAiDetailsOpen] = useState(aiOutboxEnabled)
   const [confirmDeleteOutbox, setConfirmDeleteOutbox] = useState(false)
+  const [prevAiOutboxEnabled, setPrevAiOutboxEnabled] = useState(aiOutboxEnabled)
 
-  useEffect(() => {
+  // Sync UI state to aiOutboxEnabled, computed during render (see
+  // https://react.dev/learn/you-might-not-need-an-effect) instead of a
+  // setState-in-effect.
+  if (aiOutboxEnabled !== prevAiOutboxEnabled) {
+    setPrevAiOutboxEnabled(aiOutboxEnabled)
     if (aiOutboxEnabled) setAiDetailsOpen(true)
-  }, [aiOutboxEnabled])
-
-  useEffect(() => {
-    if (!aiOutboxEnabled) setConfirmDeleteOutbox(false)
-  }, [aiOutboxEnabled])
+    else setConfirmDeleteOutbox(false)
+  }
 
   const aiActive = isInbox && (aiInboxEnabled || aiOutboxEnabled)
   const labelsActive = !!activeLabelFilter

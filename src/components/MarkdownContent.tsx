@@ -1,6 +1,6 @@
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import type { ReactNode } from 'react'
+import { isValidElement, type ReactNode } from 'react'
 import { useNexusStore } from '../store/useStore'
 import { preprocessWikiLinks } from '../lib/markdownWiki'
 import {
@@ -15,8 +15,17 @@ interface Props {
   onWikiLinkClick?: (title: string) => void
 }
 
+/** Flattens heading content (which may include bold/italic/code inline nodes) to plain text. */
+function extractText(node: ReactNode): string {
+  if (node === null || node === undefined || typeof node === 'boolean') return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(extractText).join('')
+  if (isValidElement<{ children?: ReactNode }>(node)) return extractText(node.props.children)
+  return ''
+}
+
 function headingId(children: ReactNode): string {
-  const text = typeof children === 'string' ? children : String(children ?? '')
+  const text = extractText(children)
   return slugifyHeading(text.replace(/\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g, '$1'))
 }
 

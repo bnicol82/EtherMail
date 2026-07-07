@@ -24,7 +24,7 @@ export function getClientIdForProvider(
   const id = settings[config.clientIdKey]?.trim()
   if (id) return id
   if (config.clientIdKey === 'googleClientId' && import.meta.env.VITE_GOOGLE_CLIENT_ID) {
-    return import.meta.env.VITE_GOOGLE_CLIENT_ID as string
+    return import.meta.env.VITE_GOOGLE_CLIENT_ID
   }
   return null
 }
@@ -85,7 +85,7 @@ export async function handleOAuthCallback(
   const raw = sessionStorage.getItem(OAUTH_SESSION_KEY)
   if (!raw) return null
 
-  const pending: PendingOAuth = JSON.parse(raw)
+  const pending = JSON.parse(raw) as PendingOAuth
   if (pending.state !== state) return null
 
   sessionStorage.removeItem(OAUTH_SESSION_KEY)
